@@ -1,0 +1,15 @@
+Description: Fix typo in README file
+Forwarded: no
+Author: Daniel Echeverry <epsilon77@gmail.com>
+Last-Update: 2016-02-14
+--- a/README
++++ b/README
+@@ -10,7 +10,7 @@ ping requests and replies.
+ 
+ Contact details
+ ---------------
+-You can the author, Daniel Stoedle, here:
++You can contact the author, Daniel Stoedle, here:
+    <daniels@cs.uit.no>
+ The official ptunnel website is located here:
+    <http://www.cs.uit.no/~daniels/PingTunnel/>

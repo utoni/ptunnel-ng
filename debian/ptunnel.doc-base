@@ -1,0 +1,10 @@
+Document: ptunnel
+Title: Debian ptunnel manual
+Author: Daniel Stoedle <daniels@cs.uit.no>
+Abstract: This manual describes how works ptunnel and how use it.
+Section: Network/Communication
+
+Format: HTML
+Index: /usr/share/doc/ptunnel/index.html
+Files: /usr/share/doc/ptunnel/index.html
+

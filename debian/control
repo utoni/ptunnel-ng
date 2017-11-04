@@ -1,0 +1,22 @@
+Source: ptunnel
+Section: net
+Priority: optional
+Maintainer: Debian QA Group <packages@qa.debian.org>
+Build-Depends: debhelper (>= 9),
+               libpcap0.8-dev | libpcap-dev,
+               libselinux1-dev [linux-any],
+               patchutils (>= 0.2.25)
+Standards-Version: 3.9.7
+Homepage: http://www.cs.uit.no/~daniels/PingTunnel/
+
+Package: ptunnel
+Architecture: any
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Description: Tunnel TCP connections over ICMP packets
+ ptunnel is an application that allows you to reliably tunnel TCP
+ connections to a remote host using ICMP echo request and reply
+ packets, commonly known as ping requests and replies. It acts as
+ a proxy and can handle sockets and secured identification.
+ .
+ Those features can be very handy when working in a closed networking
+ environment with firewalls and proxies.

@@ -1,0 +1,80 @@
+ptunnel (0.72-1) unstable; urgency=medium
+
+  * QA upload.
+  * New upstream release. Closes: #685305
+  * Switch to dpkg-source 3.0 (quilt) format.
+  * debian/copyright:
+    + Rewrite following copyright-format 1.0.
+  * debian/control
+    + Set QA team as Maintainer.
+    + Change debhelper to 9 in B-D.
+    + Bump Standards-Version to 3.9.7
+    + Remove cbds and quilt from B-D.
+    + Use dpkg architecture wildcards. Closes: #634477
+  * debian/compat
+    + Switch compat level 7 to 9.
+  * Use wrap-and-sort.
+  * Remove control.in file.
+  * Remove dirs file.
+  * Rename docs file to ptunnel.docs.
+    + Install only useful files: index.html, 
+      packet-format.png, setup.png
+  * debian/patches
+    + Add add_hardening_flags.diff
+      + Set correctly hardening flags.
+    + Add DEP-3 header to fix_minux_chars_in_man.patch
+    + Add fix_typo.diff to fix typo error in README. Closes: #597288
+    + Rename makefile-debian-prefix to makefile-debian-prefix.patch
+      + Add DEP-3 header to makefile-debian-prefix.patch
+  * Add ptunnel.doc-base file.
+  * debian/rules
+    + Use Hardening flags.
+  * Update watch file.
+
+ -- Daniel Echeverry <epsilon77@gmail.com>  Sat, 13 Feb 2016 20:49:23 -0500
+
+ptunnel (0.71-2) unstable; urgency=low
+
+  * Updated build-dep to allow building 
+    in non-linux port. Thanks to Cyril Brulebois
+    for reporting the issue.
+  Closes: #559717 
+  * Bumped standards-version to 3.8.3
+  * Added Homepage:
+
+ -- Romain Beauxis <toots@rastageeks.org>  Wed, 09 Dec 2009 10:29:11 -0600
+
+ptunnel (0.71-1) unstable; urgency=low
+
+  * New upstream release.
+  * Updated standards to 3.8.2
+  * Bumped compat to 7 
+  * Refreshed patches.
+  * Added build-dep on libselinux1-dev to enable SELinux support.
+
+ -- Romain Beauxis <toots@rastageeks.org>  Thu, 30 Jul 2009 04:57:07 +0200
+
+ptunnel (0.70-1) unstable; urgency=low
+
+  * New upstream release 
+  * Updated standards to 3.8.0
+  * Reverted build-deps on libpcap
+  * Updated debian/copyright
+
+ -- Romain Beauxis <toots@rastageeks.org>  Wed, 25 Feb 2009 03:06:53 +0100
+
+ptunnel (0.61-2) unstable; urgency=low
+
+  * Wrapped description to 70th col (Closes: #325809)
+  * Switched to cdbs
+  * Updated debian standards
+  * Added patch to correct the manual page
+
+ -- Romain Beauxis <toots@rastageeks.org>  Sun, 18 Feb 2007 13:39:47 +0100
+
+ptunnel (0.61-1) unstable; urgency=low
+
+  * Initial release Closes: #311348
+
+ -- Romain Beauxis <toots@rastageeks.org>  Tue, 31 May 2005 20:49:25 +0200
+
