@@ -2,7 +2,7 @@
 # (c) 2004-2009 Daniel Stoedle, daniels@cs.uit.no
 # ptunnel.exe target added by Mike Miller, mike@mikeage.net
 
-CC	 		= gcc
+CC		= gcc
 CFLAGS		= -Wall -g
 LDOPTS		= -lpthread -lpcap
 PT_OBJS		= ptunnel.o md5.o

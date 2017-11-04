@@ -89,6 +89,7 @@
 
 enum {
 	kOpt_undefined			= 0,		//	Constants for parsing options
+	kOpt_set_magic,
 	kOpt_set_proxy_addr,
 	kOpt_set_mode,
 	kOpt_set_password,
@@ -105,47 +106,47 @@ enum {
 	kOpt_set_root_dir,
 	kOpt_set_selinux_context,
 	kOpt_daemonize,
-	
+
 	kMode_forward			= 0,	//	Ping tunnel's operating mode (client or
-	kMode_proxy,					//	proxy)
-	
+	kMode_proxy,				//	proxy)
+
 	kMax_tunnels			= 10,/*	Set this constant to the number of concurrent
-									connections you wish to handle by default. */
-	
-	kNo_log					= -1,	//	Different verbosity levels.
-	kLog_error				= 0,
+						connections you wish to handle by default. */
+
+	kNo_log				= -1,	//	Different verbosity levels.
+	kLog_error			= 0,
 	kLog_info,
 	kLog_event,
 	kLog_verbose,
 	kLog_debug,
 	kLog_sendrecv,
-	
+
 	kMajor_version			= 0,	//	Major (0.xx) and minor (x.70) version
 	kMinor_version			= 72,	//	numbers.
-	
+
 	kIP_packet_max_size		= 576,
 	kIP_header_size			= 20,	//	In bytes, mind you
 	kIP_actual_size			= (kIP_packet_max_size - kIP_header_size) - ((kIP_packet_max_size - kIP_header_size) % 8),
 	kICMP_header_size		= 8,	//	Also in bytes
-	
+
 	kDefault_buf_size		= 1024,	/*	This constant control the maximum size of
-										the payload-portion of the ICMP packets
-										we send. Note that this does not include
-										the IP or ICMP headers!	*/
-	
+							the payload-portion of the ICMP packets
+							we send. Note that this does not include
+							the IP or ICMP headers!	*/
+
 	kICMP_echo_request		= 8,	//	Type code for echo request and replies
 	kICMP_echo_reply		= 0,
-	
+
 	kPing_window_size		= 64,	// number of packets we can have in our send/receive ring
-	
+
 	/*	Tunnels are automatically closed after one minute of inactivity. Since
 		we continously send acknowledgements between the two peers, this mechanism
 		won't disconnect "valid" connections.
 	*/
 	kAutomatic_close_timeout	= 60,	//	Seconds!
-	
+
 	kMD5_digest_size		= 16,	//	size of md5 digest in bytes
-	
+
 	/*	These constants are used to indicate the protocol state. The protocol
 		works as follows:
 		- The identifier is used by both the proxy and the forwarder
@@ -157,18 +158,18 @@ enum {
 		kProxy_start		Causes the proxy to open a connection to the given
 							host and port, associating the ID with the socket,
 							before the data on the socket are transmitted.
-		kProxy_data			Indicates that the packet contains data from the proxy.
+		kProxy_data		Indicates that the packet contains data from the proxy.
 							Data ordering is indicated by the seq-no, which will start
 							at 0. (The proxy and forwarder maintain different seq-nos.)
-		kUser_data			This packet contains user data.
+		kUser_data		This packet contains user data.
 		kConnection_close	Indicates that the connection is being closed.
 		kProxy_ack and		Acknowledges the packet (and all packets before it) with seq_no = ack.
-		kUser_ack			This is used if there are no implicit acknowledgements due to data
+		kUser_ack		This is used if there are no implicit acknowledgements due to data
 							being sent.
-		
+
 		Acknowledgements work by the remote peer acknowledging the last
 		continuous seq no it has received.
-		
+
 		Note: A proxy receiving a kProxy_data packet, or a user receiving a
 		kUser_data packet, should ignore it, as it is the host operating system
 		actually returning the ping. This is mostly relevant for users, and for
@@ -180,15 +181,15 @@ enum {
 	kProto_close,
 	kProto_authenticate,
 	kNum_proto_types,
-	
-	kUser_flag				= 1 << 30,	//	set when packet comes from a user
-	kProxy_flag				= 1 << 31,	//	set when packet comes from the proxy
-	kFlag_mask				= kUser_flag | kProxy_flag,
-	
-	kDNS_port				= 53,
+
+	kUser_flag			= 1 << 30,	//	set when packet comes from a user
+	kProxy_flag			= 1 << 31,	//	set when packet comes from the proxy
+	kFlag_mask			= kUser_flag | kProxy_flag,
+
+	kDNS_port			= 53,
 };
 
-#define	kPing_tunnel_magic		0xD5200880
+#define	kPing_tunnel_magic		0xDEADC0DE
 //	Resend packets after this interval (in seconds)
 #define	kResend_interval		1.5
 
@@ -198,15 +199,18 @@ enum {
 	in packets from the client to the proxy.
 */
 typedef struct {
-	uint32_t	magic,		//	magic number, used to identify ptunnel packets.
-				dst_ip,		//	destination IP and port (used by proxy to figure
-				dst_port,	//	out where to tunnel to)
-				state,		//	current connection state; see constants above.
-				ack,		//	sequence number of last packet received from other end
-				data_len;	//	length of data buffer
-	uint16_t	seq_no,		//	sequence number of this packet
-				id_no;		//	id number, used to separate different tunnels from each other
-	char		data[0];	//	optional data buffer
+	uint32_t
+		magic,		//	magic number, used to identify ptunnel packets.
+		dst_ip,		//	destination IP and port (used by proxy to figure
+		dst_port,	//	out where to tunnel to)
+		state,		//	current connection state; see constants above.
+		ack,		//	sequence number of last packet received from other end
+		data_len;	//	length of data buffer
+	uint16_t
+		seq_no,		//	sequence number of this packet
+		id_no;		//	id number, used to separate different tunnels from each other
+	char
+		data[0];	//	optional data buffer
 } __attribute__ ((packed)) ping_tunnel_pkt_t;
 
 
@@ -215,17 +219,23 @@ typedef struct {
 	(or even the RFC) for info on the contents of this packet.
 */
 typedef struct {
-	uint8_t			vers_ihl,
-					tos;
-	uint16_t		pkt_len,
-					id,
-					flags_frag_offset;
-	uint8_t			ttl,
-					proto;	// 1 for ICMP
-	uint16_t		checksum;
-	uint32_t		src_ip,
-					dst_ip;
-	char			data[0];
+	uint8_t
+		vers_ihl,
+		tos;
+	uint16_t
+		pkt_len,
+		id,
+		flags_frag_offset;
+	uint8_t
+		ttl,
+		proto;	// 1 for ICMP
+	uint16_t
+		checksum;
+	uint32_t
+		src_ip,
+		dst_ip;
+	char
+		data[0];
 } __attribute__ ((packed)) ip_packet_t;
 
 
@@ -239,12 +249,15 @@ typedef struct {
 	taken care of by the OS.
 */
 typedef struct {
-	uint8_t			type,
-					code;
-	uint16_t		checksum,
-					identifier,
-					seq;
-	char			data[0];
+	uint8_t
+		type,
+		code;
+	uint16_t
+		checksum,
+		identifier,
+		seq;
+	char
+		data[0];
 } __attribute__ ((packed)) icmp_echo_packet_t;
 
 
@@ -254,29 +267,32 @@ typedef struct {
 	to.
 */
 typedef struct {
-	int			sock;
+	int
+		sock;
 } pt_thread_info_t;
 
 
 /*	forward_desc_t: Describes a piece of that needs to be forwarded. This
 	structure is used for receiving data from the network, and for subsequent
 	forwarding over TCP:
-	
+
 	1. Client sends data to proxy over ICMP
 	2. Proxy receives the data, and puts it into a forward_desc_t
 	3. The proxy starts send()-ing the data over the TCP socket to the destination,
 	   decreasing forward_desc_t->remaining with the number of bytes transferred.
 	4. Once remaining reaches 0, the forward_desc_t is removed from the receive
 	   ring.
-	
+
 	The same procedure is followed in proxy-to-client communication. Just replace
 	proxy with client and vice versa in the list above.
 */
 typedef struct {
-	int			seq_no,		//	ping_tunnel_pkt_t seq_no
-				length,		//	length of data
-				remaining;	//	amount of data not yet transferred
-	char		data[0];
+	int
+		seq_no,		//	ping_tunnel_pkt_t seq_no
+		length,		//	length of data
+		remaining;	//	amount of data not yet transferred
+	char
+		data[0];
 } forward_desc_t;
 
 
@@ -287,11 +303,12 @@ typedef struct {
 	ICMP packets.
 */
 typedef struct {
-	int					pkt_len;		// total length of ICMP packet, including ICMP header and ptunnel data.
-	double				last_resend;
-	int					resend_count;
-	uint16_t			seq_no,
-						icmp_id;
+	int	pkt_len;	//	total length of ICMP packet, including ICMP header and ptunnel data.
+	double	last_resend;
+	int	resend_count;
+	uint16_t
+		seq_no,
+		icmp_id;
 	icmp_echo_packet_t	*pkt;
 } icmp_desc_t;
 
@@ -300,9 +317,10 @@ typedef struct {
 	authentication.
 */
 typedef struct challenge_t {
-	uint32_t			sec,		//	tv_sec as returned by gettimeofday
-						usec_rnd,	//	tv_usec as returned by gettimeofday + random value
-						random[6];	//	random values
+	uint32_t
+		sec,		//	tv_sec as returned by gettimeofday
+		usec_rnd,	//	tv_usec as returned by gettimeofday + random value
+		random[6];	//	random values
 } __attribute__ ((packed)) challenge_t;
 
 
@@ -310,79 +328,102 @@ typedef struct challenge_t {
 	number of ping packets sent/received, etc.
 */
 typedef struct xfer_stats_t {
-	double				bytes_in,
-						bytes_out;
-	uint32_t			icmp_in,
-						icmp_out,
-						icmp_resent,
-						icmp_ack_out;
+	double
+		bytes_in,
+		bytes_out;
+	uint32_t
+		icmp_in,
+		icmp_out,
+		icmp_resent,
+		icmp_ack_out;
 } xfer_stats_t;
 
 
 /*	proxy_desc_t: This massive structure describes a tunnel instance.
 */
 typedef struct proxy_desc_t {
-	int					sock,			//	ICMP or UDP socket
-						bytes,			//	number of bytes in receive buffer
-						should_remove;	//	set to true once this instance should be removed
-	char				*buf;			//	data buffer, used to receive ping and pong packets
-	uint16_t			id_no,
-						my_seq,
-						ping_seq,
-						next_remote_seq,
-						pkt_type,
-						remote_ack_val,
-						icmp_id;
-	int					recv_idx,		//	first available slot in recv ring
-						recv_xfer_idx,	//	current slot in recv ring being transferred
-						send_idx,		//	first available slot in send ring
-						send_first_ack,	//	first packet in send ring not yet acked
-						recv_wait_send,	//	number of items in recv ring awaiting send
-						send_wait_ack,	//	number of items in send ring awaiting ack
-						next_resend_start,
-						authenticated;
-	challenge_t			*challenge;		//	Contains the challenge, if used.
-	uint32_t			state,			//	Protocol state
-						type_flag,		//	Either kProxy_flag or kUser_flag
-						dst_ip,			//	IP and port to which data should be forwarded.
-						dst_port;
-	struct sockaddr_in	dest_addr;		//	Same as above
-	double				last_ack,		//	Time when last ack packet was sent.
-						last_activity;	//	Time when a packet was last received.
-	icmp_desc_t			send_ring[kPing_window_size];
-	forward_desc_t		*recv_ring[kPing_window_size];
-	xfer_stats_t		xfer;
-	struct proxy_desc_t	*next;
+	int
+		sock,		//	ICMP or UDP socket
+		bytes,		//	number of bytes in receive buffer
+		should_remove;	//	set to true once this instance should be removed
+	char	*buf;		//	data buffer, used to receive ping and pong packets
+	uint16_t
+		id_no,
+		my_seq,
+		ping_seq,
+		next_remote_seq,
+		pkt_type,
+		remote_ack_val,
+		icmp_id;
+	int
+		recv_idx,	//	first available slot in recv ring
+		recv_xfer_idx,	//	current slot in recv ring being transferred
+		send_idx,	//	first available slot in send ring
+		send_first_ack,	//	first packet in send ring not yet acked
+		recv_wait_send,	//	number of items in recv ring awaiting send
+		send_wait_ack,	//	number of items in send ring awaiting ack
+		next_resend_start,
+		authenticated;
+	challenge_t
+		*challenge;	//	Contains the challenge, if used.
+	uint32_t
+		state,		//	Protocol state
+		type_flag,	//	Either kProxy_flag or kUser_flag
+		dst_ip,		//	IP and port to which data should be forwarded.
+		dst_port;
+	struct sockaddr_in
+		dest_addr; 	//	Same as above
+	double
+		last_ack,	//	Time when last ack packet was sent.
+		last_activity;	//	Time when a packet was last received.
+	icmp_desc_t
+		send_ring[kPing_window_size];
+	forward_desc_t
+		*recv_ring[kPing_window_size];
+	xfer_stats_t
+		xfer;
+	struct proxy_desc_t
+		*next;
 } proxy_desc_t;
 
 
 /*	pqueue_elem_t: An queue element in the pqueue structure (below).
 */
 typedef struct pqueue_elem_t {
-	int						bytes;		// size of data buffer
-	struct pqueue_elem_t	*next;		// next queue element (if any)
-	char					data[0];	// data (duh!)
+	int
+		bytes;		// size of data buffer
+	struct pqueue_elem_t
+		*next;		// next queue element (if any)
+	char
+		data[0];	// data (duh!)
 } pqueue_elem_t;
 
 
 /*	pqueue_t: A simple queue strucutre.
 */
 typedef struct {
-	pqueue_elem_t	*head,
-					*tail;
-	int				elems;
+	pqueue_elem_t
+		*head,
+		*tail;
+	int
+		elems;
 } pqueue_t;
 
 /*	pcap_info_t: Structure to hold information related to packet capturing.
 */
 typedef struct {
-	pcap_t				*pcap_desc;
-	struct bpf_program	fp;		//	Compiled filter program
-	uint32_t			netp,
-						netmask;
-	char				*pcap_err_buf,	//	Buffers for error and packet info
-						*pcap_data_buf;
-	pqueue_t			pkt_q;			//	Queue of packets to process
+	pcap_t
+		*pcap_desc;
+	struct bpf_program
+		fp;		//	Compiled filter program
+	uint32_t
+		netp,
+		netmask;
+	char
+		*pcap_err_buf,	//	Buffers for error and packet info
+		*pcap_data_buf;
+	pqueue_t
+		pkt_q;		//	Queue of packets to process
 } pcap_info_t;
 
 
@@ -391,12 +432,12 @@ typedef struct {
 	void*		pt_proxy(void *args);
 	void		pcap_packet_handler(u_char *refcon, const struct pcap_pkthdr *hdr, const u_char* pkt);
 	void		handle_packet(char *buf, int bytes, int is_pcap, struct sockaddr_in *addr, int icmp_sock);
-	
+
 	proxy_desc_t*	create_and_insert_proxy_desc(uint16_t id_no, uint16_t icmp_id, int sock, struct sockaddr_in *addr, uint32_t dst_ip, uint32_t dst_port, uint32_t init_state, uint32_t type);
 	void		remove_proxy_desc(proxy_desc_t *cur, proxy_desc_t *prev);
-	
+
 	void		pt_forwarder(void);
-	
+
 	void		print_statistics(xfer_stats_t *xfer, int is_continuous);
 	int			queue_packet(int icmp_sock, uint8_t type, char *buf, int num_bytes, uint16_t id_no, uint16_t icmp_id, uint16_t *seq, icmp_desc_t ring[], int *insert_idx, int *await_send, uint32_t ip, uint32_t port, uint32_t state, struct sockaddr_in *dest_addr, uint16_t next_expected_seq, int *first_ack, uint16_t *ping_seq);
 	uint32_t	send_packets(forward_desc_t *ring[], int *xfer_idx, int *await_send, int *sock);
@@ -406,13 +447,13 @@ typedef struct {
 	void		init_ip_packet(ip_packet_t *packet, uint16_t id, uint16_t frag_offset, uint16_t pkt_len, uint8_t ttl, uint32_t src_ip, uint32_t dst_ip, bool is_last_frag, bool dont_frag);
 	uint16_t	calc_ip_checksum(ip_packet_t *pkt);
 	uint16_t	calc_icmp_checksum(uint16_t *data, int bytes);
-	
+
 	challenge_t*	generate_challenge(void);
-	void			generate_response(challenge_t *challenge);
-	int				validate_challenge(challenge_t *local, challenge_t *remote);
-	
+	void		generate_response(challenge_t *challenge);
+	int		validate_challenge(challenge_t *local, challenge_t *remote);
+
 	void		send_termination_msg(proxy_desc_t *cur, int icmp_sock);
-	
+
 	char*	f_inet_ntoa(uint32_t ip);
 	void	pt_log(int level, char *fmt, ...);
 	double	time_as_double(void);

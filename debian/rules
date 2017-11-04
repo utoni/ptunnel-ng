@@ -8,4 +8,4 @@ LDFLAGS:=$(shell dpkg-buildflags --get LDFLAGS)
 	dh  $@
 
 override_dh_auto_build:
-	dh_auto_build -- CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)" CPPFLAGS="$(CPPFLAGS)"
+	dh_auto_build -- CFLAGS="-Wall $(CFLAGS)" LDFLAGS="$(LDFLAGS)" CPPFLAGS="$(CPPFLAGS)"

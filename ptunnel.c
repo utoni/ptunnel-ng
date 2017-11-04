@@ -81,49 +81,55 @@
 
 
 //	Lots of globals
-pthread_mutex_t		chain_lock,				//	Lock protecting the chain of connections
-  					num_threads_lock;		//	Lock protecting the num_threads variable
-
-bool				unprivileged			= false,	//	True if user wants to run without root
-					pcap					= false,	//	True if user wants packet capturing
-					print_stats				= false,	//	True if user wants continuous statistics printed.
-					use_syslog              = false;	//  True if user wants to log to syslog
-FILE				*log_file				= 0;		//	Usually stdout, but can be altered by the user
-
-int					tcp_port				= -1,		//	Port to send data to from the proxy
-					tcp_listen_port			= -1,		//	Port the client listens on
-					log_level				= kLog_event,	//	Default log level
-					mode					= kMode_proxy,	//	Default mode (proxy)
-					num_threads				= 0,			//	Current thread count
-					max_tunnels				= kMax_tunnels,	//	Default maximum number of tunnels to support at once
-					num_tunnels				= 0,			//	Current tunnel count
-					use_udp					= 0;			//	True if UDP should be used for transport (proxy runs on port 53)
-uint32_t			*seq_expiry_tbl			= 0,			//	Table indicating when a connection ID is allowable (used by proxy)
-					given_proxy_ip			= 0,			//	Proxy's internet address
-					given_dst_ip			= 0;			//	Destination client wants data forwarded to
-char				*password				= 0,			//	Password (must be the same on proxy and client for authentication to succeed)
-					password_digest[kMD5_digest_size],		//	MD5 digest of password
-					*pcap_device			= 0;			//	Device to capture packets from
+pthread_mutex_t
+	chain_lock,		//	Lock protecting the chain of connections
+	num_threads_lock;	//	Lock protecting the num_threads variable
+bool
+	unprivileged = false,	//	True if user wants to run without root
+	pcap = false,		//	True if user wants packet capturing
+	print_stats = false,	//	True if user wants continuous statistics printed.
+	use_syslog = false;	//  True if user wants to log to syslog
+FILE
+	*log_file = 0;		//	Usually stdout, but can be altered by the user
+int
+	tcp_port = -1,		//	Port to send data to from the proxy
+	tcp_listen_port = -1,	//	Port the client listens on
+	log_level = kLog_event,	//	Default log level
+	mode = kMode_proxy,	//	Default mode (proxy)
+	num_threads = 0,	//	Current thread count
+	max_tunnels = kMax_tunnels,	//	Default maximum number of tunnels to support at once
+	num_tunnels = 0,	//	Current tunnel count
+	use_udp = 0;		//	True if UDP should be used for transport (proxy runs on port 53)
+uint32_t
+	magic = kPing_tunnel_magic, //	user defined magic value (prevent Cisco WSA/ironport detection)
+	*seq_expiry_tbl = 0,	//	Table indicating when a connection ID is allowable (used by proxy)
+	given_proxy_ip = 0,	//	Proxy's internet address
+	given_dst_ip = 0;	//	Destination client wants data forwarded to
+char
+	*password = 0,		//	Password (must be the same on proxy and client for authentication to succeed)
+	password_digest[kMD5_digest_size],	//	MD5 digest of password
+	*pcap_device			= 0;	//	Device to capture packets from
 
 //	Some buffer constants
-const int			tcp_receive_buf_len		= kDefault_buf_size,
-					icmp_receive_buf_len	= kDefault_buf_size + kIP_header_size + kICMP_header_size + sizeof(ping_tunnel_pkt_t),
-					pcap_buf_size			= (kDefault_buf_size + kIP_header_size + kICMP_header_size + sizeof(ping_tunnel_pkt_t)+64)*64;
-char				pcap_filter_program[]	= "icmp"; // && (icmp[icmptype] = icmp-echo || icmp[icmptype] = icmp-echoreply)";
+const int
+	tcp_receive_buf_len	= kDefault_buf_size,
+	icmp_receive_buf_len	= kDefault_buf_size + kIP_header_size + kICMP_header_size + sizeof(ping_tunnel_pkt_t),
+	pcap_buf_size		= (kDefault_buf_size + kIP_header_size + kICMP_header_size + sizeof(ping_tunnel_pkt_t)+64)*64;
+char	pcap_filter_program[]	= "icmp"; // && (icmp[icmptype] = icmp-echo || icmp[icmptype] = icmp-echoreply)";
 
 //	The chain of client/proxy connections
-proxy_desc_t		*chain					= 0;
-const char			*state_name[kNum_proto_types]	= { "start", "ack", "data", "close", "authenticate" };
+proxy_desc_t	*chain		= 0;
+const char	*state_name[kNum_proto_types] = { "start", "ack", "data", "close", "authenticate" };
 
 //	Let the fun begin!
-int		main(int argc, char *argv[]) {
-	int				i, opt;
-	md5_state_t		state;
+int main(int argc, char *argv[]) {
+	int		i, opt;
+	md5_state_t	state;
 	struct hostent	*host_ent;
 #ifndef WIN32
 	struct passwd	*pwnam;
 	struct group	*grnam;
-	pid_t			pid;
+	pid_t		pid;
 #endif
 #ifdef WIN32
 	WORD wVersionRequested;
@@ -161,7 +167,10 @@ int		main(int argc, char *argv[]) {
 	opt				= kOpt_undefined;
 	mode			= kMode_proxy;
 	for (i=1;i<argc;i++) {
-		if (strcmp(argv[i], "-p") == 0) {
+		if (strcmp(argv[i], "-a") == 0) {
+			opt	= kOpt_set_magic;
+		}
+		else if (strcmp(argv[i], "-p") == 0) {
 			mode	= kMode_forward;
 			opt		= kOpt_set_proxy_addr;
 		}
@@ -203,6 +212,9 @@ int		main(int argc, char *argv[]) {
 			use_udp			= 1;
 		else {
 			switch (opt) {
+				case kOpt_set_magic:
+					magic = strtoul(argv[i], NULL, 16);
+					break;
 				case kOpt_set_proxy_addr:
 					if (NULL == (host_ent = gethostbyname(argv[i]))) {
 						pt_log(kLog_error, "Failed to look up %s as proxy address\n", argv[i]);
@@ -351,9 +363,10 @@ int		main(int argc, char *argv[]) {
 						fprintf(pid_file, "%d\n", getpid());
 						fclose(pid_file);
 					}
-					freopen("/dev/null", "r", stdin);
-					freopen("/dev/null", "w", stdout);
-					freopen("/dev/null", "w", stderr);
+					if (! freopen("/dev/null", "r", stdin) ||
+					    ! freopen("/dev/null", "w", stdout) ||
+					    ! freopen("/dev/null", "w", stderr))
+						pt_log(kLog_error, "freopen: %s\n", strerror(errno));
 				}
 			}
 	}
@@ -416,6 +429,7 @@ void		usage(char *exec_name) {
 	printf("ptunnel v %d.%.2d.\n", kMajor_version, kMinor_version);
 	printf("Usage:   %s -p <addr> -lp <port> -da <dest_addr> -dp <dest_port> [-m max_tunnels] [-v verbosity] [-f logfile]\n", exec_name);
 	printf("         %s [-m max_threads] [-v verbosity] [-c <device>]\n", exec_name);
+	printf("     -a: Set ICMP Tunnel magic hexadecimal number e.g. %X\n", magic);
 	printf("     -p: Set address of peer running packet forwarder. This causes\n");
 	printf("         ptunnel to operate in forwarding mode - the absence of this\n");
 	printf("         option causes ptunnel to operate in proxy mode.\n");
@@ -814,7 +828,7 @@ void*		pt_proxy(void *args) {
 				//pt_log(kLog_verbose, "pcap captured %d packets - handling them..\n", pc.pkt_q.elems);
 				while (pc.pkt_q.head) {
 					cur						= pc.pkt_q.head;
-					memset(&addr, sizeof(struct sockaddr), 0);
+					memset(&addr, 0, sizeof(struct sockaddr));
 					addr.sin_family			= AF_INET;
 					addr.sin_addr.s_addr	= *(in_addr_t*)&(((ip_packet_t*)(cur->data))->src_ip);
 					handle_packet(cur->data, cur->bytes, 1, &addr, fwd_sock);
@@ -950,7 +964,7 @@ void		handle_packet(char *buf, int bytes, int is_pcap, struct sockaddr_in *addr,
 			pkt			= (icmp_echo_packet_t*)ip_pkt->data;
 			pt_pkt		= (ping_tunnel_pkt_t*)pkt->data;
 		}
-		if (ntohl(pt_pkt->magic) == kPing_tunnel_magic) {
+		if (ntohl(pt_pkt->magic) == magic) {
 			pt_pkt->state		= ntohl(pt_pkt->state);
 			pkt->identifier		= ntohs(pkt->identifier);
 			pt_pkt->id_no		= ntohs(pt_pkt->id_no);
@@ -1205,14 +1219,14 @@ static int ip_id_counter	= 1;
 int			queue_packet(int icmp_sock, uint8_t type, char *buf, int num_bytes, uint16_t id_no, uint16_t icmp_id, uint16_t *seq, icmp_desc_t ring[], int *insert_idx, int *await_send, uint32_t ip, uint32_t port, uint32_t state, struct sockaddr_in *dest_addr, uint16_t next_expected_seq, int *first_ack, uint16_t *ping_seq) {
 	#if kPT_add_iphdr
 	ip_packet_t			*ip_pkt	= 0;
-	int					pkt_len	= sizeof(ip_packet_t)+sizeof(icmp_echo_packet_t)+sizeof(ping_tunnel_pkt_t)+num_bytes,
+	int pkt_len = sizeof(ip_packet_t)+sizeof(icmp_echo_packet_t)+sizeof(ping_tunnel_pkt_t)+num_bytes,
 	#else
-	int					pkt_len	= sizeof(icmp_echo_packet_t)+sizeof(ping_tunnel_pkt_t)+num_bytes,
+	int pkt_len = sizeof(icmp_echo_packet_t)+sizeof(ping_tunnel_pkt_t)+num_bytes,
 	#endif
-						err		= 0;
+	err				= 0;
 	icmp_echo_packet_t	*pkt	= 0;
 	ping_tunnel_pkt_t	*pt_pkt	= 0;
-	uint16_t			ack_val	= next_expected_seq-1;
+	uint16_t ack_val		= next_expected_seq-1;
 	
 	
 	if (pkt_len % 2)
@@ -1220,35 +1234,35 @@ int			queue_packet(int icmp_sock, uint8_t type, char *buf, int num_bytes, uint16
 	
 	#if kPT_add_iphdr
 	printf("add header\n");
-	ip_pkt						= malloc(pkt_len);
-	pkt							= (icmp_echo_packet_t*)ip_pkt->data;
+	ip_pkt				= malloc(pkt_len);
+	pkt				= (icmp_echo_packet_t*)ip_pkt->data;
 	memset(ip_pkt, 0, sizeof(ip_packet_t));
-	ip_pkt->vers_ihl			= 0x45;//|(pkt_len>>2);//5;//(IPVERSION << 4) | (sizeof(ip_packet_t) >> 2);
-	ip_pkt->tos					= IPTOS_LOWDELAY;
-	ip_pkt->pkt_len				= pkt_len;
-	ip_pkt->id					= 0;	//kernel sets proper value htons(ip_id_counter);
+	ip_pkt->vers_ihl		= 0x45;//|(pkt_len>>2);//5;//(IPVERSION << 4) | (sizeof(ip_packet_t) >> 2);
+	ip_pkt->tos			= IPTOS_LOWDELAY;
+	ip_pkt->pkt_len			= pkt_len;
+	ip_pkt->id			= 0;	//kernel sets proper value htons(ip_id_counter);
 	ip_pkt->flags_frag_offset	= 0;
-	ip_pkt->ttl					= IPDEFTTL;	//	default time to live (64)
-	ip_pkt->proto				= 1;	//	ICMP
-	ip_pkt->checksum			= 0;	//	maybe the kernel helps us out..?
-	ip_pkt->src_ip				= htonl(0x0);	//	insert source IP address here
-	ip_pkt->dst_ip				= dest_addr->sin_addr.s_addr;//htonl(0x7f000001);	//	localhost..
+	ip_pkt->ttl			= IPDEFTTL;	//	default time to live (64)
+	ip_pkt->proto			= 1;	//	ICMP
+	ip_pkt->checksum		= 0;	//	maybe the kernel helps us out..?
+	ip_pkt->src_ip			= htonl(0x0);	//	insert source IP address here
+	ip_pkt->dst_ip			= dest_addr->sin_addr.s_addr;//htonl(0x7f000001);	//	localhost..
 	#else
-	pkt						= malloc(pkt_len);
+	pkt				= calloc(1, pkt_len);
 	#endif
 	
-	pkt->type				= type;		//	ICMP Echo request or reply
-	pkt->code				= 0;		//	Must be zero (non-zero requires root)
+	pkt->type			= type;	//	ICMP Echo request or reply
+	pkt->code			= 0;	//	Must be zero (non-zero requires root)
 	pkt->identifier			= htons(icmp_id);
-	pkt->seq				= htons(*ping_seq);
+	pkt->seq			= htons(*ping_seq);
 	pkt->checksum			= 0;
 	(*ping_seq)++;
 	//	Add our information
-	pt_pkt					= (ping_tunnel_pkt_t*)pkt->data;
-	pt_pkt->magic			= htonl(kPing_tunnel_magic);
+	pt_pkt				= (ping_tunnel_pkt_t*)pkt->data;
+	pt_pkt->magic			= htonl(magic);
 	pt_pkt->dst_ip			= ip;
 	pt_pkt->dst_port		= htonl(port);
-	pt_pkt->ack				= htonl(ack_val);
+	pt_pkt->ack			= htonl(ack_val);
 	pt_pkt->data_len		= htonl(num_bytes);
 	pt_pkt->state			= htonl(state);
 	pt_pkt->seq_no			= htons(*seq);
