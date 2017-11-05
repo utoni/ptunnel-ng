@@ -40,8 +40,9 @@
 	Note that the source code is best viewed with tabs set to 4 spaces.
 */
 
-#include	"ptunnel.h"
-#include	"md5.h"
+#include "ptunnel.h"
+#include "options.h"
+#include "md5.h"
 
 #ifdef WIN32
 	/* pthread porting to windows */
@@ -426,6 +427,7 @@ int main(int argc, char *argv[]) {
 
 
 void		usage(char *exec_name) {
+print_usage(exec_name);
 	printf("ptunnel v %d.%.2d.\n", kMajor_version, kMinor_version);
 	printf("Usage:   %s -p <addr> -lp <port> -da <dest_addr> -dp <dest_port> [-m max_tunnels] [-v verbosity] [-f logfile]\n", exec_name);
 	printf("         %s [-m max_threads] [-v verbosity] [-c <device>]\n", exec_name);
@@ -603,6 +605,9 @@ void*		pt_proxy(void *args) {
 	proxy_desc_t		*cur, *prev, *tmp;
 	pcap_info_t			pc;
 	xfer_stats_t		xfer;
+	ip_packet_t			*pkt;
+	uint32_t			ip;
+	in_addr_t			*adr;
 	
 	//	Start the thread, initialize protocol and ring states.
 	pt_log(kLog_debug, "Starting ping proxy..\n");
@@ -830,7 +835,10 @@ void*		pt_proxy(void *args) {
 					cur						= pc.pkt_q.head;
 					memset(&addr, 0, sizeof(struct sockaddr));
 					addr.sin_family			= AF_INET;
-					addr.sin_addr.s_addr	= *(in_addr_t*)&(((ip_packet_t*)(cur->data))->src_ip);
+					pkt						= (ip_packet_t*)&cur->data[0];
+					ip						= pkt->src_ip;
+					adr						= (in_addr_t*)&ip;
+					addr.sin_addr.s_addr	= *adr;
 					handle_packet(cur->data, cur->bytes, 1, &addr, fwd_sock);
 					pc.pkt_q.head			= cur->next;
 					free(cur);
@@ -1590,7 +1598,7 @@ void		send_termination_msg(proxy_desc_t *cur, int icmp_sock) {
 }
 
 
-void	pt_log(int level, char *fmt, ...) {
+void	pt_log(int level, const char *fmt, ...) {
 	va_list	args;
 	const char *header[]	= { "[err]: ",
 								"[inf]: ",

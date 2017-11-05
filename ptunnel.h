@@ -41,54 +41,53 @@
 */
 
 #ifndef PING_TUNNEL_H
-	#define PING_TUNNEL_H
+#define PING_TUNNEL_H 1
 
 //	Includes
 #ifndef WIN32
-  	#include	<sys/unistd.h>
-  	#include	<sys/types.h>
-  	#include	<sys/socket.h>
-  	#include	<netinet/in.h>
-  	#include	<arpa/inet.h>
-  	#include	<netdb.h>
-	#include	<pthread.h>
-	#include	<errno.h>
-	#include	<net/ethernet.h>
-	#include	<syslog.h>
-	#include	<pwd.h>
-	#include	<grp.h>
+#include	<sys/unistd.h>
+#include	<sys/types.h>
+#include	<sys/socket.h>
+#include	<netinet/in.h>
+#include	<arpa/inet.h>
+#include	<netdb.h>
+#include	<pthread.h>
+#include	<errno.h>
+#include	<net/ethernet.h>
+#include	<syslog.h>
+#include	<pwd.h>
+#include	<grp.h>
 #endif /* !WIN32 */
-	#include	<stdarg.h>
-	#include	<unistd.h>
-  	#include	<stdio.h>
-  	#include	<stdlib.h>
-  	#include	<string.h>
-  	#include	<time.h>
-  	#include	<sys/time.h>
-  	#include	<signal.h>
-  	#include	<stdint.h>
-  	#include	<pcap.h>
+#include	<stdarg.h>
+#include	<unistd.h>
+#include	<stdio.h>
+#include	<stdlib.h>
+#include	<string.h>
+#include	<time.h>
+#include	<sys/time.h>
+#include	<signal.h>
+#include	<stdint.h>
+#include	<pcap.h>
 
 #ifdef WIN32
-	#include    <winsock2.h>
-	typedef int socklen_t;
-	typedef uint32_t in_addr_t;
-	#define ETH_ALEN        6               /* Octets in one ethernet addr   */
-	struct ether_header
-	{
-		u_int8_t  ether_dhost[ETH_ALEN];      /* destination eth addr */
-		u_int8_t  ether_shost[ETH_ALEN];      /* source ether addr    */
-		u_int16_t ether_type;                 /* packet type ID field */
-	};
+#include    <winsock2.h>
+typedef int socklen_t;
+typedef uint32_t in_addr_t;
+#define ETH_ALEN 6 /* Octets in one ethernet addr   */
+struct ether_header {
+	u_int8_t  ether_dhost[ETH_ALEN]; /* destination eth addr */
+	u_int8_t  ether_shost[ETH_ALEN]; /* source ether addr    */
+	u_int16_t ether_type;            /* packet type ID field */
+};
 #endif /* WIN32 */
 
-//	Constants
-#define	false		0
-#define	true		1
-#define	bool		char
+// Constants
+#define	false 0
+#define	true  1
+#define	bool char
 
 enum {
-	kOpt_undefined			= 0,		//	Constants for parsing options
+	kOpt_undefined = 0,			//	Constants for parsing options
 	kOpt_set_magic,
 	kOpt_set_proxy_addr,
 	kOpt_set_mode,
@@ -455,6 +454,6 @@ typedef struct {
 	void		send_termination_msg(proxy_desc_t *cur, int icmp_sock);
 
 	char*	f_inet_ntoa(uint32_t ip);
-	void	pt_log(int level, char *fmt, ...);
+	void	pt_log(int level, const char *fmt, ...);
 	double	time_as_double(void);
 #endif
