@@ -15,10 +15,10 @@ struct options {
 	uint32_t magic;
 	/** Proxy's internet address */
 	uint32_t given_proxy_ip; 
-	/** Password (must be the same on proxy and client for authentication to succeed) */
-	char password;
+	/** Password-Digest (must be the same on proxy and client for authentication to succeed) */
+	unsigned char *password_digest;
 	/** Port the client listens on */
-	int tcp_listen_port;
+	uint16_t tcp_listen_port;
 	/** Proxy's internet address */
 	uint32_t given_dst_ip;
 	/** Port to send data to from the proxy */
@@ -29,15 +29,19 @@ struct options {
 	int log_level;
 	/** Device to capture packets from */
 	char *pcap_device;
-	/** True if user wants packet capturing */
-	bool pcap;
 	/** Usually stdout, but can be altered by the user */
 	FILE *log_file;
+	/** Print more detailed traffic statistics if non zero value */
+	int print_stats;
+	/** use UDP instead of ICMP */
+	int udp;
+	/** unpriviledged mode */
+	int unprivledged;
 
-#ifndef WIN32
 #ifdef HAVE_SELINUX
 	char *selinux_context;
 #endif
+#ifndef WIN32
 	/** UID of the running process */
 	uid_t uid;
 	/** GID of the running process */
@@ -45,9 +49,11 @@ struct options {
 	/** CHROOT dir */
 	char *root_dir;
 	/** PIDFILE */
-	char *pid_file;
+	FILE *pid_file;
 	/** run as daemon */
 	bool daemonize;
+	/** log to syslog if non zero value */
+	int syslog;
 #endif
 };
 

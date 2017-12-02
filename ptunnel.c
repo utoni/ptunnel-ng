@@ -165,6 +165,8 @@ int main(int argc, char *argv[]) {
 	log_file		= stdout;
 	
 	//	Parse options
+	parse_options(argc, argv);
+
 	opt				= kOpt_undefined;
 	mode			= kMode_proxy;
 	for (i=1;i<argc;i++) {
@@ -303,14 +305,14 @@ int main(int argc, char *argv[]) {
 					break;
 				#endif /* !WIN32 */
 				case kOpt_undefined:
-					usage(argv[0]);
+					print_usage(argv[0]);
 					return 1;
 			}
 			opt	= kOpt_undefined;
 		}
 	}
 	if (opt != kOpt_undefined) {
-		usage(argv[0]);
+		print_usage(argv[0]);
 		exit(1);
 	}
 	if (pcap && use_udp) {
@@ -398,7 +400,7 @@ int main(int argc, char *argv[]) {
 	if (mode == kMode_forward) {
 		if (!given_proxy_ip || !given_dst_ip || !tcp_port || !tcp_listen_port) {
 			printf("One of the options are missing or invalid.\n");
-			usage(argv[0]);
+			print_usage(argv[0]);
 			return -1;
 		}
 		pt_forwarder();
@@ -424,57 +426,6 @@ int main(int argc, char *argv[]) {
 	pt_log(kLog_info, "ptunnel is exiting.\n");
 	return 0;
 }
-
-
-void		usage(char *exec_name) {
-print_usage(exec_name);
-	printf("ptunnel v %d.%.2d.\n", kMajor_version, kMinor_version);
-	printf("Usage:   %s -p <addr> -lp <port> -da <dest_addr> -dp <dest_port> [-m max_tunnels] [-v verbosity] [-f logfile]\n", exec_name);
-	printf("         %s [-m max_threads] [-v verbosity] [-c <device>]\n", exec_name);
-	printf("     -a: Set ICMP Tunnel magic hexadecimal number e.g. %X\n", magic);
-	printf("     -p: Set address of peer running packet forwarder. This causes\n");
-	printf("         ptunnel to operate in forwarding mode - the absence of this\n");
-	printf("         option causes ptunnel to operate in proxy mode.\n");
-	printf("    -lp: Set TCP listening port (only used when operating in forward mode)\n");
-	printf("    -da: Set remote proxy destination address if client\n");
-	printf("         Restrict to only this destination address if server\n");
-	printf("    -dp: Set remote proxy destionation port if client\n");
-	printf("         Restrict to only this destination port if server\n");
-	printf("     -m: Set maximum number of concurrent tunnels\n");
-	printf("     -v: Verbosity level (-1 to 4, where -1 is no output, and 4 is all output)\n");
-	printf("     -c: Enable libpcap on the given device.\n");
-	printf("     -f: Specify a file to log to, rather than printing to standard out.\n");
-	printf("     -s: Client only. Enables continuous output of statistics (packet loss, etc.)\n");
-	#ifndef WIN32
-	printf("-daemon: Run in background, the PID will be written in the file supplied as argument\n");
-	printf("-syslog: Output debug to syslog instead of standard out.\n");
-	#endif /* !WIN32 */
-	printf("   -udp: Toggle use of UDP instead of ICMP. Proxy will listen on port 53 (must be root).\n\n");
-
-	printf("Security features:  [-x password] [-u] [-setuid user] [-setgid group] [-chroot dir]\n");
-	printf("     -x: Set password (must be same on client and proxy)\n");
-	printf("     -u: Run proxy in unprivileged mode. This causes the proxy to forward\n");
-	printf("         packets using standard echo requests, instead of crafting custom echo replies.\n");
-	printf("         Unprivileged mode will only work on some systems, and is in general less reliable\n");
-	printf("         than running in privileged mode.\n");
-	#ifndef WIN32
-	printf("         Please consider combining the following three options instead:\n");
-	printf("-setuid: When started in privileged mode, drop down to user's rights as soon as possible\n");
-	printf("-setgid: When started in privileged mode, drop down to group's rights as soon as possible\n");
-	printf("-chroot: When started in privileged mode, restrict file access to the specified directory\n");
-	printf("-setcon: Set SELinux context when all there is left to do are network I/O operations\n");
-	printf("         To combine with -chroot you will have to `mount --bind /proc /chrootdir/proc`\n");
-	#endif /* !WIN32 */
-
-	printf("\nStarting the proxy (needs to run as root):\n");
-	printf(" [root #] %s\n", exec_name);
-	printf("Starting a client (also needs root):\n");
-	printf(" [root #] %s -p proxy.pingtunnel.com -lp 8000 -da login.domain.com -dp 22 -c eth0\n", exec_name);
-	printf("And then using the tunnel to ssh to login.domain.com:\n");
-	printf(" [user $] ssh -p 8000 localhost\n");
-	printf("And that's it. Enjoy your tunnel!\n\n");
-}
-
 
 /*	pt_forwarder:
 	Sets up a listening TCP socket, and forwards incoming connections

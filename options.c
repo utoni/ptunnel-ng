@@ -8,6 +8,11 @@
 
 #include "options.h"
 #include "utils.h"
+#include "ptunnel.h"
+#include "md5.h"
+
+
+struct options opts;
 
 enum option_type {
 	OPT_BOOL, OPT_DEC32, OPT_HEX32, OPT_STR
@@ -90,11 +95,14 @@ static const struct option_usage usage[] = {
 	{"directory",    0, OPT_STR,    {.str = "/var/lib/ptunnel"},
 		"When started in privileged mode, restrict file access to the specified directory\n"
 	},
+#endif
+#ifdef HAVE_SELINUX
 	{NULL,           0, OPT_BOOL,   {.unum = 0},
 		"Set SELinux context when all there is left to do are network I/O operations\n"
 		"To combine with -chroot you will have to `mount --bind /proc /chrootdir/proc`\n"
 	},
 #endif
+	{"help",         0, OPT_STR,    {.str = NULL}, "this\n"},
 	{NULL,0,OPT_BOOL,{.unum=0},NULL}
 };
 
@@ -105,22 +113,28 @@ static struct option long_options[] = {
 	{"remote",      required_argument, 0, 'r'},
 	{"connections", required_argument, 0, 'c'},
 	{"verbosity",   required_argument, 0, 'v'},
-	{"libpcap",           no_argument, 0,  0 },
+	{"libpcap",     required_argument, 0, 'a'},
 	{"logfile",     required_argument, 0, 'o'},
 	{"statistics",        no_argument, 0, 's'},
 #ifndef WIN32
 	{"daemon",            no_argument, 0, 'd'},
-	{"syslog",            no_argument, 0,  0 },
+	{"syslog",            no_argument, 0, 'S'},
 #endif
-	{"udp",               no_argument, 0,  0 },
-	{"passwd",      optional_argument, 0, 'x'},
-	{"unprivileged",      no_argument, 0,  0 },
+	{"udp",               no_argument, &opts.udp, 1 },
+	{"passwd",      required_argument, 0, 'x'},
+	{"unprivileged",      no_argument, &opts.unprivledged, 1 },
+#ifndef WIN32
 	{"user",        required_argument, 0, 'u'},
 	{"group",       required_argument, 0, 'g'},
-	{"chroot",      optional_argument, 0,  0 },
+	{"chroot",      required_argument, 0, 't'},
+#endif
+#ifdef HAVE_SELINUX
 	{"setcon",            no_argument, 0, 'e'},
+#endif
+	{"help",              no_argument, 0, 'h'},
 	{NULL,0,0,0}
 };
+
 
 static void print_multiline(const char *prefix, const char *multiline) {
 	const char sep[] = "\n";
@@ -200,7 +214,7 @@ void print_usage(const char *arg0) {
 
 	assert( ARRAY_SIZE(long_options) == ARRAY_SIZE(usage) );
 
-	printf("ptunnel-ng v%d.%.2d.\n\nUsage: %s", 12, 22, arg0);
+	printf("ptunnel-ng v%d.%.2d\n\nUsage: %s", kMajor_version, kMinor_version, arg0);
 	/* print (short)help argument line */
 	for (i = 0; i < ARRAY_SIZE(usage); ++i) {
 		print_short_help(i, 1);
@@ -217,10 +231,129 @@ void print_usage(const char *arg0) {
 	for (i = 0; i < ARRAY_SIZE(usage); ++i) {
 		print_long_help(i, 0);
 	}
-
-_exit(0);
 }
 
 int parse_options(int argc, char **argv) {
+	int c = 0, optind = -1;
+	struct hostent *host_ent;
+	md5_state_t state;
+#ifndef WIN32
+	struct passwd *pwnam;
+	struct group *grnam;
+#endif
+
+	while (1) {
+		c = getopt_long(argc, argv, "m:p:l:r:c:v:a:o:sdSx:u:g:t:eh", &long_options[0], &optind);
+		if (c == -1) break;
+
+		switch (c) {
+			case 'm':
+				opts.magic = strtoul(optarg, NULL, 16);
+				break;
+			case 'p':
+				if (NULL == (host_ent = gethostbyname(optarg))) {
+					pt_log(kLog_error, "Failed to look up %s as proxy address\n", optarg);
+					return 1;
+				}
+				opts.given_proxy_ip = *(uint32_t*)host_ent->h_addr_list[0];
+				break;
+			case 'l':
+				opts.tcp_listen_port = strtoul(optarg, NULL, 10);
+				break;
+			case 'r':
+				if (NULL == (host_ent = gethostbyname(optarg))) {
+					pt_log(kLog_error, "Failed to look up %s as destination address\n", optarg);
+					return 1;
+				}
+				opts.given_dst_ip = *(uint32_t*)host_ent->h_addr_list[0];
+				break;
+			case 'c':
+				opts.max_tunnels = strtoul(optarg, NULL,10);
+				if (opts.max_tunnels > kMax_tunnels)
+					opts.max_tunnels = kMax_tunnels;
+				break;
+			case 'v':
+				opts.log_level = strtoul(optarg, NULL, 10);
+				break;
+			case 'a':
+				opts.pcap_device = strdup(optarg);
+				break;
+			case 'o':
+				opts.log_file = fopen(optarg, "a");
+				if (!opts.log_file) {
+					opts.log_file = stdout;
+					pt_log(kLog_error, "Failed to open log file: '%s'. Cause: %  s\n", optarg, strerror(errno));
+					pt_log(kLog_error, "Reverting log to standard out.\n");
+				}
+				break;
+			case 's':
+				opts.print_stats = !opts.print_stats;
+				break;
+			case 'x':
+				opts.password_digest = (unsigned char *)calloc(MD5_LEN, sizeof(unsigned char));
+				pt_log(kLog_debug, "Password set - unauthenicated connections will be refused.\n");
+				//  Compute the password digest
+				md5_init(&state);
+				md5_append(&state, (md5_byte_t*)optarg, strlen(optarg));
+				md5_finish(&state, opts.password_digest);
+				//  Hide the password in process listing
+				memset(optarg, '*', strlen(optarg));
+				break;
+#ifndef WIN32
+			case 'd':
+				opts.daemonize = true;
+				if (NULL == (opts.pid_file = fopen(optarg, "w")))
+					pt_log(kLog_error, "%s: %s\n", optarg, strerror(errno));
+				break;
+			case 'S':
+				opts.syslog = 1;
+				break;
+			case 'u':
+				errno = 0;
+				if (NULL == (pwnam = getpwnam(optarg))) {
+					pt_log(kLog_error, "%s: %s\n", optarg, errno ? strerror(errno) : "unknown user");
+					exit(1);
+				}
+				opts.uid = pwnam->pw_uid;
+				if (!opts.gid)
+					opts.gid = pwnam->pw_gid;
+				break;
+			case 'g':
+				errno = 0;
+				if (NULL == (grnam = getgrnam(optarg))) {
+					pt_log(kLog_error, "%s: %s\n", optarg, errno ? strerror(errno) : "unknown group");
+					exit(1);
+				}
+				opts.gid = grnam->gr_gid;
+				break;
+			case 't':
+				opts.root_dir = strdup(optarg);
+				break;
+#else
+			case 'd':
+			case 'S':
+			case 'U':
+			case 'g':
+			case 't':
+				pt_log(kLog_error, "%s: feature not supported", optarg);
+				exit(1);
+#endif
+			case 'e':
+#ifdef HAVE_SELINUX
+				opts.selinux_context = strdup(optarg);
+				break;
+#else
+				pt_log(kLog_error, "%s: feature not supported", optarg);
+				exit(1);
+#endif
+			case 'h':
+				print_usage(argv[0]);
+				_exit(EXIT_SUCCESS);
+			default:
+				printf("Opt ERROR\n");
+				break;
+		}
+	}
+
 	return 0;
 }
