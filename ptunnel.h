@@ -83,61 +83,46 @@ struct ether_header {
 #endif /* WIN32 */
 
 enum {
-	kOpt_undefined = 0,			//	Constants for parsing options
-	kOpt_set_magic,
-	kOpt_set_proxy_addr,
-	kOpt_set_mode,
-	kOpt_set_password,
-	kOpt_set_tcp_port,
-	kOpt_set_tcp_dest_addr,
-	kOpt_set_tcp_dest_port,
-	kOpt_set_verbosity,
-	kOpt_set_max_tunnels,
-	kOpt_set_non_privileged,
-	kOpt_set_pcap_device,
-	kOpt_set_log_file,
-	kOpt_set_unpriv_user,
-	kOpt_set_unpriv_group,
-	kOpt_set_root_dir,
-	kOpt_set_selinux_context,
-	kOpt_daemonize,
+	kMode_forward        = 0,   //	Ping tunnel's operating mode (client)
+	kMode_proxy,                //	Ping tunnel's operating mode (server)
 
-	kMode_forward			= 0,	//	Ping tunnel's operating mode (client or
-	kMode_proxy,				//	proxy)
+	/** Set this constant to the number of
+	 * concurrent connections you wish to handle by default.
+	 */
+	kMax_tunnels         = 10,
 
-	kMax_tunnels			= 10,/*	Set this constant to the number of concurrent
-						connections you wish to handle by default. */
-
-	kNo_log				= -1,	//	Different verbosity levels.
-	kLog_error			= 0,
+	kNo_log              = -1,  //	Different verbosity levels.
+	kLog_error           = 0,
 	kLog_info,
 	kLog_event,
 	kLog_verbose,
 	kLog_debug,
 	kLog_sendrecv,
 
-	kMajor_version			= 0,	//	Major (0.xx) and minor (x.70) version
-	kMinor_version			= 72,	//	numbers.
+	kMajor_version       = 0,   //	Major (0.xx) and minor (x.70) version
+	kMinor_version       = 72,  //	numbers.
 
-	kIP_packet_max_size		= 576,
-	kIP_header_size			= 20,	//	In bytes, mind you
-	kIP_actual_size			= (kIP_packet_max_size - kIP_header_size) - ((kIP_packet_max_size - kIP_header_size) % 8),
-	kICMP_header_size		= 8,	//	Also in bytes
+	kIP_packet_max_size  = 576,
+	kIP_header_size      = 20,  //	In bytes, mind you
+	kIP_actual_size      = (kIP_packet_max_size - kIP_header_size) - ((kIP_packet_max_size - kIP_header_size) % 8),
+	kICMP_header_size    = 8,   //	Also in bytes
 
-	kDefault_buf_size		= 1024,	/*	This constant control the maximum size of
-							the payload-portion of the ICMP packets
-							we send. Note that this does not include
-							the IP or ICMP headers!	*/
+	/** This constant control the maximum size of
+	 * the payload-portion of the ICMP packets
+	 * we send. Note that this does not include
+	 * the IP or ICMP headers!
+	 */
+	kDefault_buf_size    = 1024,
 
-	kICMP_echo_request		= 8,	//	Type code for echo request and replies
-	kICMP_echo_reply		= 0,
+	kICMP_echo_request   = 8,   //	Type code for echo request and replies
+	kICMP_echo_reply     = 0,
 
-	kPing_window_size		= 64,	// number of packets we can have in our send/receive ring
+	kPing_window_size    = 64,  // number of packets we can have in our send/receive ring
 
-	/*	Tunnels are automatically closed after one minute of inactivity. Since
-		we continously send acknowledgements between the two peers, this mechanism
-		won't disconnect "valid" connections.
-	*/
+	/** Tunnels are automatically closed after one minute of inactivity. Since
+	 * we continously send acknowledgements between the two peers, this mechanism
+	 * won't disconnect "valid" connections.
+	 */
 	kAutomatic_close_timeout	= 60,	//	Seconds!
 
 	kMD5_digest_size		= 16,	//	size of md5 digest in bytes

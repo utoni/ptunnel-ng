@@ -124,12 +124,7 @@ const char	*state_name[kNum_proto_types] = { "start", "ack", "data", "close", "a
 
 //	Let the fun begin!
 int main(int argc, char *argv[]) {
-	int		i, opt;
-	md5_state_t	state;
-	struct hostent	*host_ent;
 #ifndef WIN32
-	struct passwd	*pwnam;
-	struct group	*grnam;
 	pid_t		pid;
 #endif
 #ifdef WIN32
@@ -151,170 +146,21 @@ int main(int argc, char *argv[]) {
 	}
 #endif /* WIN32 */
 
-	
 	//	Seed random generator; it'll be used in combination with a timestamp
 	//	when generating authentication challenges.
 	srand(time(0));
 	memset(password_digest, 0, kMD5_digest_size);
-	
+
 	/*	The seq_expiry_tbl is used to prevent the remote ends from prematurely
 		re-using a sequence number.
 	*/
 	seq_expiry_tbl	= calloc(65536, sizeof(uint32_t));
-	
+
 	log_file		= stdout;
-	
+
 	//	Parse options
 	parse_options(argc, argv);
 
-	opt				= kOpt_undefined;
-	mode			= kMode_proxy;
-	for (i=1;i<argc;i++) {
-		if (strcmp(argv[i], "-a") == 0) {
-			opt	= kOpt_set_magic;
-		}
-		else if (strcmp(argv[i], "-p") == 0) {
-			mode	= kMode_forward;
-			opt		= kOpt_set_proxy_addr;
-		}
-		else if (strcmp(argv[i], "-x") == 0)
-			opt	= kOpt_set_password;
-		else if (strcmp(argv[i], "-lp") == 0)
-			opt	= kOpt_set_tcp_port;
-		else if (strcmp(argv[i], "-da") == 0)
-			opt	= kOpt_set_tcp_dest_addr;
-		else if (strcmp(argv[i], "-dp") == 0)
-			opt	= kOpt_set_tcp_dest_port;
-		else if (strcmp(argv[i], "-v") == 0)
-			opt	= kOpt_set_verbosity;
-		else if (strcmp(argv[i], "-m") == 0)
-			opt = kOpt_set_max_tunnels;
-		else if (strcmp(argv[i], "-u") == 0)
-			unprivileged	= !unprivileged;
-		else if (strcmp(argv[i], "-c") == 0)
-			opt	= kOpt_set_pcap_device;
-		else if (strcmp(argv[i], "-f") == 0)
-			opt = kOpt_set_log_file;
-		else if (strcmp(argv[i], "-s") == 0)
-			print_stats		= !print_stats;
-		#ifndef WIN32
-		else if (strcmp(argv[i], "-syslog") == 0)
-			use_syslog		= !use_syslog;
-		else if (strcmp(argv[i], "-setuid") == 0)
-			opt	= kOpt_set_unpriv_user;
-		else if (strcmp(argv[i], "-setgid") == 0)
-			opt	= kOpt_set_unpriv_group;
-		else if (strcmp(argv[i], "-chroot") == 0)
-			opt	= kOpt_set_root_dir;
-		else if (strcmp(argv[i], "-setcon") == 0)
-			opt	= kOpt_set_selinux_context;
-		else if (strcmp(argv[i], "-daemon") == 0)
-			opt	= kOpt_daemonize;
-		#endif /* !WIN32 */
-		else if (strcmp(argv[i], "-udp") == 0)
-			use_udp			= 1;
-		else {
-			switch (opt) {
-				case kOpt_set_magic:
-					magic = strtoul(argv[i], NULL, 16);
-					break;
-				case kOpt_set_proxy_addr:
-					if (NULL == (host_ent = gethostbyname(argv[i]))) {
-						pt_log(kLog_error, "Failed to look up %s as proxy address\n", argv[i]);
-						return 1;
-					}
-					given_proxy_ip = *(uint32_t*)host_ent->h_addr_list[0];
-					break;
-				case kOpt_set_password:
-					password				= argv[i];
-					pt_log(kLog_debug, "Password set - unauthenicated connections will be refused.\n");
-					//	Compute the password digest
-					md5_init(&state);
-					md5_append(&state, (md5_byte_t*)password, strlen(password));
-					md5_finish(&state, (md5_byte_t*)password_digest);
-					//	Hide the password in process listing
-					memset(argv[i], ' ', strlen(argv[i]));
-					break;
-				case kOpt_set_tcp_port:
-					tcp_listen_port			= atoi(argv[i]);
-					break;
-				case kOpt_set_tcp_dest_addr:
-					if (NULL == (host_ent = gethostbyname(argv[i]))) {
-						pt_log(kLog_error, "Failed to look up %s as destination address\n", argv[i]);
-						return 1;
-					}
-					given_dst_ip = *(uint32_t*)host_ent->h_addr_list[0];
-					break;
-				case kOpt_set_tcp_dest_port:
-					tcp_port				= atoi(argv[i]);
-					break;
-				case kOpt_set_max_tunnels:
-					max_tunnels	= atoi(argv[i]);
-					if (max_tunnels <= 0)
-						max_tunnels	= kMax_tunnels;
-					break;
-				case kOpt_set_verbosity:
-					log_level		= atoi(argv[i]);
-					break;
-				case kOpt_set_pcap_device:
-					pcap_device		= argv[i];
-					pcap			= 1;
-					break;
-				case kOpt_set_log_file:
-					log_file		= fopen(argv[i], "a");
-					if (!log_file) {
-						log_file	= stdout;
-						pt_log(kLog_error, "Failed to open log file: '%s'. Cause: %s\n", argv[i], strerror(errno));
-						pt_log(kLog_error, "Reverting log to standard out.\n");
-					}
-					break;
-				#ifndef WIN32
-				case kOpt_set_unpriv_user:
-					errno = 0;
-					if (NULL == (pwnam = getpwnam(argv[i]))) {
-						pt_log(kLog_error, "%s: %s\n", argv[i], errno ? strerror(errno) : "unknown user");
-						exit(1);
-					}
-					uid = pwnam->pw_uid;
-					if (!gid)
-						gid = pwnam->pw_gid;
-					break;
-				case kOpt_set_unpriv_group:
-					errno = 0;
-					if (NULL == (grnam = getgrnam(argv[i]))) {
-						pt_log(kLog_error, "%s: %s\n", argv[i], errno ? strerror(errno) : "unknown group");
-						exit(1);
-					}
-					gid = grnam->gr_gid;
-					break;
-				case kOpt_set_root_dir:
-					root_dir = strdup(argv[i]);
-					break;
-				case kOpt_set_selinux_context:
-				#ifdef HAVE_SELINUX
-					selinux_context = strdup(argv[i]);
-				#else
-					pt_log(kLog_error, "Sorry: SELinux support missing, please recompile with libselinux.\n");
-					return 1;
-				#endif
-					break;
-				case kOpt_daemonize:
-					daemonize = true;
-					if (NULL == (pid_file = fopen(argv[i], "w")))
-						pt_log(kLog_error, "%s: %s\n", argv[i], strerror(errno));
-					break;
-				#endif /* !WIN32 */
-				case kOpt_undefined:
-					print_usage(argv[0]);
-					return 1;
-			}
-			opt	= kOpt_undefined;
-		}
-	}
-	if (opt != kOpt_undefined) {
-		print_usage(argv[0]);
-		exit(1);
-	}
 	if (pcap && use_udp) {
 		pt_log(kLog_error, "Packet capture is not supported (or needed) when using UDP for transport.\n");
 		pcap	= 0;

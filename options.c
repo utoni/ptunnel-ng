@@ -37,7 +37,7 @@ static const struct option_usage usage[] = {
 		"and can be used to bypass Cisco IPS\n"
 		"This value has to be the same on the server and client!\n"
 	},
-	{"address:port", 1, OPT_STR,    {.unum = 0},
+	{"address", 1, OPT_STR,    {.unum = 0},
 		"Set address of peer running packet forwarder. This causes\n"
 		"ptunnel to operate in forwarding mode - the absence of this\n"
 		"option causes ptunnel to operate in proxy mode.\n"
@@ -242,6 +242,11 @@ int parse_options(int argc, char **argv) {
 	struct group *grnam;
 #endif
 
+	/* set defaults */
+	memset(&opts, 0, sizeof(opts));
+	opts.proxy_mode = kMode_proxy;
+
+	/* parse command line arguments */
 	while (1) {
 		c = getopt_long(argc, argv, "m:p:l:r:c:v:a:o:sdSx:u:g:t:eh", &long_options[0], &optind);
 		if (c == -1) break;
@@ -251,6 +256,7 @@ int parse_options(int argc, char **argv) {
 				opts.magic = strtoul(optarg, NULL, 16);
 				break;
 			case 'p':
+				opts.proxy_mode = kMode_forward;
 				if (NULL == (host_ent = gethostbyname(optarg))) {
 					pt_log(kLog_error, "Failed to look up %s as proxy address\n", optarg);
 					return 1;
@@ -332,7 +338,7 @@ int parse_options(int argc, char **argv) {
 #else
 			case 'd':
 			case 'S':
-			case 'U':
+			case 'u':
 			case 'g':
 			case 't':
 				pt_log(kLog_error, "%s: feature not supported", optarg);
@@ -350,7 +356,7 @@ int parse_options(int argc, char **argv) {
 				print_usage(argv[0]);
 				_exit(EXIT_SUCCESS);
 			default:
-				printf("Opt ERROR\n");
+				pt_log(kLog_error, "%s: option unknown", optarg);
 				break;
 		}
 	}

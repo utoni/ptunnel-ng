@@ -10,7 +10,12 @@
 #include <selinux/selinux.h>
 #endif
 
+#include "ptunnel.h"
+
+
 struct options {
+	/** proxy or forwarder? */
+	int proxy_mode;
 	/** user defined magic value (prevent Cisco WSA/IronPort fingerprint scan) */
 	uint32_t magic;
 	/** Proxy's internet address */
