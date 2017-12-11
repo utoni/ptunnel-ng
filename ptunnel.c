@@ -86,26 +86,12 @@ pthread_mutex_t
 	chain_lock,		//	Lock protecting the chain of connections
 	num_threads_lock;	//	Lock protecting the num_threads variable
 bool
-	unprivileged = false,	//	True if user wants to run without root
-	pcap = false,		//	True if user wants packet capturing
-	print_stats = false,	//	True if user wants continuous statistics printed.
-	use_syslog = false;	//  True if user wants to log to syslog
-FILE
-	*log_file = 0;		//	Usually stdout, but can be altered by the user
+	pcap = false;		//	True if user wants packet capturing
 int
-	tcp_port = -1,		//	Port to send data to from the proxy
-	tcp_listen_port = -1,	//	Port the client listens on
-	log_level = kLog_event,	//	Default log level
-	mode = kMode_proxy,	//	Default mode (proxy)
 	num_threads = 0,	//	Current thread count
-	max_tunnels = kMax_tunnels,	//	Default maximum number of tunnels to support at once
-	num_tunnels = 0,	//	Current tunnel count
-	use_udp = 0;		//	True if UDP should be used for transport (proxy runs on port 53)
+	num_tunnels = 0;	//	Current tunnel count
 uint32_t
-	magic = kPing_tunnel_magic, //	user defined magic value (prevent Cisco WSA/ironport detection)
-	*seq_expiry_tbl = 0,	//	Table indicating when a connection ID is allowable (used by proxy)
-	given_proxy_ip = 0,	//	Proxy's internet address
-	given_dst_ip = 0;	//	Destination client wants data forwarded to
+	*seq_expiry_tbl = 0;	//	Table indicating when a connection ID is allowable (used by proxy)
 char
 	*password = 0,		//	Password (must be the same on proxy and client for authentication to succeed)
 	password_digest[kMD5_digest_size],	//	MD5 digest of password
@@ -156,12 +142,10 @@ int main(int argc, char *argv[]) {
 	*/
 	seq_expiry_tbl	= calloc(65536, sizeof(uint32_t));
 
-	log_file		= stdout;
-
 	//	Parse options
 	parse_options(argc, argv);
 
-	if (pcap && use_udp) {
+	if (pcap && opts.udp) {
 		pt_log(kLog_error, "Packet capture is not supported (or needed) when using UDP for transport.\n");
 		pcap	= 0;
 	}
@@ -172,17 +156,20 @@ int main(int argc, char *argv[]) {
 	#else
 	pt_log(kLog_info, "Security features by Sebastien Raveau, <sebastien.raveau@epita.fr>\n");
 	#endif
-	pt_log(kLog_info, "%s.\n", (mode == kMode_forward ? "Relaying packets from incoming TCP streams" : "Forwarding incoming ping packets over TCP"));
-	if (use_udp)
+	pt_log(kLog_info, "%s.\n", (opts.mode == kMode_forward ? "Relaying packets from incoming TCP streams" : "Forwarding incoming ping packets over TCP"));
+	if (opts.udp)
 		pt_log(kLog_info, "UDP transport enabled.\n");
+	pt_log(kLog_debug, "Destination at %s:%u\n", opts.given_dst_hostname, opts.given_dst_port);
+	if (opts.mode == kMode_forward)
+		pt_log(kLog_debug, "Listen for incoming connections at 0.0.0.0:%u\n", opts.tcp_listen_port);
 	
 #ifndef WIN32
   	signal(SIGPIPE, SIG_IGN);
-	if (use_syslog) {
-		if (log_file != stdout) {
+	if (opts.use_syslog) {
+		if (opts.log_file != stdout) {
 			pt_log(kLog_error, "Logging using syslog overrides the use of a specified logfile (using -f).\n");
-			fclose(log_file);
-			log_file	= stdout;
+			fclose(opts.log_file);
+			opts.log_file = stdout;
 		}		
 		openlog("ptunnel", LOG_PID, LOG_USER);
 	}
@@ -243,8 +230,8 @@ int main(int argc, char *argv[]) {
   	pthread_mutex_init(&num_threads_lock, 0);
 	
 	//	Check mode, validate arguments and start either client or proxy.
-	if (mode == kMode_forward) {
-		if (!given_proxy_ip || !given_dst_ip || !tcp_port || !tcp_listen_port) {
+	if (opts.mode == kMode_forward) {
+		if (!opts.given_proxy_ip || !opts.given_dst_ip || !opts.given_dst_port || !opts.tcp_listen_port) {
 			printf("One of the options are missing or invalid.\n");
 			print_usage(argv[0]);
 			return -1;
@@ -255,8 +242,8 @@ int main(int argc, char *argv[]) {
 		pt_proxy(0);
 	
 	//	Clean up
-	if (log_file != stdout)
-		fclose(log_file);
+	if (opts.log_file != stdout)
+		fclose(opts.log_file);
 
 #ifdef WIN32
 	WSACleanup();
@@ -295,7 +282,7 @@ void		pt_forwarder(void) {
 		return;
 	}
 	addr.sin_family			= AF_INET;
-	addr.sin_port			= htons(tcp_listen_port);
+	addr.sin_port			= htons(opts.tcp_listen_port);
 	addr.sin_addr.s_addr	= INADDR_ANY;
 	memset(&(addr.sin_zero), 0, 8);
 	if (bind(sock, (struct sockaddr*)&addr, sizeof(struct sockaddr)) == -1) {
@@ -307,12 +294,12 @@ void		pt_forwarder(void) {
 	//	Fill out address structure
 	memset(&dest_addr, 0, sizeof(struct sockaddr_in));
 	dest_addr.sin_family			= AF_INET;
-	if (use_udp)
+	if (opts.udp)
 		dest_addr.sin_port			= htons(kDNS_port /* dns port.. */);
 	else
 		dest_addr.sin_port			= 0;
-	dest_addr.sin_addr.s_addr		= given_proxy_ip;
-	pt_log(kLog_verbose, "Proxy IP address: %s\n", inet_ntoa(*((struct in_addr*)&given_proxy_ip)));
+	dest_addr.sin_addr.s_addr		= opts.given_proxy_ip;
+	pt_log(kLog_verbose, "Proxy IP address: %s\n", inet_ntoa(*((struct in_addr*)&opts.given_proxy_ip)));
 	
 	listen(server_sock, 10);
 	while (1) {
@@ -345,7 +332,7 @@ void		pt_forwarder(void) {
 			}
 			addr	= dest_addr;
 			rand_id	= (uint16_t)rand();
-			create_and_insert_proxy_desc(rand_id, rand_id, new_sock, &addr, given_dst_ip, tcp_port, kProxy_start, kUser_flag);
+			create_and_insert_proxy_desc(rand_id, rand_id, new_sock, &addr, opts.given_dst_ip, opts.given_dst_port, kProxy_start, kUser_flag);
 			pthread_mutex_unlock(&num_threads_lock);
 		}
 	}
@@ -408,9 +395,9 @@ void*		pt_proxy(void *args) {
 	
 	//	Start the thread, initialize protocol and ring states.
 	pt_log(kLog_debug, "Starting ping proxy..\n");
-	if (use_udp) {
+	if (opts.udp) {
 		pt_log(kLog_debug, "Creating UDP socket..\n");
-		if (mode == kMode_proxy)
+		if (opts.mode == kMode_proxy)
 			fwd_sock	= pt_create_udp_socket(kDNS_port);
 		else
 			fwd_sock	= pt_create_udp_socket(0);
@@ -420,7 +407,7 @@ void*		pt_proxy(void *args) {
 		}
 	}
 	else {
-		if (unprivileged) {
+		if (opts.unprivileged) {
 			pt_log(kLog_debug, "Attempting to create unprivileged ICMP datagram socket..\n");
 			fwd_sock		= socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
 		}
@@ -438,18 +425,18 @@ void*		pt_proxy(void *args) {
 			#endif
 		}
 		if (fwd_sock < 0) {
-			pt_log(kLog_error, "Couldn't create %s socket: %s\n", (unprivileged ? "unprivileged datagram" : "privileged raw"), strerror(errno));
+			pt_log(kLog_error, "Couldn't create %s socket: %s\n", (opts.unprivileged ? "unprivileged datagram" : "privileged raw"), strerror(errno));
 			return 0;
 		}
 	}
 	max_sock			= fwd_sock+1;
 	if (pcap) {
-		if (use_udp) {
+		if (opts.udp) {
 			pt_log(kLog_error, "Packet capture is not useful with UDP [should not get here!]!\n");
 			close(fwd_sock);
 			return 0;
 		}
-		if (!unprivileged) {
+		if (!opts.unprivileged) {
 			pt_log(kLog_info, "Initializing pcap.\n");
 			pc.pcap_err_buf		= malloc(PCAP_ERRBUF_SIZE);
 			pc.pcap_data_buf	= malloc(pcap_buf_size);
@@ -500,7 +487,7 @@ void*		pt_proxy(void *args) {
 	buf					= malloc(icmp_receive_buf_len);
 	
 	//	Start forwarding :)
-	pt_log(kLog_info, "Ping proxy is listening in %s mode.\n", (unprivileged ? "unprivileged" : "privileged"));
+	pt_log(kLog_info, "Ping proxy is listening in %s mode.\n", (opts.unprivileged ? "unprivileged" : "privileged"));
 
 	#ifndef WIN32
 	#ifdef HAVE_SELINUX
@@ -646,7 +633,7 @@ void*		pt_proxy(void *args) {
 			}
 		}
 		//	Update running statistics, if requested (only once every second)
-		if (print_stats && mode == kMode_forward && now > last_status_update+1) {
+		if (opts.print_stats && opts.mode == kMode_forward && now > last_status_update+1) {
 			pthread_mutex_lock(&chain_lock);
 			memset(&xfer, 0, sizeof(xfer_stats_t));
 			for (cur=chain;cur;cur=cur->next) {
@@ -657,7 +644,7 @@ void*		pt_proxy(void *args) {
 				xfer.icmp_resent	+= cur->xfer.icmp_resent;
 			}
 			pthread_mutex_unlock(&chain_lock);
-			print_statistics(&xfer, 1);
+			print_statistics(&xfer, (opts.log_level > kLog_verbose ? 0 : 1));
 			last_status_update		= now;
 		}
 	}
@@ -759,7 +746,7 @@ void		handle_packet(char *buf, int bytes, int is_pcap, struct sockaddr_in *addr,
 	if (bytes < sizeof(icmp_echo_packet_t)+sizeof(ping_tunnel_pkt_t))
 		pt_log(kLog_verbose, "Skipping this packet - too short. Expect: %d+%d = %d ; Got: %d\n", sizeof(icmp_echo_packet_t), sizeof(ping_tunnel_pkt_t), sizeof(icmp_echo_packet_t)+sizeof(ping_tunnel_pkt_t), bytes);
 	else {
-		if (use_udp) {
+		if (opts.udp) {
 			ip_pkt		= 0;
 			pkt			= (icmp_echo_packet_t*)buf;
 			pt_pkt		= (ping_tunnel_pkt_t*)pkt->data;
@@ -769,7 +756,7 @@ void		handle_packet(char *buf, int bytes, int is_pcap, struct sockaddr_in *addr,
 			pkt			= (icmp_echo_packet_t*)ip_pkt->data;
 			pt_pkt		= (ping_tunnel_pkt_t*)pkt->data;
 		}
-		if (ntohl(pt_pkt->magic) == magic) {
+		if (ntohl(pt_pkt->magic) == opts.magic) {
 			pt_pkt->state		= ntohl(pt_pkt->state);
 			pkt->identifier		= ntohs(pkt->identifier);
 			pt_pkt->id_no		= ntohs(pt_pkt->id_no);
@@ -818,7 +805,7 @@ void		handle_packet(char *buf, int bytes, int is_pcap, struct sockaddr_in *addr,
 							return;
 						}
 						pt_log(kLog_info, "Starting new session to %s:%d with ID %d\n", inet_ntoa(*(struct in_addr*)&pt_pkt->dst_ip), ntohl(pt_pkt->dst_port), pt_pkt->id_no);
-						if ((given_dst_ip && given_dst_ip != pt_pkt->dst_ip) || (-1 != tcp_port && tcp_port != ntohl(pt_pkt->dst_port))) {
+						if ((opts.given_dst_ip && opts.given_dst_ip != pt_pkt->dst_ip) || (-1 != opts.given_dst_port && opts.given_dst_port != ntohl(pt_pkt->dst_port))) {
 							pt_log(kLog_info, "Destination administratively prohibited!\n");
 							return;
 						}
@@ -925,8 +912,8 @@ proxy_desc_t*		create_and_insert_proxy_desc(uint16_t id_no, uint16_t icmp_id, in
 	proxy_desc_t	*cur;
 	
 	pthread_mutex_lock(&chain_lock);
-	if (num_tunnels >= max_tunnels) {
-		pt_log(kLog_info, "Discarding incoming connection - too many tunnels! Maximum count is %d (adjust with the -m switch).\n", max_tunnels);
+	if (num_tunnels >= opts.max_tunnels) {
+		pt_log(kLog_info, "Discarding incoming connection - too many tunnels! Maximum count is %u (adjust with the -m switch).\n", opts.max_tunnels);
 		if (sock)
 			close(sock);
 		pthread_mutex_unlock(&chain_lock);
@@ -960,7 +947,7 @@ proxy_desc_t*		create_and_insert_proxy_desc(uint16_t id_no, uint16_t icmp_id, in
 	if (cur->type_flag == kUser_flag)
 		cur->pkt_type		= kICMP_echo_request;
 	else
-		cur->pkt_type		= (unprivileged ? kICMP_echo_request : kICMP_echo_reply);
+		cur->pkt_type		= (opts.unprivileged ? kICMP_echo_request : kICMP_echo_reply);
 	cur->buf				= malloc(icmp_receive_buf_len);
 	cur->last_activity		= time_as_double();
 	cur->authenticated		= 0;
@@ -1064,7 +1051,7 @@ int			queue_packet(int icmp_sock, uint8_t type, char *buf, int num_bytes, uint16
 	(*ping_seq)++;
 	//	Add our information
 	pt_pkt				= (ping_tunnel_pkt_t*)pkt->data;
-	pt_pkt->magic			= htonl(magic);
+	pt_pkt->magic			= htonl(opts.magic);
 	pt_pkt->dst_ip			= ip;
 	pt_pkt->dst_port		= htonl(port);
 	pt_pkt->ack			= htonl(ack_val);
@@ -1176,7 +1163,7 @@ void		handle_data(icmp_echo_packet_t *pkt, int total_len, forward_desc_t *ring[]
 	*/
 	expected_len	+= pt_pkt->data_len;
 	expected_len	+= expected_len % 2;
-	if (use_udp)
+	if (opts.udp)
 		expected_len	-= sizeof(ip_packet_t);
 	if (total_len < expected_len) {
 		pt_log(kLog_error, "Packet not completely received: %d Should be: %d. For some reason, this error is fatal.\n", total_len, expected_len);
@@ -1407,10 +1394,10 @@ void	pt_log(int level, const char *fmt, ...) {
 	int syslog_levels[] = {LOG_ERR, LOG_NOTICE, LOG_NOTICE, LOG_INFO, LOG_DEBUG, LOG_DEBUG};
 #endif /* !WIN32 */
 
-	if (level <= log_level) {
+	if (level <= opts.log_level) {
 		va_start(args, fmt);
 #ifndef WIN32
-		if (use_syslog) {
+		if (opts.use_syslog) {
 			char log[255];
 			int header_len;
 			header_len = snprintf(log,sizeof(log),"%s",header[level]);
@@ -1419,14 +1406,14 @@ void	pt_log(int level, const char *fmt, ...) {
 		}
 		else
 #endif /* !WIN32 */
-			fprintf(log_file, "%s", header[level]), vfprintf(log_file, fmt, args);
+			fprintf(opts.log_file, "%s", header[level]), vfprintf(opts.log_file, fmt, args);
 		va_end(args);
 #ifndef WIN32
-		if (log_file != stdout && !use_syslog)
+		if (opts.log_file != stdout && !opts.use_syslog)
 #else
-		if (log_file != stdout)
+		if (opts.log_file != stdout)
 #endif
-			fflush(log_file);
+			fflush(opts.log_file);
 	}
 }
 

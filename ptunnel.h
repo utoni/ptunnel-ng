@@ -169,7 +169,6 @@ enum {
 	kDNS_port			= 53,
 };
 
-#define	kPing_tunnel_magic		0xDEADC0DE
 //	Resend packets after this interval (in seconds)
 #define	kResend_interval		1.5
 

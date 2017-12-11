@@ -37,47 +37,44 @@ static const struct option_usage usage[] = {
 		"and can be used to bypass Cisco IPS\n"
 		"This value has to be the same on the server and client!\n"
 	},
-	{"address", 1, OPT_STR,    {.unum = 0},
+	{"address",      1, OPT_DEC32,         {.unum = 0},
 		"Set address of peer running packet forwarder. This causes\n"
 		"ptunnel to operate in forwarding mode - the absence of this\n"
 		"option causes ptunnel to operate in proxy mode.\n"
 	},
-	{"port",         1, OPT_DEC32,  {.num = 1234},
+	{"port",         1, OPT_DEC32,  {.unum = 2222},
 		"Set TCP listening port (only used when operating in forward mode)\n"
 	},
-	{"address:port", 1, OPT_STR,    {.str = "127.0.0.1:22"},
-		"Set remote proxy destination address:port if client\n"
-		"Restrict to only this destination address:port if server\n"
+	{"address",      1, OPT_STR,    {.str = "127.0.0.1"},
+		"Set remote proxy destination address if client\n"
+		"Restrict to only this destination address if server\n"
 	},
-	{"connections",  0, OPT_DEC32,  {.num = 4},
+	{"port",         1, OPT_DEC32,  {.unum = 22},
+		"Set remote proxy destination port if client\n"
+		"Restrict to only this destination port if server\n"
+	},
+	{"connections",  0, OPT_DEC32,  {.unum = kMax_tunnels},
 		"Set maximum number of concurrent tunnels\n"
 	},
-	{"level",        0, OPT_DEC32,  {.num = 1},
+	{"level",        0, OPT_DEC32,  {.num = kLog_event},
 		"Verbosity level (-1 to 4, where -1 is no output, and 4 is all output)\n"
+		"The special level 5 (or higher) includes xfer logging (lots of output)\n"
 	},
-	{NULL,           0, OPT_BOOL,   {.unum = 0},
+	{"interface",    0, OPT_STR,   {.str = "eth0"},
 		"Enable libpcap on the given device.\n"
 	},
 	{"file",         0, OPT_STR,    {.str = "/var/log/ptunnel.log"},
 		"Specify a file to log to, rather than printing to standard out.\n"
 	},
-	{NULL,           0, OPT_BOOL,   {.unum = 0},
+	{NULL,           0, OPT_BOOL,   {.num = 0},
 		"Client only. Enables continuous output of statistics (packet loss, etc.)\n"
-	},
-#ifndef WIN32
-	{NULL,           0, OPT_BOOL,   {.unum = 0},
-		"Run in background, the PID will be written in the file supplied as argument\n"
-	},
-	{NULL,           0, OPT_BOOL,   {.unum = 0},
-		"Output debug to syslog instead of standard out.\n"
-	},
-#endif
-	{NULL,           0, OPT_BOOL,   {.unum = 0},
-		"Toggle use of UDP instead of ICMP. Proxy will listen on port 53 (must be root).\n"
 	},
 	{"password",     0, OPT_STR,    {.str = NULL},
 		"Set password (must be same on client and proxy)\n"
 		"If no password is set, you will be asked during runtime.\n"
+	},
+	{NULL,           0, OPT_BOOL,   {.unum = 0},
+		"Toggle use of UDP instead of ICMP. Proxy will listen on port 53 (must be root).\n"
 	},
 	{NULL,           0, OPT_BOOL,   {.unum = 0},
 		"Run proxy in unprivileged mode. This causes the proxy to forward\n"
@@ -86,6 +83,12 @@ static const struct option_usage usage[] = {
 		"than running in privileged mode.\n"
 	},
 #ifndef WIN32
+	{NULL,           0, OPT_BOOL,   {.unum = 0},
+		"Run in background, the PID will be written in the file supplied as argument\n"
+	},
+	{NULL,           0, OPT_BOOL,   {.unum = 0},
+		"Output debug to syslog instead of standard out.\n"
+	},
 	{"user",         0, OPT_STR,    {.str = "nobody"},
 		"When started in privileged mode, drop down to user's rights as soon as possible\n"
 	},
@@ -109,20 +112,21 @@ static const struct option_usage usage[] = {
 static struct option long_options[] = {
 	{"magic",       required_argument, 0, 'm'},
 	{"proxy",       required_argument, 0, 'p'},
-	{"listen",      required_argument, 0, 'l'},
-	{"remote",      required_argument, 0, 'r'},
+	{"listen",      optional_argument, 0, 'l'},
+	{"remote-adr",  optional_argument, 0, 'r'},
+	{"remote-port", optional_argument, 0, 'R'},
 	{"connections", required_argument, 0, 'c'},
 	{"verbosity",   required_argument, 0, 'v'},
 	{"libpcap",     required_argument, 0, 'a'},
-	{"logfile",     required_argument, 0, 'o'},
+	{"logfile",     optional_argument, 0, 'o'},
 	{"statistics",        no_argument, 0, 's'},
+	{"passwd",      required_argument, 0, 'x'},
+	{"udp",               no_argument, &opts.udp, 1 },
+	{"unprivileged",      no_argument, &opts.unprivileged, 1 },
 #ifndef WIN32
 	{"daemon",            no_argument, 0, 'd'},
 	{"syslog",            no_argument, 0, 'S'},
 #endif
-	{"udp",               no_argument, &opts.udp, 1 },
-	{"passwd",      required_argument, 0, 'x'},
-	{"unprivileged",      no_argument, &opts.unprivledged, 1 },
 #ifndef WIN32
 	{"user",        required_argument, 0, 'u'},
 	{"group",       required_argument, 0, 'g'},
@@ -135,6 +139,34 @@ static struct option long_options[] = {
 	{NULL,0,0,0}
 };
 
+
+static const void *get_default_optval(enum option_type opttype, const char *optname) {
+	for (unsigned i = 0; i < ARRAY_SIZE(long_options); ++i) {
+		if (strncmp(long_options[i].name, optname, strlen(long_options[i].name)) == 0) {
+			assert(usage[i].otype == opttype);
+			return &usage[i].str;
+		}
+	}
+	assert(NULL);
+	return NULL;
+}
+
+static void set_options_defaults(void) {
+	memset(&opts, 0, sizeof(opts));
+	opts.magic           = *(uint32_t *)  get_default_optval(OPT_HEX32, "magic");
+	opts.mode            = kMode_proxy;
+	opts.given_proxy_ip  = *(uint32_t *)  get_default_optval(OPT_DEC32, "proxy");
+	opts.tcp_listen_port = *(uint32_t *)  get_default_optval(OPT_DEC32, "listen");
+	opts.given_dst_hostname = strdup(*(char **) get_default_optval(OPT_STR, "remote-adr"));
+	opts.given_dst_port  = *(uint32_t *)  get_default_optval(OPT_DEC32, "remote-port");
+	opts.max_tunnels     = *(uint32_t *)  get_default_optval(OPT_DEC32, "connections");
+	opts.log_level       = *(int *)       get_default_optval(OPT_DEC32, "verbosity");
+	opts.pcap_device     = strdup((char *)get_default_optval(OPT_STR,   "libpcap"));
+	opts.log_file        = fopen(*(char **) get_default_optval(OPT_STR,   "logfile"), "a");
+	opts.print_stats     = *(int *)       get_default_optval(OPT_BOOL,  "statistics");
+#ifndef WIN32
+#endif
+}
 
 static void print_multiline(const char *prefix, const char *multiline) {
 	const char sep[] = "\n";
@@ -212,8 +244,6 @@ static void print_short_help(unsigned index, int required_state) {
 void print_usage(const char *arg0) {
 	unsigned i;
 
-	assert( ARRAY_SIZE(long_options) == ARRAY_SIZE(usage) );
-
 	printf("ptunnel-ng v%d.%.2d\n\nUsage: %s", kMajor_version, kMinor_version, arg0);
 	/* print (short)help argument line */
 	for (i = 0; i < ARRAY_SIZE(usage); ++i) {
@@ -234,7 +264,7 @@ void print_usage(const char *arg0) {
 }
 
 int parse_options(int argc, char **argv) {
-	int c = 0, optind = -1;
+	int c = 0, optind = -1, has_logfile = 0;
 	struct hostent *host_ent;
 	md5_state_t state;
 #ifndef WIN32
@@ -242,13 +272,14 @@ int parse_options(int argc, char **argv) {
 	struct group *grnam;
 #endif
 
+	assert( ARRAY_SIZE(long_options) == ARRAY_SIZE(usage) );
+
 	/* set defaults */
-	memset(&opts, 0, sizeof(opts));
-	opts.proxy_mode = kMode_proxy;
+	set_options_defaults();
 
 	/* parse command line arguments */
 	while (1) {
-		c = getopt_long(argc, argv, "m:p:l:r:c:v:a:o:sdSx:u:g:t:eh", &long_options[0], &optind);
+		c = getopt_long(argc, argv, "m:p:l::r::R::c:v:a:o::sdSx:u:g:t:eh", &long_options[0], &optind);
 		if (c == -1) break;
 
 		switch (c) {
@@ -256,7 +287,7 @@ int parse_options(int argc, char **argv) {
 				opts.magic = strtoul(optarg, NULL, 16);
 				break;
 			case 'p':
-				opts.proxy_mode = kMode_forward;
+				opts.mode = kMode_forward;
 				if (NULL == (host_ent = gethostbyname(optarg))) {
 					pt_log(kLog_error, "Failed to look up %s as proxy address\n", optarg);
 					return 1;
@@ -264,14 +295,16 @@ int parse_options(int argc, char **argv) {
 				opts.given_proxy_ip = *(uint32_t*)host_ent->h_addr_list[0];
 				break;
 			case 'l':
-				opts.tcp_listen_port = strtoul(optarg, NULL, 10);
+				if (optarg)
+					opts.tcp_listen_port = strtoul(optarg, NULL, 10);
 				break;
 			case 'r':
-				if (NULL == (host_ent = gethostbyname(optarg))) {
-					pt_log(kLog_error, "Failed to look up %s as destination address\n", optarg);
-					return 1;
-				}
-				opts.given_dst_ip = *(uint32_t*)host_ent->h_addr_list[0];
+				if (optarg)
+					opts.given_dst_hostname = strdup(optarg);
+				break;
+			case 'R':
+				if (optarg)
+					opts.given_dst_port = strtoul(optarg, NULL, 10);
 				break;
 			case 'c':
 				opts.max_tunnels = strtoul(optarg, NULL,10);
@@ -279,17 +312,24 @@ int parse_options(int argc, char **argv) {
 					opts.max_tunnels = kMax_tunnels;
 				break;
 			case 'v':
-				opts.log_level = strtoul(optarg, NULL, 10);
+				opts.log_level = strtol(optarg, NULL, 10);
 				break;
 			case 'a':
+				if (opts.pcap_device)
+					free(opts.pcap_device);
 				opts.pcap_device = strdup(optarg);
 				break;
 			case 'o':
-				opts.log_file = fopen(optarg, "a");
+				if (optarg) {
+					if (opts.log_file)
+						fclose(opts.log_file);			
+					opts.log_file = fopen(optarg, "a");
+				}
 				if (!opts.log_file) {
-					opts.log_file = stdout;
-					pt_log(kLog_error, "Failed to open log file: '%s'. Cause: %  s\n", optarg, strerror(errno));
+					pt_log(kLog_error, "Failed to open log file: \"%s\", Cause: %s\n", (optarg ? optarg : "default"), strerror(errno));
 					pt_log(kLog_error, "Reverting log to standard out.\n");
+				} else {
+					has_logfile = 1;
 				}
 				break;
 			case 's':
@@ -312,7 +352,7 @@ int parse_options(int argc, char **argv) {
 					pt_log(kLog_error, "%s: %s\n", optarg, strerror(errno));
 				break;
 			case 'S':
-				opts.syslog = 1;
+				opts.use_syslog = 1;
 				break;
 			case 'u':
 				errno = 0;
@@ -355,10 +395,24 @@ int parse_options(int argc, char **argv) {
 			case 'h':
 				print_usage(argv[0]);
 				_exit(EXIT_SUCCESS);
+			case 0: /* long opt only */
+				break;
 			default:
 				pt_log(kLog_error, "%s: option unknown", optarg);
 				break;
 		}
+	}
+
+	if (NULL == (host_ent = gethostbyname(opts.given_dst_hostname))) {
+		pt_log(kLog_error, "Failed to look up %s as destination address\n", opts.given_dst_hostname);
+		return 1;
+	}
+	opts.given_dst_ip = *(uint32_t*)host_ent->h_addr_list[0];
+
+	if (!has_logfile) {
+		if (opts.log_file)
+			fclose(opts.log_file);
+		opts.log_file = stdout;
 	}
 
 	return 0;

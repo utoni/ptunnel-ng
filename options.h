@@ -14,20 +14,19 @@
 
 
 struct options {
-	/** proxy or forwarder? */
-	int proxy_mode;
 	/** user defined magic value (prevent Cisco WSA/IronPort fingerprint scan) */
 	uint32_t magic;
+	/** proxy or forwarder? */
+	int mode;
 	/** Proxy's internet address */
-	uint32_t given_proxy_ip; 
-	/** Password-Digest (must be the same on proxy and client for authentication to succeed) */
-	unsigned char *password_digest;
+	uint32_t given_proxy_ip;
 	/** Port the client listens on */
-	uint16_t tcp_listen_port;
-	/** Proxy's internet address */
+	uint32_t tcp_listen_port;
+	/** Forward/Proxy destination internet address */
+	char *given_dst_hostname;
 	uint32_t given_dst_ip;
-	/** Port to send data to from the proxy */
-	int tcp_port;
+	/** Forward/Proxy destination port */
+	uint32_t given_dst_port;
 	/** Default maximum number of tunnels to support at once */
 	uint32_t max_tunnels;
 	/** Default log level */
@@ -38,15 +37,21 @@ struct options {
 	FILE *log_file;
 	/** Print more detailed traffic statistics if non zero value */
 	int print_stats;
+	/** Password-Digest (must be the same on proxy and client for authentication to succeed) */
+	unsigned char *password_digest;
 	/** use UDP instead of ICMP */
 	int udp;
 	/** unpriviledged mode */
-	int unprivledged;
+	int unprivileged;
 
 #ifdef HAVE_SELINUX
 	char *selinux_context;
 #endif
 #ifndef WIN32
+	/** run as daemon if non zero value */
+	int daemonize;
+	/** log to syslog if non zero value */
+	int use_syslog;
 	/** UID of the running process */
 	uid_t uid;
 	/** GID of the running process */
@@ -55,10 +60,6 @@ struct options {
 	char *root_dir;
 	/** PIDFILE */
 	FILE *pid_file;
-	/** run as daemon */
-	bool daemonize;
-	/** log to syslog if non zero value */
-	int syslog;
 #endif
 };
 
