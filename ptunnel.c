@@ -73,8 +73,6 @@
 	#include <selinux/selinux.h>
 	static char		*selinux_context = NULL;
 #endif
-	static uid_t		uid = 0;
-	static gid_t		gid = 0;
 	static char		*root_dir = NULL;
 	static bool		daemonize = false;
 	static FILE		*pid_file = NULL;
@@ -93,8 +91,6 @@ int
 uint32_t
 	*seq_expiry_tbl = 0;	//	Table indicating when a connection ID is allowable (used by proxy)
 char
-	*password = 0,		//	Password (must be the same on proxy and client for authentication to succeed)
-	password_digest[kMD5_digest_size],	//	MD5 digest of password
 	*pcap_device			= 0;	//	Device to capture packets from
 
 //	Some buffer constants
@@ -135,7 +131,7 @@ int main(int argc, char *argv[]) {
 	//	Seed random generator; it'll be used in combination with a timestamp
 	//	when generating authentication challenges.
 	srand(time(0));
-	memset(password_digest, 0, kMD5_digest_size);
+	memset(opts.password_digest, 0, kMD5_digest_size);
 
 	/*	The seq_expiry_tbl is used to prevent the remote ends from prematurely
 		re-using a sequence number.
@@ -491,15 +487,15 @@ void*		pt_proxy(void *args) {
 
 	#ifndef WIN32
 	#ifdef HAVE_SELINUX
-	if (uid || gid || selinux_context)
+	if (opts.uid || opts.gid || selinux_context)
 	#else
-	if (uid || gid)
+	if (opts.uid || opts.gid)
 	#endif
 		pt_log(kLog_info, "Dropping privileges now.\n");
-	if (gid && -1 == setgid(gid))
-		pt_log(kLog_error, "setgid(%d): %s\n", gid, strerror(errno));
-	if (uid && -1 == setuid(uid))
-		pt_log(kLog_error, "setuid(%d): %s\n", uid, strerror(errno));
+	if (opts.gid && -1 == setgid(opts.gid))
+		pt_log(kLog_error, "setgid(%d): %s\n", opts.gid, strerror(errno));
+	if (opts.uid && -1 == setuid(opts.uid))
+		pt_log(kLog_error, "setuid(%d): %s\n", opts.uid, strerror(errno));
 	#ifdef HAVE_SELINUX
 	if (NULL != selinux_context && -1 == setcon(selinux_context))
 		pt_log(kLog_error, "setcon(%s) failed: %s\n", selinux_context, strerror(errno));
@@ -545,7 +541,7 @@ void*		pt_proxy(void *args) {
 			//	Only handle traffic if there is traffic on the socket, we have
 			//	room in our send window AND we either don't use a password, or
 			//	have been authenticated.
-			if (FD_ISSET(cur->sock, &set) && cur->send_wait_ack < kPing_window_size && (!password || cur->authenticated)) {
+			if (FD_ISSET(cur->sock, &set) && cur->send_wait_ack < kPing_window_size && (!opts.password || cur->authenticated)) {
 				bytes		= recv(cur->sock, cur->buf, tcp_receive_buf_len, 0);
 				if (bytes <= 0) {
 					pt_log(kLog_info, "Connection closed or lost.\n");
@@ -809,7 +805,7 @@ void		handle_packet(char *buf, int bytes, int is_pcap, struct sockaddr_in *addr,
 							pt_log(kLog_info, "Destination administratively prohibited!\n");
 							return;
 						}
-						if (password)
+						if (opts.password)
 							init_state	= kProto_authenticate;
 						else
 							init_state	= kProto_data;
@@ -842,7 +838,7 @@ void		handle_packet(char *buf, int bytes, int is_pcap, struct sockaddr_in *addr,
 					challenge			= (challenge_t*)pt_pkt->data;
 					//	If client: Compute response to challenge
 					if (type_flag == kUser_flag) {
-						if (!password) {
+						if (!opts.password) {
 							pt_log(kLog_error, "This proxy requires a password! Please supply one using the -x switch.\n");
 							send_termination_msg(cur, icmp_sock);
 							cur->should_remove	= 1;
@@ -884,7 +880,7 @@ void		handle_packet(char *buf, int bytes, int is_pcap, struct sockaddr_in *addr,
 				//	The proxy will ignore any other packets from the client
 				//	until it has been authenticated. The packet resend mechanism
 				//	insures that this isn't problematic.
-				if (type_flag == kProxy_flag && password && cur && !cur->authenticated) {
+				if (type_flag == kProxy_flag && opts.password && cur && !cur->authenticated) {
 					pt_log(kLog_debug, "Ignoring packet with seq-no %d - not authenticated yet.\n", pt_pkt->seq_no);
 					return;
 				}
@@ -1344,12 +1340,11 @@ challenge_t*	generate_challenge(void) {
 	the challenge data.
 */
 void			generate_response(challenge_t *challenge) {
-	md5_byte_t	*buf;
+	md5_byte_t	buf[sizeof(challenge_t)+kMD5_digest_size];
 	md5_state_t	state;
 	
-	buf	= malloc(sizeof(challenge_t)+kMD5_digest_size);
 	memcpy(buf, challenge, sizeof(challenge_t));
-	memcpy(&buf[sizeof(challenge_t)], password_digest, kMD5_digest_size);
+	memcpy(&buf[sizeof(challenge_t)], opts.password_digest, kMD5_digest_size);
 	memset(challenge, 0, sizeof(challenge_t));
 	md5_init(&state);
 	md5_append(&state, buf, sizeof(challenge_t)+kMD5_digest_size);

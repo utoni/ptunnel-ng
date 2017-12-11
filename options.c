@@ -73,20 +73,20 @@ static const struct option_usage usage[] = {
 		"Set password (must be same on client and proxy)\n"
 		"If no password is set, you will be asked during runtime.\n"
 	},
-	{NULL,           0, OPT_BOOL,   {.unum = 0},
+	{NULL,           0, OPT_BOOL,   {.num = 0},
 		"Toggle use of UDP instead of ICMP. Proxy will listen on port 53 (must be root).\n"
 	},
-	{NULL,           0, OPT_BOOL,   {.unum = 0},
+	{NULL,           0, OPT_BOOL,   {.num = 0},
 		"Run proxy in unprivileged mode. This causes the proxy to forward\n"
 		"packets using standard echo requests, instead of crafting custom echo replies.\n"
 		"Unprivileged mode will only work on some systems, and is in general less reliable\n"
 		"than running in privileged mode.\n"
 	},
 #ifndef WIN32
-	{NULL,           0, OPT_BOOL,   {.unum = 0},
+	{NULL,           0, OPT_BOOL,   {.num = 0},
 		"Run in background, the PID will be written in the file supplied as argument\n"
 	},
-	{NULL,           0, OPT_BOOL,   {.unum = 0},
+	{NULL,           0, OPT_BOOL,   {.num = 0},
 		"Output debug to syslog instead of standard out.\n"
 	},
 	{"user",         0, OPT_STR,    {.str = "nobody"},
@@ -100,7 +100,7 @@ static const struct option_usage usage[] = {
 	},
 #endif
 #ifdef HAVE_SELINUX
-	{NULL,           0, OPT_BOOL,   {.unum = 0},
+	{NULL,           0, OPT_BOOL,   {.num = 0},
 		"Set SELinux context when all there is left to do are network I/O operations\n"
 		"To combine with -chroot you will have to `mount --bind /proc /chrootdir/proc`\n"
 	},
@@ -126,8 +126,6 @@ static struct option long_options[] = {
 #ifndef WIN32
 	{"daemon",            no_argument, 0, 'd'},
 	{"syslog",            no_argument, 0, 'S'},
-#endif
-#ifndef WIN32
 	{"user",        required_argument, 0, 'u'},
 	{"group",       required_argument, 0, 'g'},
 	{"chroot",      required_argument, 0, 't'},
@@ -152,6 +150,12 @@ static const void *get_default_optval(enum option_type opttype, const char *optn
 }
 
 static void set_options_defaults(void) {
+#ifndef WIN32
+	char *tmp;
+	struct passwd *pwnam;
+	struct group *grnam;
+#endif
+
 	memset(&opts, 0, sizeof(opts));
 	opts.magic           = *(uint32_t *)  get_default_optval(OPT_HEX32, "magic");
 	opts.mode            = kMode_proxy;
@@ -161,10 +165,29 @@ static void set_options_defaults(void) {
 	opts.given_dst_port  = *(uint32_t *)  get_default_optval(OPT_DEC32, "remote-port");
 	opts.max_tunnels     = *(uint32_t *)  get_default_optval(OPT_DEC32, "connections");
 	opts.log_level       = *(int *)       get_default_optval(OPT_DEC32, "verbosity");
-	opts.pcap_device     = strdup((char *)get_default_optval(OPT_STR,   "libpcap"));
-	opts.log_file        = fopen(*(char **) get_default_optval(OPT_STR,   "logfile"), "a");
+	opts.pcap_device     = strdup(*(char **)get_default_optval(OPT_STR, "libpcap"));
+	opts.log_path        = strdup(*(char **)get_default_optval(OPT_STR, "logfile"));
+	opts.log_file        = stdout;
 	opts.print_stats     = *(int *)       get_default_optval(OPT_BOOL,  "statistics");
+	opts.udp             = *(int *)       get_default_optval(OPT_BOOL,  "udp");
+	opts.unprivileged    = *(int *)       get_default_optval(OPT_BOOL,  "unprivileged");
 #ifndef WIN32
+	errno = 0;
+	tmp = *(char **) get_default_optval(OPT_STR, "user");
+	if (NULL == (pwnam = getpwnam(tmp)))
+		pt_log(kLog_error, "%s: %s\n", tmp, errno ? strerror(errno) : "unknown user");
+	else {
+		opts.uid = pwnam->pw_uid;
+		if (!opts.gid)
+			opts.gid = pwnam->pw_gid;
+	}
+
+	errno = 0;
+	tmp = *(char **) get_default_optval(OPT_STR, "group");
+	if (NULL == (grnam = getgrnam(tmp)))
+		pt_log(kLog_error, "%s: %s\n", tmp, errno ? strerror(errno) : "unknown group");
+	else
+		opts.gid = grnam->gr_gid;
 #endif
 }
 
@@ -271,6 +294,7 @@ int parse_options(int argc, char **argv) {
 	struct passwd *pwnam;
 	struct group *grnam;
 #endif
+	FILE *tmp_log;
 
 	assert( ARRAY_SIZE(long_options) == ARRAY_SIZE(usage) );
 
@@ -279,7 +303,7 @@ int parse_options(int argc, char **argv) {
 
 	/* parse command line arguments */
 	while (1) {
-		c = getopt_long(argc, argv, "m:p:l::r::R::c:v:a:o::sdSx:u:g:t:eh", &long_options[0], &optind);
+		c = getopt_long(argc, argv, "m:p:l::r::R::c:v:a:o::sdSx:u::g::t:eh", &long_options[0], &optind);
 		if (c == -1) break;
 
 		switch (c) {
@@ -321,27 +345,22 @@ int parse_options(int argc, char **argv) {
 				break;
 			case 'o':
 				if (optarg) {
-					if (opts.log_file)
-						fclose(opts.log_file);			
-					opts.log_file = fopen(optarg, "a");
+					if (opts.log_path)
+						free(opts.log_path);
+					opts.log_path = strdup(optarg);
 				}
-				if (!opts.log_file) {
-					pt_log(kLog_error, "Failed to open log file: \"%s\", Cause: %s\n", (optarg ? optarg : "default"), strerror(errno));
-					pt_log(kLog_error, "Reverting log to standard out.\n");
-				} else {
-					has_logfile = 1;
-				}
+				has_logfile = 1;
 				break;
 			case 's':
 				opts.print_stats = !opts.print_stats;
 				break;
 			case 'x':
-				opts.password_digest = (unsigned char *)calloc(MD5_LEN, sizeof(unsigned char));
+				opts.password = strdup(optarg);
 				pt_log(kLog_debug, "Password set - unauthenicated connections will be refused.\n");
 				//  Compute the password digest
 				md5_init(&state);
-				md5_append(&state, (md5_byte_t*)optarg, strlen(optarg));
-				md5_finish(&state, opts.password_digest);
+				md5_append(&state, (md5_byte_t*)optarg, strlen(opts.password));
+				md5_finish(&state, &opts.password_digest[0]);
 				//  Hide the password in process listing
 				memset(optarg, '*', strlen(optarg));
 				break;
@@ -355,6 +374,8 @@ int parse_options(int argc, char **argv) {
 				opts.use_syslog = 1;
 				break;
 			case 'u':
+				if (!optarg)
+					break;
 				errno = 0;
 				if (NULL == (pwnam = getpwnam(optarg))) {
 					pt_log(kLog_error, "%s: %s\n", optarg, errno ? strerror(errno) : "unknown user");
@@ -365,6 +386,8 @@ int parse_options(int argc, char **argv) {
 					opts.gid = pwnam->pw_gid;
 				break;
 			case 'g':
+				if (!optarg)
+					break;
 				errno = 0;
 				if (NULL == (grnam = getgrnam(optarg))) {
 					pt_log(kLog_error, "%s: %s\n", optarg, errno ? strerror(errno) : "unknown group");
@@ -381,7 +404,7 @@ int parse_options(int argc, char **argv) {
 			case 'u':
 			case 'g':
 			case 't':
-				pt_log(kLog_error, "%s: feature not supported", optarg);
+				pt_log(kLog_error, "%s: feature not supported\n", optarg);
 				exit(1);
 #endif
 			case 'e':
@@ -389,7 +412,7 @@ int parse_options(int argc, char **argv) {
 				opts.selinux_context = strdup(optarg);
 				break;
 #else
-				pt_log(kLog_error, "%s: feature not supported", optarg);
+				pt_log(kLog_error, "%s: feature not supported\n", optarg);
 				exit(1);
 #endif
 			case 'h':
@@ -398,7 +421,7 @@ int parse_options(int argc, char **argv) {
 			case 0: /* long opt only */
 				break;
 			default:
-				pt_log(kLog_error, "%s: option unknown", optarg);
+				pt_log(kLog_error, "\"%s\": option unknown\n", argv[optind - 1]);
 				break;
 		}
 	}
@@ -409,10 +432,13 @@ int parse_options(int argc, char **argv) {
 	}
 	opts.given_dst_ip = *(uint32_t*)host_ent->h_addr_list[0];
 
-	if (!has_logfile) {
-		if (opts.log_file)
-			fclose(opts.log_file);
-		opts.log_file = stdout;
+	if (has_logfile && opts.log_path) {
+		pt_log(kLog_info, "Open Logfile: \"%s\"\n", opts.log_path);
+		tmp_log = fopen(opts.log_path, "a");
+		if (!tmp_log) {
+			pt_log(kLog_error, "Failed to open log file: \"%s\", Cause: %s\n", opts.log_path, strerror(errno));
+			pt_log(kLog_error, "Reverting log to standard out.\n");
+		} else opts.log_file = tmp_log;
 	}
 
 	return 0;

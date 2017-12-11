@@ -11,6 +11,7 @@
 #endif
 
 #include "ptunnel.h"
+#include "md5.h"
 
 
 struct options {
@@ -34,19 +35,19 @@ struct options {
 	/** Device to capture packets from */
 	char *pcap_device;
 	/** Usually stdout, but can be altered by the user */
+	char *log_path;
 	FILE *log_file;
 	/** Print more detailed traffic statistics if non zero value */
 	int print_stats;
-	/** Password-Digest (must be the same on proxy and client for authentication to succeed) */
-	unsigned char *password_digest;
+	/** Password (must be the same on proxy and client for authentica  tion to succeed) */
+	char *password;
+	/** MD5 digest of challenge+password */
+	md5_byte_t password_digest[kMD5_digest_size];
 	/** use UDP instead of ICMP */
 	int udp;
 	/** unpriviledged mode */
 	int unprivileged;
 
-#ifdef HAVE_SELINUX
-	char *selinux_context;
-#endif
 #ifndef WIN32
 	/** run as daemon if non zero value */
 	int daemonize;
@@ -60,6 +61,10 @@ struct options {
 	char *root_dir;
 	/** PIDFILE */
 	FILE *pid_file;
+#endif
+
+#ifdef HAVE_SELINUX
+	char *selinux_context;
 #endif
 };
 
