@@ -31,51 +31,64 @@ struct option_usage {
 };
 
 static const struct option_usage usage[] = {
+	/** --magic */
 	{"magic",        0, OPT_HEX32,  {.unum = 0xdeadc0de},
 		"Set ptunnel magic hexadecimal number. (32-bit unsigned)\n"
-		"This will be prefixed in all ICMP packets\n"
-		"and can be used to bypass Cisco IPS\n"
+		"It is an identifier for all ICMP/UDP packets\n"
+		"and can be used to bypass Cisco IPS fingerprint scan.\n"
 		"This value has to be the same on the server and client!\n"
 	},
-	{"address",      1, OPT_DEC32,         {.unum = 0},
+	/** --proxy */
+	{"address",      1, OPT_DEC32,  {.unum = 0},
 		"Set address of peer running packet forwarder. This causes\n"
 		"ptunnel to operate in forwarding mode - the absence of this\n"
 		"option causes ptunnel to operate in proxy mode.\n"
 	},
+	/** --listen */
 	{"port",         1, OPT_DEC32,  {.unum = 2222},
 		"Set TCP listening port (only used when operating in forward mode)\n"
 	},
+	/** --remote-adr */
 	{"address",      1, OPT_STR,    {.str = "127.0.0.1"},
 		"Set remote proxy destination address if client\n"
 		"Restrict to only this destination address if server\n"
 	},
+	/** --remote-port */
 	{"port",         1, OPT_DEC32,  {.unum = 22},
 		"Set remote proxy destination port if client\n"
 		"Restrict to only this destination port if server\n"
 	},
+	/** --connections */
 	{"connections",  0, OPT_DEC32,  {.unum = kMax_tunnels},
 		"Set maximum number of concurrent tunnels\n"
 	},
+	/** --verbosity */
 	{"level",        0, OPT_DEC32,  {.num = kLog_event},
 		"Verbosity level (-1 to 4, where -1 is no output, and 4 is all output)\n"
 		"The special level 5 (or higher) includes xfer logging (lots of output)\n"
 	},
-	{"interface",    0, OPT_STR,   {.str = "eth0"},
+	/** --libpcap */
+	{"interface",    0, OPT_STR,    {.str = "eth0"},
 		"Enable libpcap on the given device.\n"
 	},
+	/** --logfile */
 	{"file",         0, OPT_STR,    {.str = "/var/log/ptunnel.log"},
 		"Specify a file to log to, rather than printing to standard out.\n"
 	},
+	/** --statistics */
 	{NULL,           0, OPT_BOOL,   {.num = 0},
 		"Client only. Enables continuous output of statistics (packet loss, etc.)\n"
 	},
+	/** --passwd */
 	{"password",     0, OPT_STR,    {.str = NULL},
 		"Set password (must be same on client and proxy)\n"
 		"If no password is set, you will be asked during runtime.\n"
 	},
+	/** --udp */
 	{NULL,           0, OPT_BOOL,   {.num = 0},
 		"Toggle use of UDP instead of ICMP. Proxy will listen on port 53 (must be root).\n"
 	},
+	/** --unprivileged */
 	{NULL,           0, OPT_BOOL,   {.num = 0},
 		"Run proxy in unprivileged mode. This causes the proxy to forward\n"
 		"packets using standard echo requests, instead of crafting custom echo replies.\n"
@@ -83,28 +96,35 @@ static const struct option_usage usage[] = {
 		"than running in privileged mode.\n"
 	},
 #ifndef WIN32
-	{NULL,           0, OPT_BOOL,   {.num = 0},
+	/** --daemon */
+	{"pidfile",      0, OPT_STR,    {.str = "/run/ptunnel.pid"},
 		"Run in background, the PID will be written in the file supplied as argument\n"
 	},
+	/** --syslog */
 	{NULL,           0, OPT_BOOL,   {.num = 0},
 		"Output debug to syslog instead of standard out.\n"
 	},
+	/** --user */
 	{"user",         0, OPT_STR,    {.str = "nobody"},
 		"When started in privileged mode, drop down to user's rights as soon as possible\n"
 	},
+	/** --group */
 	{"group",        0, OPT_STR,    {.str = "nogroup"},
 		"When started in privileged mode, drop down to group's rights as soon as possible\n"
 	},
+	/** --chroot */
 	{"directory",    0, OPT_STR,    {.str = "/var/lib/ptunnel"},
 		"When started in privileged mode, restrict file access to the specified directory\n"
 	},
 #endif
 #ifdef HAVE_SELINUX
-	{NULL,           0, OPT_BOOL,   {.num = 0},
+	/** --setcon */
+	{NULL,           0, OPT_STR,    {.num = 0},
 		"Set SELinux context when all there is left to do are network I/O operations\n"
 		"To combine with -chroot you will have to `mount --bind /proc /chrootdir/proc`\n"
 	},
 #endif
+	/** --help */
 	{"help",         0, OPT_STR,    {.str = NULL}, "this\n"},
 	{NULL,0,OPT_BOOL,{.unum=0},NULL}
 };
@@ -124,11 +144,11 @@ static struct option long_options[] = {
 	{"udp",               no_argument, &opts.udp, 1 },
 	{"unprivileged",      no_argument, &opts.unprivileged, 1 },
 #ifndef WIN32
-	{"daemon",            no_argument, 0, 'd'},
+	{"daemon",      optional_argument, 0, 'd'},
 	{"syslog",            no_argument, 0, 'S'},
-	{"user",        required_argument, 0, 'u'},
-	{"group",       required_argument, 0, 'g'},
-	{"chroot",      required_argument, 0, 't'},
+	{"user",        optional_argument, 0, 'u'},
+	{"group",       optional_argument, 0, 'g'},
+	{"chroot",      optional_argument, 0, 'C'},
 #endif
 #ifdef HAVE_SELINUX
 	{"setcon",            no_argument, 0, 'e'},
@@ -172,6 +192,8 @@ static void set_options_defaults(void) {
 	opts.udp             = *(int *)       get_default_optval(OPT_BOOL,  "udp");
 	opts.unprivileged    = *(int *)       get_default_optval(OPT_BOOL,  "unprivileged");
 #ifndef WIN32
+	opts.pid_path        = strdup(*(char **)get_default_optval(OPT_STR, "daemon"));
+
 	errno = 0;
 	tmp = *(char **) get_default_optval(OPT_STR, "user");
 	if (NULL == (pwnam = getpwnam(tmp)))
@@ -188,6 +210,8 @@ static void set_options_defaults(void) {
 		pt_log(kLog_error, "%s: %s\n", tmp, errno ? strerror(errno) : "unknown group");
 	else
 		opts.gid = grnam->gr_gid;
+
+	opts.root_dir        = strdup(*(char **)get_default_optval(OPT_STR, "chroot"));
 #endif
 }
 
@@ -303,7 +327,7 @@ int parse_options(int argc, char **argv) {
 
 	/* parse command line arguments */
 	while (1) {
-		c = getopt_long(argc, argv, "m:p:l::r::R::c:v:a:o::sdSx:u::g::t:eh", &long_options[0], &optind);
+		c = getopt_long(argc, argv, "m:p:l::r::R::c:v:a::o::sd::Sx:u::g::C::eh", &long_options[0], &optind);
 		if (c == -1) break;
 
 		switch (c) {
@@ -312,19 +336,20 @@ int parse_options(int argc, char **argv) {
 				break;
 			case 'p':
 				opts.mode = kMode_forward;
-				if (NULL == (host_ent = gethostbyname(optarg))) {
-					pt_log(kLog_error, "Failed to look up %s as proxy address\n", optarg);
-					return 1;
-				}
-				opts.given_proxy_ip = *(uint32_t*)host_ent->h_addr_list[0];
+				if (opts.given_proxy_hostname)
+					free(opts.given_proxy_hostname);
+				opts.given_proxy_hostname = strdup(optarg);
 				break;
 			case 'l':
 				if (optarg)
 					opts.tcp_listen_port = strtoul(optarg, NULL, 10);
 				break;
 			case 'r':
-				if (optarg)
-					opts.given_dst_hostname = strdup(optarg);
+				if (!optarg)
+					break;
+				if (opts.given_dst_hostname)
+					free(opts.given_dst_hostname);
+				opts.given_dst_hostname = strdup(optarg);
 				break;
 			case 'R':
 				if (optarg)
@@ -339,22 +364,27 @@ int parse_options(int argc, char **argv) {
 				opts.log_level = strtol(optarg, NULL, 10);
 				break;
 			case 'a':
+				opts.pcap = 1;
+				if (!optarg)
+					break;
 				if (opts.pcap_device)
 					free(opts.pcap_device);
 				opts.pcap_device = strdup(optarg);
 				break;
 			case 'o':
-				if (optarg) {
-					if (opts.log_path)
-						free(opts.log_path);
-					opts.log_path = strdup(optarg);
-				}
 				has_logfile = 1;
+				if (!optarg)
+					break;
+				if (opts.log_path)
+					free(opts.log_path);
+				opts.log_path = strdup(optarg);
 				break;
 			case 's':
 				opts.print_stats = !opts.print_stats;
 				break;
 			case 'x':
+				if (opts.password)
+					free(opts.password);
 				opts.password = strdup(optarg);
 				pt_log(kLog_debug, "Password set - unauthenicated connections will be refused.\n");
 				//  Compute the password digest
@@ -367,8 +397,11 @@ int parse_options(int argc, char **argv) {
 #ifndef WIN32
 			case 'd':
 				opts.daemonize = true;
-				if (NULL == (opts.pid_file = fopen(optarg, "w")))
-					pt_log(kLog_error, "%s: %s\n", optarg, strerror(errno));
+				if (!optarg)
+					break;
+				if (opts.pid_path)
+					free(opts.pid_path);
+				opts.pid_path = strdup(optarg);
 				break;
 			case 'S':
 				opts.use_syslog = 1;
@@ -395,7 +428,12 @@ int parse_options(int argc, char **argv) {
 				}
 				opts.gid = grnam->gr_gid;
 				break;
-			case 't':
+			case 'C':
+				opts.chroot = 1;
+				if (!optarg)
+					break;
+				if (opts.root_dir)
+					free(opts.root_dir);
 				opts.root_dir = strdup(optarg);
 				break;
 #else
@@ -404,26 +442,34 @@ int parse_options(int argc, char **argv) {
 			case 'u':
 			case 'g':
 			case 't':
-				pt_log(kLog_error, "%s: feature not supported\n", optarg);
+				pt_log(kLog_error, "%s: feature not supported\n", argv[optind - 1]);
 				exit(1);
 #endif
 			case 'e':
 #ifdef HAVE_SELINUX
+				if (opts.selinux_context)
+					free(opts.selinux_context);
 				opts.selinux_context = strdup(optarg);
 				break;
 #else
-				pt_log(kLog_error, "%s: feature not supported\n", optarg);
+				pt_log(kLog_error, "%s: feature not supported\n", argv[optind - 1]);
 				exit(1);
 #endif
 			case 'h':
 				print_usage(argv[0]);
 				_exit(EXIT_SUCCESS);
 			case 0: /* long opt only */
-				break;
 			default:
-				pt_log(kLog_error, "\"%s\": option unknown\n", argv[optind - 1]);
 				break;
 		}
+	}
+
+	if (opts.given_proxy_hostname) {
+		if (NULL == (host_ent = gethostbyname(opts.given_proxy_hostname))) {
+			pt_log(kLog_error, "Failed to look up %s as proxy address\n", opts.given_proxy_hostname);
+			return 1;
+		}
+		opts.given_proxy_ip = *(uint32_t*)host_ent->h_addr_list[0];
 	}
 
 	if (NULL == (host_ent = gethostbyname(opts.given_dst_hostname))) {
@@ -431,6 +477,9 @@ int parse_options(int argc, char **argv) {
 		return 1;
 	}
 	opts.given_dst_ip = *(uint32_t*)host_ent->h_addr_list[0];
+
+	if (NULL == (opts.pid_file = fopen(opts.pid_path, "w")))
+		pt_log(kLog_error, "Failed to open pidfile: \"%s\", Cause: %s\n", opts.pid_path, strerror(errno));
 
 	if (has_logfile && opts.log_path) {
 		pt_log(kLog_info, "Open Logfile: \"%s\"\n", opts.log_path);

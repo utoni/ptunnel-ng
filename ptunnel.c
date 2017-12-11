@@ -43,6 +43,9 @@
 #include "ptunnel.h"
 #include "options.h"
 #include "md5.h"
+#ifdef HAVE_SELINUX
+#include <selinux/selinux.h>
+#endif
 
 #ifdef WIN32
 	/* pthread porting to windows */
@@ -69,13 +72,6 @@
 	}
 	#define strerror(x) print_last_windows_error()
 #else
-#ifdef HAVE_SELINUX
-	#include <selinux/selinux.h>
-	static char		*selinux_context = NULL;
-#endif
-	static char		*root_dir = NULL;
-	static bool		daemonize = false;
-	static FILE		*pid_file = NULL;
 #endif /* WIN32 */
 
 
@@ -83,15 +79,11 @@
 pthread_mutex_t
 	chain_lock,		//	Lock protecting the chain of connections
 	num_threads_lock;	//	Lock protecting the num_threads variable
-bool
-	pcap = false;		//	True if user wants packet capturing
 int
 	num_threads = 0,	//	Current thread count
 	num_tunnels = 0;	//	Current tunnel count
 uint32_t
 	*seq_expiry_tbl = 0;	//	Table indicating when a connection ID is allowable (used by proxy)
-char
-	*pcap_device			= 0;	//	Device to capture packets from
 
 //	Some buffer constants
 const int
@@ -139,11 +131,12 @@ int main(int argc, char *argv[]) {
 	seq_expiry_tbl	= calloc(65536, sizeof(uint32_t));
 
 	//	Parse options
-	parse_options(argc, argv);
+	if (parse_options(argc, argv))
+		return -1;
 
-	if (pcap && opts.udp) {
+	if (opts.pcap && opts.udp) {
 		pt_log(kLog_error, "Packet capture is not supported (or needed) when using UDP for transport.\n");
-		pcap	= 0;
+		opts.pcap = 0;
 	}
 	pt_log(kLog_info, "Starting ptunnel v %d.%.2d.\n", kMajor_version, kMinor_version);
 	pt_log(kLog_info, "(c) 2004-2011 Daniel Stoedle, <daniels@cs.uit.no>\n");
@@ -169,14 +162,14 @@ int main(int argc, char *argv[]) {
 		}		
 		openlog("ptunnel", LOG_PID, LOG_USER);
 	}
-	if (NULL != root_dir) {
-		pt_log(kLog_info, "Restricting file access to %s\n", root_dir);
-		if (-1 == chdir(root_dir) || -1 == chroot(root_dir)) {
-			pt_log(kLog_error, "%s: %s\n", root_dir, strerror(errno));
+	if (opts.chroot) {
+		pt_log(kLog_info, "Restricting file access to %s\n", opts.root_dir);
+		if (-1 == chdir(opts.root_dir) || -1 == chroot(opts.root_dir)) {
+			pt_log(kLog_error, "%s: %s\n", opts.root_dir, strerror(errno));
 			exit(1);
 		}
 	}
-	if (daemonize) {
+	if (opts.daemonize) {
 		pt_log(kLog_info, "Going to the background.\n");
 		if (0 < (pid = fork()))
 			exit(0);
@@ -191,9 +184,9 @@ int main(int argc, char *argv[]) {
 				if (0 > pid)
 					pt_log(kLog_error, "fork: %s\n", strerror(errno));
 				else {
-					if (NULL != pid_file) {
-						fprintf(pid_file, "%d\n", getpid());
-						fclose(pid_file);
+					if (NULL != opts.pid_file) {
+						fprintf(opts.pid_file, "%d\n", getpid());
+						fclose(opts.pid_file);
 					}
 					if (! freopen("/dev/null", "r", stdin) ||
 					    ! freopen("/dev/null", "w", stdout) ||
@@ -237,18 +230,14 @@ int main(int argc, char *argv[]) {
 	else
 		pt_proxy(0);
 	
-	//	Clean up
-	if (opts.log_file != stdout)
-		fclose(opts.log_file);
-
 #ifdef WIN32
 	WSACleanup();
 #else
-	if (NULL != root_dir)
-		free(root_dir);
+	if (opts.root_dir)
+		free(opts.root_dir);
 	#ifdef HAVE_SELINUX
-	if (NULL != selinux_context)
-		free(selinux_context);
+	if (NULL != opts.selinux_context)
+		free(opts.selinux_context);
 	#endif
 #endif /* WIN32 */
 
@@ -426,45 +415,46 @@ void*		pt_proxy(void *args) {
 		}
 	}
 	max_sock			= fwd_sock+1;
-	if (pcap) {
+	if (opts.pcap) {
 		if (opts.udp) {
 			pt_log(kLog_error, "Packet capture is not useful with UDP [should not get here!]!\n");
 			close(fwd_sock);
 			return 0;
 		}
 		if (!opts.unprivileged) {
+			memset(&pc, 0, sizeof(pc));
 			pt_log(kLog_info, "Initializing pcap.\n");
 			pc.pcap_err_buf		= malloc(PCAP_ERRBUF_SIZE);
 			pc.pcap_data_buf	= malloc(pcap_buf_size);
-			pc.pcap_desc		= pcap_open_live(pcap_device, pcap_buf_size, 0 /* promiscous */, 50 /* ms */, pc.pcap_err_buf);
+			pc.pcap_desc		= pcap_open_live(opts.pcap_device, pcap_buf_size, 0 /* promiscous */, 50 /* ms */, pc.pcap_err_buf);
 			if (pc.pcap_desc) {
-				if (pcap_lookupnet(pcap_device, &pc.netp, &pc.netmask, pc.pcap_err_buf) == -1) {
+				if (pcap_lookupnet(opts.pcap_device, &pc.netp, &pc.netmask, pc.pcap_err_buf) == -1) {
 					
 					pt_log(kLog_error, "pcap error: %s\n", pc.pcap_err_buf);
-					pcap	= 0;
+					opts.pcap = 0;
 				}
 				pt_log(kLog_verbose, "Network: %s\n", inet_ntoa(*(struct in_addr*)&pc.netp));
 				pt_log(kLog_verbose, "Netmask: %s\n", inet_ntoa(*(struct in_addr*)&pc.netmask));
 				if (pcap_compile(pc.pcap_desc, &pc.fp, pcap_filter_program, 0, pc.netp) == -1) {
 					pt_log(kLog_error, "Failed to compile pcap filter program.\n");
 					pcap_close(pc.pcap_desc);
-					pcap	= 0;
+					opts.pcap = 0;
 				}
 				else if (pcap_setfilter(pc.pcap_desc, &pc.fp) == -1) {
 					pt_log(kLog_error, "Failed to set pcap filter program.\n");
 					pcap_close(pc.pcap_desc);
-					pcap	= 0;
+					opts.pcap = 0;
 				}
 			}
 			else {
 				pt_log(kLog_error, "pcap error: %s\n", pc.pcap_err_buf);
-				pcap	= 0;
+				opts.pcap = 0;
 			}
 			pc.pkt_q.head	= 0;
 			pc.pkt_q.tail	= 0;
 			pc.pkt_q.elems	= 0;
 			//	Check if we have succeeded, and free stuff if not
-			if (!pcap) {
+			if (!opts.pcap) {
 				pt_log(kLog_error, "There were errors enabling pcap - pcap has been disabled.\n");
 				free(pc.pcap_err_buf);
 				free(pc.pcap_data_buf);
@@ -487,7 +477,7 @@ void*		pt_proxy(void *args) {
 
 	#ifndef WIN32
 	#ifdef HAVE_SELINUX
-	if (opts.uid || opts.gid || selinux_context)
+	if (opts.uid || opts.gid || opts.selinux_context)
 	#else
 	if (opts.uid || opts.gid)
 	#endif
@@ -497,8 +487,8 @@ void*		pt_proxy(void *args) {
 	if (opts.uid && -1 == setuid(opts.uid))
 		pt_log(kLog_error, "setuid(%d): %s\n", opts.uid, strerror(errno));
 	#ifdef HAVE_SELINUX
-	if (NULL != selinux_context && -1 == setcon(selinux_context))
-		pt_log(kLog_error, "setcon(%s) failed: %s\n", selinux_context, strerror(errno));
+	if (NULL != opts.selinux_context && -1 == setcon(opts.selinux_context))
+		pt_log(kLog_error, "setcon(%s) failed: %s\n", opts.selinux_context, strerror(errno));
 	#endif
 	#endif
 
@@ -607,7 +597,7 @@ void*		pt_proxy(void *args) {
 			}
 		}
 		pthread_mutex_unlock(&chain_lock);
-		if (pcap) {
+		if (opts.pcap) {
 			if (pcap_dispatch(pc.pcap_desc, 32, pcap_packet_handler, (u_char*)&pc.pkt_q) > 0) {
 				pqueue_elem_t	*cur;
 				//pt_log(kLog_verbose, "pcap captured %d packets - handling them..\n", pc.pkt_q.elems);
@@ -640,7 +630,7 @@ void*		pt_proxy(void *args) {
 				xfer.icmp_resent	+= cur->xfer.icmp_resent;
 			}
 			pthread_mutex_unlock(&chain_lock);
-			print_statistics(&xfer, (opts.log_level > kLog_verbose ? 0 : 1));
+			print_statistics(&xfer, (opts.log_level >= kLog_verbose ? 0 : 1));
 			last_status_update		= now;
 		}
 	}

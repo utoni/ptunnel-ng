@@ -20,6 +20,7 @@ struct options {
 	/** proxy or forwarder? */
 	int mode;
 	/** Proxy's internet address */
+	char *given_proxy_hostname;
 	uint32_t given_proxy_ip;
 	/** Port the client listens on */
 	uint32_t tcp_listen_port;
@@ -32,6 +33,8 @@ struct options {
 	uint32_t max_tunnels;
 	/** Default log level */
 	int log_level;
+	/** Non zero value if user wants packet capturing */
+	int pcap;
 	/** Device to capture packets from */
 	char *pcap_device;
 	/** Usually stdout, but can be altered by the user */
@@ -51,6 +54,9 @@ struct options {
 #ifndef WIN32
 	/** run as daemon if non zero value */
 	int daemonize;
+	/** PIDFILE if running as daemon */
+	char *pid_path;
+	FILE *pid_file;
 	/** log to syslog if non zero value */
 	int use_syslog;
 	/** UID of the running process */
@@ -58,9 +64,8 @@ struct options {
 	/** GID of the running process */
 	gid_t gid;
 	/** CHROOT dir */
+	int chroot;
 	char *root_dir;
-	/** PIDFILE */
-	FILE *pid_file;
 #endif
 
 #ifdef HAVE_SELINUX
