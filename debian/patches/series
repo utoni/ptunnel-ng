@@ -1,4 +1,0 @@
-add_hardening_flags.diff
-fix_typo.diff
-fix_minus_chars_in_man.patch
-makefile-debian-prefix.patch
