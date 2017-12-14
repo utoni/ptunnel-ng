@@ -70,17 +70,7 @@
 #include <stdbool.h>
 #include <pcap.h>
 
-#ifdef WIN32
-#include <winsock2.h>
-typedef int socklen_t;
-typedef uint32_t in_addr_t;
-#define ETH_ALEN 6 /* Octets in one ethernet addr   */
-struct ether_header {
-	u_int8_t  ether_dhost[ETH_ALEN]; /* destination eth addr */
-	u_int8_t  ether_shost[ETH_ALEN]; /* source ether addr    */
-	u_int16_t ether_type;            /* packet type ID field */
-};
-#endif /* WIN32 */
+#include "pkt.h"
 
 enum {
 	kMode_forward        = 0,   //	Ping tunnel's operating mode (client)
@@ -168,77 +158,6 @@ enum {
 
 	kDNS_port			= 53,
 };
-
-//	Resend packets after this interval (in seconds)
-#define	kResend_interval		1.5
-
-/*	ping_tunnel_pkt_t: This data structure represents the header of a ptunnel
-	packet, consisting of a magic number, the tunnel's destination IP and port,
-	as well as some other fields. Note that the dest IP and port is only valid
-	in packets from the client to the proxy.
-*/
-typedef struct {
-	uint32_t
-		magic,		//	magic number, used to identify ptunnel packets.
-		dst_ip,		//	destination IP and port (used by proxy to figure
-		dst_port,	//	out where to tunnel to)
-		state,		//	current connection state; see constants above.
-		ack,		//	sequence number of last packet received from other end
-		data_len;	//	length of data buffer
-	uint16_t
-		seq_no,		//	sequence number of this packet
-		id_no;		//	id number, used to separate different tunnels from each other
-	char
-		data[0];	//	optional data buffer
-} __attribute__ ((packed)) ping_tunnel_pkt_t;
-
-
-/*	ip_packet_t: This is basically my own definition of the IP packet, which
-	of course complies with the official definition ;) See any good book on IP
-	(or even the RFC) for info on the contents of this packet.
-*/
-typedef struct {
-	uint8_t
-		vers_ihl,
-		tos;
-	uint16_t
-		pkt_len,
-		id,
-		flags_frag_offset;
-	uint8_t
-		ttl,
-		proto;	// 1 for ICMP
-	uint16_t
-		checksum;
-	uint32_t
-		src_ip,
-		dst_ip;
-	char
-		data[0];
-} __attribute__ ((packed)) ip_packet_t;
-
-
-/*	icmp_echo_packet_t: This is the definition of a standard ICMP header. The
-	ptunnel packets are constructed as follows:
-	[    ip header (20 bytes)   ]
-	[   icmp header (8 bytes)   ]
-	[ ptunnel header (28 bytes) ]
-	
-	We actually only create the ICMP and ptunnel headers, the IP header is
-	taken care of by the OS.
-*/
-typedef struct {
-	uint8_t
-		type,
-		code;
-	uint16_t
-		checksum,
-		identifier,
-		seq;
-	char
-		data[0];
-} __attribute__ ((packed)) icmp_echo_packet_t;
-
 
 /*	pt_thread_info_t: A simple (very simple, in fact) structure that allows us
 	to pass an arbitrary number of params to the threads we create. Currently,

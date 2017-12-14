@@ -39,7 +39,7 @@ static const struct option_usage usage[] = {
 		"This value has to be the same on the server and client!\n"
 	},
 	/** --proxy */
-	{"address",      1, OPT_DEC32,  {.unum = 0},
+	{"address",      1, OPT_STR,    {.str = NULL},
 		"Set address of peer running packet forwarder. This causes\n"
 		"ptunnel to operate in forwarding mode - the absence of this\n"
 		"option causes ptunnel to operate in proxy mode.\n"
@@ -132,7 +132,7 @@ static const struct option_usage usage[] = {
 static struct option long_options[] = {
 	{"magic",       required_argument, 0, 'm'},
 	{"proxy",       required_argument, 0, 'p'},
-	{"listen",      optional_argument, 0, 'l'},
+	{"listen",      required_argument, 0, 'l'},
 	{"remote-adr",  optional_argument, 0, 'r'},
 	{"remote-port", optional_argument, 0, 'R'},
 	{"connections", required_argument, 0, 'c'},
@@ -179,7 +179,6 @@ static void set_options_defaults(void) {
 	memset(&opts, 0, sizeof(opts));
 	opts.magic           = *(uint32_t *)  get_default_optval(OPT_HEX32, "magic");
 	opts.mode            = kMode_proxy;
-	opts.given_proxy_ip  = *(uint32_t *)  get_default_optval(OPT_DEC32, "proxy");
 	opts.tcp_listen_port = *(uint32_t *)  get_default_optval(OPT_DEC32, "listen");
 	opts.given_dst_hostname = strdup(*(char **) get_default_optval(OPT_STR, "remote-adr"));
 	opts.given_dst_port  = *(uint32_t *)  get_default_optval(OPT_DEC32, "remote-port");
@@ -327,7 +326,7 @@ int parse_options(int argc, char **argv) {
 
 	/* parse command line arguments */
 	while (1) {
-		c = getopt_long(argc, argv, "m:p:l::r::R::c:v:a::o::sd::Sx:u::g::C::eh", &long_options[0], &optind);
+		c = getopt_long(argc, argv, "m:p:l:r::R::c:v:a::o::sd::Sx:u::g::C::eh", &long_options[0], &optind);
 		if (c == -1) break;
 
 		switch (c) {

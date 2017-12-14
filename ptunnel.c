@@ -271,7 +271,7 @@ void		pt_forwarder(void) {
 	addr.sin_addr.s_addr	= INADDR_ANY;
 	memset(&(addr.sin_zero), 0, 8);
 	if (bind(sock, (struct sockaddr*)&addr, sizeof(struct sockaddr)) == -1) {
-		pt_log(kLog_error, "Failed to bind listening socket: %s\n", strerror(errno));
+		pt_log(kLog_error, "Failed to bind listening socket to port %u: %s\n", opts.tcp_listen_port, strerror(errno));
 		close(sock);
 		return;
 	}
