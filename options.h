@@ -10,9 +10,8 @@
 #include <selinux/selinux.h>
 #endif
 
-#include "ptunnel.h"
 #include "md5.h"
-
+#include "pconfig.h"
 
 struct options {
 	/** user defined magic value (prevent Cisco WSA/IronPort fingerprint scan) */
