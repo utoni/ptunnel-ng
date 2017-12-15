@@ -74,6 +74,11 @@
 #include "pdesc.h"
 #include "challenge.h"
 
+extern pthread_mutex_t chain_lock;
+extern int num_tunnels;
+extern const int icmp_receive_buf_len;
+extern proxy_desc_t *chain;
+
 /*	pt_thread_info_t: A simple (very simple, in fact) structure that allows us
 	to pass an arbitrary number of params to the threads we create. Currently,
 	that's just one single parameter: The socket which the thread should listen
@@ -129,9 +134,6 @@ typedef struct {
 	void		pcap_packet_handler(u_char *refcon, const struct pcap_pkthdr *hdr, const u_char* pkt);
 	void		handle_packet(char *buf, int bytes, int is_pcap, struct sockaddr_in *addr, int icmp_sock);
 
-	proxy_desc_t*	create_and_insert_proxy_desc(uint16_t id_no, uint16_t icmp_id, int sock, struct sockaddr_in *addr, uint32_t dst_ip, uint32_t dst_port, uint32_t init_state, uint32_t type);
-	void		remove_proxy_desc(proxy_desc_t *cur, proxy_desc_t *prev);
-
 	void		pt_forwarder(void);
 
 	void		print_statistics(xfer_stats_t *xfer, int is_continuous);
@@ -139,7 +141,6 @@ typedef struct {
 	uint32_t	send_packets(forward_desc_t *ring[], int *xfer_idx, int *await_send, int *sock);
 	void		handle_data(icmp_echo_packet_t *pkt, int total_len, forward_desc_t *ring[], int *await_send, int *insert_idx, uint16_t *next_expected_seq);
 	void		handle_ack(uint16_t seq_no, icmp_desc_t ring[], int *packets_awaiting_ack, int one_ack_only, int insert_idx, int *first_ack, uint16_t *remote_ack, int is_pcap);
-	forward_desc_t*	create_fwd_desc(uint16_t seq_no, uint32_t data_len, char *data);
 	void		init_ip_packet(ip_packet_t *packet, uint16_t id, uint16_t frag_offset, uint16_t pkt_len, uint8_t ttl, uint32_t src_ip, uint32_t dst_ip, bool is_last_frag, bool dont_frag);
 	uint16_t	calc_ip_checksum(ip_packet_t *pkt);
 	uint16_t	calc_icmp_checksum(uint16_t *data, int bytes);

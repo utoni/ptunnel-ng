@@ -2,6 +2,9 @@
 #define PDESC_H 1
 
 #include <stdint.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include "pkt.h"
 #include "challenge.h"
@@ -111,5 +114,13 @@ typedef struct proxy_desc_t {
     xfer_stats_t xfer;
     struct proxy_desc_t *next;
 } proxy_desc_t;
+
+
+proxy_desc_t* create_and_insert_proxy_desc(uint16_t id_no, uint16_t icmp_id,
+                                           int sock, struct sockaddr_in *addr,
+			                               uint32_t dst_ip, uint32_t dst_port,
+                                           uint32_t init_state, uint32_t type);
+void remove_proxy_desc(proxy_desc_t *cur, proxy_desc_t *prev);
+forward_desc_t* create_fwd_desc(uint16_t seq_no, uint32_t data_len, char *data);
 
 #endif

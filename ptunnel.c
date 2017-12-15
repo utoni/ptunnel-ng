@@ -1,44 +1,47 @@
-/*	ptunnel.c
-	ptunnel is licensed under the BSD license:
-	
-	Copyright (c) 2004-2011, Daniel Stoedle <daniels@cs.uit.no>,
-	Yellow Lemon Software. All rights reserved.
-	
-	Redistribution and use in source and binary forms, with or without
-	modification, are permitted provided that the following conditions are met:
-
-	- Redistributions of source code must retain the above copyright notice,
-	  this list of conditions and the following disclaimer.
-
-	- Redistributions in binary form must reproduce the above copyright notice,
-	  this list of conditions and the following disclaimer in the documentation
-	  and/or other materials provided with the distribution.
-
-	- Neither the name of the Yellow Lemon Software nor the names of its
-	  contributors may be used to endorse or promote products derived from this
-	  software without specific prior written permission.
-
-	THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-	AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-	IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-	ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
-	LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-	CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-	SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-	INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-	CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-	ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-	POSSIBILITY OF SUCH DAMAGE.
-		
-	Contacting the author:
-	You can get in touch with me, Daniel Stødle (that's the Norwegian letter oe,
-	in case your text editor didn't realize), here: <daniels@cs.uit.no>
-	
-	The official ptunnel website is here:
-	<http://www.cs.uit.no/~daniels/PingTunnel/>
-	
-	Note that the source code is best viewed with tabs set to 4 spaces.
-*/
+/*
+ * ptunnel.c
+ * ptunnel is licensed under the BSD license:
+ *
+ * Copyright (c) 2004-2011, Daniel Stoedle <daniels@cs.uit.no>,
+ * Yellow Lemon Software. All rights reserved.
+ *
+ * Copyright (c) 2017 Toni Uhlig <matzeton@googlemail.com>
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * - Redistributions of source code must retain the above copyright notice,
+ *   this list of conditions and the following disclaimer.
+ *
+ * - Redistributions in binary form must reproduce the above copyright notice,
+ *   this list of conditions and the following disclaimer in the documentation
+ *   and/or other materials provided with the distribution.
+ *
+ * - Neither the name of the Yellow Lemon Software nor the names of its
+ *   contributors may be used to endorse or promote products derived from this
+ *   software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Contacting the author:
+ * You can get in touch with me, Daniel Stødle (that's the Norwegian letter oe,
+ * in case your text editor didn't realize), here: <daniels@cs.uit.no>
+ *	
+ * The official ptunnel website is here:
+ * <http://www.cs.uit.no/~daniels/PingTunnel/>
+ *
+ * Note that the source code is best viewed with tabs set to 4 spaces.
+ */
 
 #include "ptunnel.h"
 #include "options.h"
@@ -887,66 +890,6 @@ void		handle_packet(char *buf, int bytes, int is_pcap, struct sockaddr_in *addr,
 			pt_log(kLog_verbose, "Ignored incoming packet.\n");
 	}
 }
-
-
-
-/*	create_and_insert_proxy_desc: Creates a new proxy descriptor, linking it into
-	the descriptor chain. If the sock argument is 0, the function will establish
-	a TCP connection to the ip and port given by dst_ip, dst_port.
-*/
-proxy_desc_t*		create_and_insert_proxy_desc(uint16_t id_no, uint16_t icmp_id, int sock, struct sockaddr_in *addr, uint32_t dst_ip, uint32_t dst_port, uint32_t init_state, uint32_t type) {
-	proxy_desc_t	*cur;
-	
-	pthread_mutex_lock(&chain_lock);
-	if (num_tunnels >= opts.max_tunnels) {
-		pt_log(kLog_info, "Discarding incoming connection - too many tunnels! Maximum count is %u (adjust with the -m switch).\n", opts.max_tunnels);
-		if (sock)
-			close(sock);
-		pthread_mutex_unlock(&chain_lock);
-		return 0;
-	}
-	num_tunnels++;
-	pthread_mutex_unlock(&chain_lock);
-	
-	pt_log(kLog_debug, "Adding proxy desc to run loop. Type is %s. Will create socket: %s\n", (type == kUser_flag ? "user" : "proxy"), (sock ? "No" : "Yes"));
-	cur						= calloc(1, sizeof(proxy_desc_t));
-	cur->id_no				= id_no;
-	cur->dest_addr			= *addr;
-	cur->dst_ip				= dst_ip;
-	cur->dst_port			= dst_port;
-	cur->icmp_id			= icmp_id;
-	if (!sock) {
-		cur->sock				= socket(AF_INET, SOCK_STREAM, 0);
-		memset(addr, 0, sizeof(struct sockaddr_in));
-		addr->sin_port			= htons((uint16_t)dst_port);
-		addr->sin_addr.s_addr	= dst_ip;
-		addr->sin_family		= AF_INET;
-		//	Let's just assume success, shall we?
-		if (connect(cur->sock, (struct sockaddr*)addr, sizeof(struct sockaddr_in)) < 0) {
-			pt_log(kLog_error, "Connect to %s:%d failed: %s\n", inet_ntoa(*(struct in_addr*)&addr->sin_addr.s_addr), ntohs(addr->sin_port), strerror(errno));
-		}
-	}
-	else
-		cur->sock			= sock;
-	cur->state				= init_state;
-	cur->type_flag			= type;
-	if (cur->type_flag == kUser_flag)
-		cur->pkt_type		= kICMP_echo_request;
-	else
-		cur->pkt_type		= (opts.unprivileged ? kICMP_echo_request : kICMP_echo_reply);
-	cur->buf				= malloc(icmp_receive_buf_len);
-	cur->last_activity		= time_as_double();
-	cur->authenticated		= 0;
-	
-	pthread_mutex_lock(&chain_lock);
-	cur->next				= chain;
-	chain					= cur;
-	pthread_mutex_unlock(&chain_lock);
-	cur->xfer.bytes_in		= 0.0;
-	cur->xfer.bytes_out		= 0.0;
-	return cur;
-}
-
 
 /*	remove_proxy_desc: Removes the given proxy desc, freeing its resources.
 	Assumes that we hold the chain_lock.
