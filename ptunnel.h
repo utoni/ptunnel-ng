@@ -64,7 +64,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <sys/time.h>
 #include <signal.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -75,9 +74,11 @@
 #include "challenge.h"
 
 extern pthread_mutex_t chain_lock;
-extern int num_tunnels;
+extern uint32_t num_tunnels;
 extern const int icmp_receive_buf_len;
 extern proxy_desc_t *chain;
+extern uint32_t *seq_expiry_tbl;
+extern const char *state_name[kNum_proto_types];
 
 /*	pt_thread_info_t: A simple (very simple, in fact) structure that allows us
 	to pass an arbitrary number of params to the threads we create. Currently,
@@ -132,7 +133,6 @@ typedef struct {
 //	Prototypes (sorry about the long lines..)
 	void*		pt_proxy(void *args);
 	void		pcap_packet_handler(u_char *refcon, const struct pcap_pkthdr *hdr, const u_char* pkt);
-	void		handle_packet(char *buf, int bytes, int is_pcap, struct sockaddr_in *addr, int icmp_sock);
 
 	void		pt_forwarder(void);
 

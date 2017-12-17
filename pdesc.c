@@ -1,3 +1,5 @@
+#include <stdlib.h>
+
 #include "pdesc.h"
 #include "options.h"
 #include "ptunnel.h"
@@ -25,7 +27,7 @@ proxy_desc_t* create_and_insert_proxy_desc(uint16_t id_no, uint16_t icmp_id,
 	pthread_mutex_unlock(&chain_lock);
 
 	pt_log(kLog_debug, "Adding proxy desc to run loop. Type is %s. Will create socket: %s\n", (type == kUser_flag ?   "user" : "proxy"), (sock ? "No" : "Yes"));
-	cur                     = calloc(1, sizeof(proxy_desc_t));
+	cur                     = (proxy_desc_t *) calloc(1, sizeof(proxy_desc_t));
 	cur->id_no              = id_no;
 	cur->dest_addr          = *addr;
 	cur->dst_ip             = dst_ip;
@@ -50,7 +52,7 @@ proxy_desc_t* create_and_insert_proxy_desc(uint16_t id_no, uint16_t icmp_id,
 		cur->pkt_type       = kICMP_echo_request;
 	else
 		cur->pkt_type       = (opts.unprivileged ? kICMP_echo_request : kICMP_echo_reply);
-	cur->buf                = malloc(icmp_receive_buf_len);
+	cur->buf                = (char *) malloc(icmp_receive_buf_len);
 	cur->last_activity      = time_as_double();
 	cur->authenticated      = 0;
 
@@ -62,3 +64,53 @@ proxy_desc_t* create_and_insert_proxy_desc(uint16_t id_no, uint16_t icmp_id,
 	cur->xfer.bytes_out     = 0.0;
 	return cur;
 }
+
+/* remove_proxy_desc: Removes the given proxy desc, freeing its resources.
+ * Assumes that we hold the chain_lock.
+ */
+void remove_proxy_desc(proxy_desc_t *cur, proxy_desc_t *prev) {
+	int i;
+	struct timeval tt;
+
+	pt_log(kLog_debug, "Removing proxy descriptor.\n");
+	/* Get a timestamp, for making an entry in the seq_expiry_tbl */
+	gettimeofday(&tt, 0);
+	seq_expiry_tbl[cur->id_no]  = tt.tv_sec+(2*kAutomatic_close_timeout);
+
+	/* Free resources associated with connection */
+	if (cur->buf)
+		free(cur->buf);
+	cur->buf    = 0;
+	for (i=0;i<kPing_window_size;i++) {
+		if (cur->send_ring[i].pkt)
+			free(cur->send_ring[i].pkt);
+		cur->send_ring[i].pkt   = 0;
+		if (cur->recv_ring[i])
+			free(cur->recv_ring[i]);
+		cur->recv_ring[i]       = 0;
+	}
+	close(cur->sock);
+	cur->sock   = 0;
+
+    /* Keep list up-to-date */
+	if (prev)
+		prev->next  = cur->next;
+	else
+		chain       = cur->next;
+	if (cur->challenge)
+		free(cur->challenge);
+	free(cur);
+	num_tunnels--;
+}
+
+forward_desc_t* create_fwd_desc(uint16_t seq_no, uint32_t data_len, char *data) {
+	forward_desc_t *fwd_desc;
+	fwd_desc            = (forward_desc_t *) malloc(sizeof(forward_desc_t)+data_len);
+	fwd_desc->seq_no    = seq_no;
+	fwd_desc->length    = data_len;
+	fwd_desc->remaining = data_len;
+	if (data_len > 0)
+		memcpy(fwd_desc->data, data, data_len);
+	return fwd_desc;
+}
+

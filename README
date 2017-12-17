@@ -1,11 +1,13 @@
-PingTunnel Read Me
+PingTunnel-ng Read Me
 ==================
 
-What is ptunnel?
+What is ptunnel-ng?
 ----------------
 Ptunnel is an application that allows you to reliably tunnel TCP connections
 to a remote host using ICMP echo request and reply packets, commonly known as
 ping requests and replies.
+Ptunnel-ng is a bugfixed and refactored version of Ptunnel with some additional
+features e.g. change the magic value without recompiling (bypass Cisco IPS).
 
 
 Contact details
@@ -16,6 +18,8 @@ The official ptunnel website is located here:
    <http://www.cs.uit.no/~daniels/PingTunnel/>
 The Windows port was created by Mike Miller:
    <mike@mikeage.net>
+The ng fork was done by Toni Uhlig:
+	<matzeton@googlemail.com>
 
 
 Compiling

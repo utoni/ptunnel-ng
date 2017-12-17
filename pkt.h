@@ -80,4 +80,7 @@ typedef struct {
 	char data[0];
 } __attribute__ ((packed)) icmp_echo_packet_t;
 
+
+void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *addr, int icmp_sock);
+
 #endif

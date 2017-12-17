@@ -3,14 +3,14 @@
 # ptunnel.exe target added by Mike Miller, mike@mikeage.net
 
 CC			= gcc
-CFLAGS		= -Wall -g -fstrict-aliasing
+CFLAGS		= -Wall -g -fstrict-aliasing -Os
 LDOPTS		= -lpthread -lpcap
-PT_OBJS		= options.o pdesc.o ptunnel.o md5.o base64.o
+PT_OBJS		= utils.o options.o pkt.o pdesc.o ptunnel.o md5.o base64.o
 
 WIN32_CC      = mingw32-gcc
 WIN32_CFLAGS  = -g -Wall -DWIN32 -I"c:\Program Files\WpdPack\Include"
 WIN32_LDOPTS  = -lwpcap -lwsock32 -L"c:\Program Files\WpdPack\Lib"
-WIN32_PT_OBJS = options.obj pdesc.obj ptunnel.obj md5.obj base64.obj
+WIN32_PT_OBJS = utils.obj options.obj pkt.obj pdesc.obj ptunnel.obj md5.obj base64.obj
 
 prefix		= $(DESTDIR)/usr
 bindir		= $(prefix)/sbin
