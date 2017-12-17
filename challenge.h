@@ -15,4 +15,9 @@ typedef struct challenge_t {
 	uint32_t random[6];
 } __attribute__ ((packed)) challenge_t;
 
+
+challenge_t* generate_challenge(void);
+void generate_response(challenge_t *challenge);
+int validate_challenge(challenge_t *local, challenge_t *remote);
+
 #endif
