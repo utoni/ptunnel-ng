@@ -80,78 +80,81 @@ extern proxy_desc_t *chain;
 extern uint32_t *seq_expiry_tbl;
 extern const char *state_name[kNum_proto_types];
 
-/*	pt_thread_info_t: A simple (very simple, in fact) structure that allows us
-	to pass an arbitrary number of params to the threads we create. Currently,
-	that's just one single parameter: The socket which the thread should listen
-	to.
-*/
+/* pt_thread_info_t: A simple (very simple, in fact) structure that allows us
+ * to pass an arbitrary number of params to the threads we create. Currently,
+ * that's just one single parameter: The socket which the thread should listen
+ * to.
+ */
 typedef struct {
-	int
-		sock;
+	int sock;
 } pt_thread_info_t;
 
-/*	pqueue_elem_t: An queue element in the pqueue structure (below).
-*/
+/* pqueue_elem_t: An queue element in the pqueue structure (below).
+ */
 typedef struct pqueue_elem_t {
-	int
-		bytes;		// size of data buffer
-	struct pqueue_elem_t
-		*next;		// next queue element (if any)
-	char
-		data[0];	// data (duh!)
+	/** size of data buffer */
+	unsigned long bytes;
+	/** next queue element (if any) */
+	struct pqueue_elem_t *next;
+	/** optional data */
+	char data[0];
 } pqueue_elem_t;
 
-
-/*	pqueue_t: A simple queue strucutre.
-*/
+/* pqueue_t: A simple queue strucutre.
+ */
 typedef struct {
-	pqueue_elem_t
-		*head,
-		*tail;
-	int
-		elems;
+	pqueue_elem_t *head;
+	pqueue_elem_t *tail;
+	int elems;
 } pqueue_t;
 
-/*	pcap_info_t: Structure to hold information related to packet capturing.
-*/
+/* pcap_info_t: Structure to hold information related to packet capturing.
+ */
 typedef struct {
-	pcap_t
-		*pcap_desc;
-	struct bpf_program
-		fp;		//	Compiled filter program
-	uint32_t
-		netp,
-		netmask;
-	char
-		*pcap_err_buf,	//	Buffers for error and packet info
-		*pcap_data_buf;
-	pqueue_t
-		pkt_q;		//	Queue of packets to process
+	pcap_t *pcap_desc;
+	/** compiled filter program */
+	struct bpf_program fp;
+	uint32_t netp;
+	uint32_t netmask;
+	/** buffers for error info */
+	char *pcap_err_buf;
+	/** buffers for packet info */
+	char *pcap_data_buf;
+	/** queue of packets to process */
+	pqueue_t pkt_q;
 } pcap_info_t;
 
+/* function Prototypes */
+void*    pt_proxy(void *args);
+void     pcap_packet_handler(u_char *refcon, const struct pcap_pkthdr *hdr,
+                         const u_char* pkt);
 
-//	Prototypes (sorry about the long lines..)
-	void*		pt_proxy(void *args);
-	void		pcap_packet_handler(u_char *refcon, const struct pcap_pkthdr *hdr, const u_char* pkt);
+void     pt_forwarder(void);
 
-	void		pt_forwarder(void);
+void     print_statistics(xfer_stats_t *xfer, int is_continuous);
 
-	void		print_statistics(xfer_stats_t *xfer, int is_continuous);
-	int			queue_packet(int icmp_sock, uint8_t type, char *buf, int num_bytes, uint16_t id_no, uint16_t icmp_id, uint16_t *seq, icmp_desc_t ring[], int *insert_idx, int *await_send, uint32_t ip, uint32_t port, uint32_t state, struct sockaddr_in *dest_addr, uint16_t next_expected_seq, int *first_ack, uint16_t *ping_seq);
-	uint32_t	send_packets(forward_desc_t *ring[], int *xfer_idx, int *await_send, int *sock);
-	void		handle_data(icmp_echo_packet_t *pkt, int total_len, forward_desc_t *ring[], int *await_send, int *insert_idx, uint16_t *next_expected_seq);
-	void		handle_ack(uint16_t seq_no, icmp_desc_t ring[], int *packets_awaiting_ack, int one_ack_only, int insert_idx, int *first_ack, uint16_t *remote_ack, int is_pcap);
-	void		init_ip_packet(ip_packet_t *packet, uint16_t id, uint16_t frag_offset, uint16_t pkt_len, uint8_t ttl, uint32_t src_ip, uint32_t dst_ip, bool is_last_frag, bool dont_frag);
-	uint16_t	calc_ip_checksum(ip_packet_t *pkt);
-	uint16_t	calc_icmp_checksum(uint16_t *data, int bytes);
+int      queue_packet(int icmp_sock, uint8_t type, char *buf, int num_bytes,
+                   uint16_t id_no, uint16_t icmp_id, uint16_t *seq, icmp_desc_t ring[],
+                   int *insert_idx, int *await_send, uint32_t ip, uint32_t port,
+                   uint32_t state, struct sockaddr_in *dest_addr, uint16_t next_expected_seq,
+                   int *first_ack, uint16_t *ping_seq);
 
-	challenge_t*	generate_challenge(void);
-	void		generate_response(challenge_t *challenge);
-	int		validate_challenge(challenge_t *local, challenge_t *remote);
+uint32_t send_packets(forward_desc_t *ring[], int *xfer_idx, int *await_send, int *sock);
 
-	void		send_termination_msg(proxy_desc_t *cur, int icmp_sock);
+void     handle_data(icmp_echo_packet_t *pkt, int total_len, forward_desc_t *ring[],
+                     int *await_send, int *insert_idx, uint16_t *next_expected_seq);
 
-	char*	f_inet_ntoa(uint32_t ip);
-	void	pt_log(int level, const char *fmt, ...);
-	double	time_as_double(void);
+void     handle_ack(uint16_t seq_no, icmp_desc_t ring[], int *packets_awaiting_ack,
+                    int one_ack_only, int insert_idx, int *first_ack, uint16_t *remote_ack,
+                    int is_pcap);
+
+void     init_ip_packet(ip_packet_t *packet, uint16_t id, uint16_t frag_offset,
+                        uint16_t pkt_len, uint8_t ttl, uint32_t src_ip, uint32_t dst_ip,
+                        bool is_last_frag, bool dont_frag);
+
+uint16_t calc_ip_checksum(ip_packet_t *pkt);
+uint16_t calc_icmp_checksum(uint16_t *data, int bytes);
+
+void     send_termination_msg(proxy_desc_t *cur, int icmp_sock);
+
 #endif

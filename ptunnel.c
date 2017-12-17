@@ -45,69 +45,75 @@
 
 #include "ptunnel.h"
 #include "options.h"
+#include "utils.h"
 #include "md5.h"
 #ifdef HAVE_SELINUX
 #include <selinux/selinux.h>
 #endif
 
 #ifdef WIN32
-	/* pthread porting to windows */
-	typedef CRITICAL_SECTION  pthread_mutex_t;
-	typedef unsigned long     pthread_t;
-	#define pthread_mutex_init    InitializeCriticalSectionAndSpinCount
-	#define pthread_mutex_lock    EnterCriticalSection
-	#define pthread_mutex_unlock  LeaveCriticalSection
+/** pthread porting to windows */
+typedef CRITICAL_SECTION  pthread_mutex_t;
+typedef unsigned long     pthread_t;
+#define pthread_mutex_init    InitializeCriticalSectionAndSpinCount
+#define pthread_mutex_lock    EnterCriticalSection
+#define pthread_mutex_unlock  LeaveCriticalSection
 
-	#include <winsock2.h>
-	/* Map errno (which Winsock doesn't use) to GetLastError; include the code in the strerror */
-	#ifdef errno
-		#undef errno
-	#endif /* errno */
-	#define errno GetLastError()
-	/* Local error string storage */
-	static char errorstr[255];
-	static char * print_last_windows_error()  {
-		DWORD last_error = GetLastError();
-		memset(errorstr, 0, sizeof(errorstr));
-		FormatMessage(FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_FROM_SYSTEM, NULL, last_error, 0, errorstr, sizeof(errorstr), NULL);
-		snprintf(errorstr, sizeof(errorstr), "%s (%d)", errorstr, last_error);
-		return errorstr;
-	}
-	#define strerror(x) print_last_windows_error()
+#include <winsock2.h>
+/* Map errno (which Winsock doesn't use) to GetLastError; include the code in the strerror */
+#ifdef errno
+#undef errno
+#endif /* errno */
+#define errno GetLastError()
+/** Local error string storage */
+static char errorstr[255];
+static char * print_last_windows_error()  {
+	DWORD last_error = GetLastError();
+	memset(errorstr, 0, sizeof(errorstr));
+	FormatMessage(FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_FROM_SYSTEM,
+	              NULL, last_error, 0, errorstr, sizeof(errorstr), NULL);
+	snprintf(errorstr, sizeof(errorstr), "%s (%d)", errorstr, last_error);
+	return errorstr;
+}
+#define strerror(x) print_last_windows_error()
 #else
 #endif /* WIN32 */
 
-
-//	Lots of globals
-pthread_mutex_t
-	chain_lock,		//	Lock protecting the chain of connections
-	num_threads_lock;	//	Lock protecting the num_threads variable
-int
-	num_threads = 0;	//	Current thread count
-uint32_t num_tunnels = 0;	//	Current tunnel count
+/* globals */
+/** Lock protecting the chain of connections */
+pthread_mutex_t chain_lock;
+/** Lock protecting the num_threads variable */
+pthread_mutex_t num_threads_lock;
+/** Current thread count */
+int num_threads = 0;
+/** Current tunnel count */
+uint32_t num_tunnels = 0;
 /** Table indicating when a connection ID is allowable (used by proxy) */
 uint32_t *seq_expiry_tbl = NULL;
 
-//	Some buffer constants
-const int
-	tcp_receive_buf_len	= kDefault_buf_size,
-	icmp_receive_buf_len	= kDefault_buf_size + kIP_header_size + kICMP_header_size + sizeof(ping_tunnel_pkt_t),
-	pcap_buf_size		= (kDefault_buf_size + kIP_header_size + kICMP_header_size + sizeof(ping_tunnel_pkt_t)+64)*64;
-char	pcap_filter_program[]	= "icmp"; // && (icmp[icmptype] = icmp-echo || icmp[icmptype] = icmp-echoreply)";
+/** Some buffer constants */
+const int tcp_receive_buf_len  = kDefault_buf_size;
+const int icmp_receive_buf_len = kDefault_buf_size + kIP_header_size +
+                                 kICMP_header_size + sizeof(ping_tunnel_pkt_t);
+const int pcap_buf_size        = (kDefault_buf_size + kIP_header_size +
+                                 kICMP_header_size + sizeof(ping_tunnel_pkt_t)+64)*64;
+/** (icmp[icmptype] = icmp-echo || icmp[icmptype] = icmp-echoreply) */
+char pcap_filter_program[]     = "icmp";
 
-//	The chain of client/proxy connections
-proxy_desc_t	*chain		= 0;
-const char	*state_name[kNum_proto_types] = { "start", "ack", "data", "close", "authenticate" };
+/** The chain of client/proxy connections */
+proxy_desc_t *chain = 0;
+const char *state_name[kNum_proto_types] = { "start", "ack", "data",
+                                             "close", "authenticate" };
 
-//	Let the fun begin!
+/** Let the fun begin! */
 int main(int argc, char *argv[]) {
 #ifndef WIN32
-	pid_t		pid;
+	pid_t   pid;
 #endif
 #ifdef WIN32
-	WORD wVersionRequested;
+	WORD    wVersionRequested;
 	WSADATA wsaData;
-	int err;
+	int     err;
 
 	wVersionRequested = MAKEWORD( 2, 2 );
 
@@ -116,24 +122,26 @@ int main(int argc, char *argv[]) {
 		return -1;
 	}
 
-	if ( LOBYTE( wsaData.wVersion ) != 2 ||
-		HIBYTE( wsaData.wVersion ) != 2 ) {
+	if (LOBYTE( wsaData.wVersion ) != 2 ||
+		HIBYTE( wsaData.wVersion ) != 2)
+	{
 		WSACleanup();
 		return -1;
 	}
 #endif /* WIN32 */
 
-	//	Seed random generator; it'll be used in combination with a timestamp
-	//	when generating authentication challenges.
+	/* Seed random generator; it'll be used in combination with a timestamp
+	 * when generating authentication challenges.
+	 */
 	srand(time(0));
 	memset(opts.password_digest, 0, kMD5_digest_size);
 
-	/*	The seq_expiry_tbl is used to prevent the remote ends from prematurely
-		re-using a sequence number.
-	*/
-	seq_expiry_tbl	= calloc(65536, sizeof(uint32_t));
+	/* The seq_expiry_tbl is used to prevent the remote ends from prematurely
+	 * re-using a sequence number.
+	 */
+	seq_expiry_tbl = (uint32_t *) calloc(65536, sizeof(uint32_t));
 
-	//	Parse options
+	/* Parse options */
 	if (parse_options(argc, argv))
 		return -1;
 
@@ -143,18 +151,21 @@ int main(int argc, char *argv[]) {
 	}
 	pt_log(kLog_info, "Starting ptunnel v %d.%.2d.\n", kMajor_version, kMinor_version);
 	pt_log(kLog_info, "(c) 2004-2011 Daniel Stoedle, <daniels@cs.uit.no>\n");
-	#ifdef WIN32
+#ifdef WIN32
 	pt_log(kLog_info, "Windows version by Mike Miller, <mike@mikeage.net>\n");
-	#else
+#else
 	pt_log(kLog_info, "Security features by Sebastien Raveau, <sebastien.raveau@epita.fr>\n");
-	#endif
-	pt_log(kLog_info, "%s.\n", (opts.mode == kMode_forward ? "Relaying packets from incoming TCP streams" : "Forwarding incoming ping packets over TCP"));
+#endif
+	pt_log(kLog_info, "%s.\n", (opts.mode == kMode_forward ? "Relaying packets from incoming TCP streams" :
+	                                                         "Forwarding incoming ping packets over TCP"));
 	if (opts.udp)
 		pt_log(kLog_info, "UDP transport enabled.\n");
+
 	pt_log(kLog_debug, "Destination at %s:%u\n", opts.given_dst_hostname, opts.given_dst_port);
+
 	if (opts.mode == kMode_forward)
 		pt_log(kLog_debug, "Listen for incoming connections at 0.0.0.0:%u\n", opts.tcp_listen_port);
-	
+
 #ifndef WIN32
   	signal(SIGPIPE, SIG_IGN);
 	if (opts.use_syslog) {
@@ -238,57 +249,57 @@ int main(int argc, char *argv[]) {
 #else
 	if (opts.root_dir)
 		free(opts.root_dir);
-	#ifdef HAVE_SELINUX
+#ifdef HAVE_SELINUX
 	if (NULL != opts.selinux_context)
 		free(opts.selinux_context);
-	#endif
+#endif
 #endif /* WIN32 */
 
 	pt_log(kLog_info, "ptunnel is exiting.\n");
 	return 0;
 }
 
-/*	pt_forwarder:
-	Sets up a listening TCP socket, and forwards incoming connections
-	over ping packets.
-*/
-void		pt_forwarder(void) {
-	int					server_sock, new_sock, sock, yes = 1;
-	fd_set				set;
-	struct timeval		time;
-	struct sockaddr_in	addr, dest_addr;
-	socklen_t			addr_len;
-	pthread_t			pid;
-	uint16_t			rand_id;
-	
+/**	pt_forwarder:
+ * Sets up a listening TCP socket, and forwards incoming connections
+ * over ping packets.
+ */
+void pt_forwarder(void) {
+	int                 server_sock, new_sock, sock, yes = 1;
+	fd_set              set;
+	struct timeval      time;
+	struct sockaddr_in  addr, dest_addr;
+	socklen_t           addr_len;
+	pthread_t           pid;
+	uint16_t            rand_id;
+
 	pt_log(kLog_debug, "Starting forwarder..\n");
-	//	Open our listening socket
-	sock					= socket(AF_INET, SOCK_STREAM, 0);
+	/** Open our listening socket */
+	sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (const void *) &yes, sizeof(int)) == -1) {
 		pt_log(kLog_error, "Failed to set SO_REUSEADDR option on listening socket: %s\n", strerror(errno));
 		close(sock);
 		return;
 	}
-	addr.sin_family			= AF_INET;
-	addr.sin_port			= htons(opts.tcp_listen_port);
-	addr.sin_addr.s_addr	= INADDR_ANY;
+	addr.sin_family      = AF_INET;
+	addr.sin_port        = htons(opts.tcp_listen_port);
+	addr.sin_addr.s_addr = INADDR_ANY;
 	memset(&(addr.sin_zero), 0, 8);
 	if (bind(sock, (struct sockaddr*)&addr, sizeof(struct sockaddr)) == -1) {
 		pt_log(kLog_error, "Failed to bind listening socket to port %u: %s\n", opts.tcp_listen_port, strerror(errno));
 		close(sock);
 		return;
 	}
-	server_sock		= sock;
-	//	Fill out address structure
+	server_sock	= sock;
+	/* Fill out address structure */
 	memset(&dest_addr, 0, sizeof(struct sockaddr_in));
-	dest_addr.sin_family			= AF_INET;
+	dest_addr.sin_family      = AF_INET;
 	if (opts.udp)
-		dest_addr.sin_port			= htons(kDNS_port /* dns port.. */);
+		dest_addr.sin_port    = htons(kDNS_port /* dns port.. */);
 	else
-		dest_addr.sin_port			= 0;
-	dest_addr.sin_addr.s_addr		= opts.given_proxy_ip;
+		dest_addr.sin_port    = 0;
+	dest_addr.sin_addr.s_addr = opts.given_proxy_ip;
 	pt_log(kLog_verbose, "Proxy IP address: %s\n", inet_ntoa(*((struct in_addr*)&opts.given_proxy_ip)));
-	
+
 	listen(server_sock, 10);
 	while (1) {
 		FD_ZERO(&set);
@@ -327,11 +338,11 @@ void		pt_forwarder(void) {
 }
 
 
-int			pt_create_udp_socket(int port) {
-	struct sockaddr_in	addr; 
-	int					sock, yes = 1;
-	
-	sock = socket(AF_INET, SOCK_DGRAM, 0); 
+int pt_create_udp_socket(int port) {
+	struct sockaddr_in addr; 
+	int                sock, yes = 1;
+
+	sock = socket(AF_INET, SOCK_DGRAM, 0);
 	if (sock < 0) {
 		pt_log(kLog_error, "Failed to set create UDP socket..\n");
 		return 0; 
@@ -341,11 +352,11 @@ int			pt_create_udp_socket(int port) {
 		close(sock);
 		return 0;
 	}
-	#ifdef SO_REUSEPORT
+#ifdef SO_REUSEPORT
 	yes = 1;
 	if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (const void*)&yes, sizeof(int)) < 0)
 		pt_log(kLog_error, "Failed to set UDP REUSEPORT socket option. (Not fatal, hopefully.)\n");
-	#endif //SO_REUSEPORT
+#endif /* SO_REUSEPORT */
 	
 	memset(&addr, 0, sizeof(struct sockaddr_in));
 	addr.sin_family			= AF_INET;
@@ -361,27 +372,27 @@ int			pt_create_udp_socket(int port) {
 
 #define	kPT_add_iphdr	0
 
-/*	pt_proxy: This function does all the client and proxy stuff.
-*/
-void*		pt_proxy(void *args) {
-	fd_set				set;
-	struct timeval		timeout;
-	int					bytes;
-	struct sockaddr_in	addr;
-	socklen_t			addr_len;
-	int					fwd_sock	= 0,
-						max_sock	= 0,
-						idx;
-	char				*buf;
-	double				now, last_status_update = 0.0;
-	proxy_desc_t		*cur, *prev, *tmp;
-	pcap_info_t			pc;
-	xfer_stats_t		xfer;
-	ip_packet_t			*pkt;
-	uint32_t			ip;
-	in_addr_t			*adr;
-	
-	//	Start the thread, initialize protocol and ring states.
+/* pt_proxy: This function does all the client and proxy stuff.
+ */
+void* pt_proxy(void *args) {
+	fd_set             set;
+	struct timeval     timeout;
+	int                bytes;
+	struct sockaddr_in addr;
+	socklen_t          addr_len;
+	int                fwd_sock = 0,
+	                   max_sock = 0,
+	                   idx;
+	char               *buf;
+	double             now, last_status_update = 0.0;
+	proxy_desc_t       *cur, *prev, *tmp;
+	pcap_info_t        pc;
+	xfer_stats_t       xfer;
+	ip_packet_t        *pkt;
+	uint32_t           ip;
+	in_addr_t          *adr;
+
+	/* Start the thread, initialize protocol and ring states. */
 	pt_log(kLog_debug, "Starting ping proxy..\n");
 	if (opts.udp) {
 		pt_log(kLog_debug, "Creating UDP socket..\n");
@@ -400,20 +411,23 @@ void*		pt_proxy(void *args) {
 			fwd_sock		= socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
 		}
 		else {
-			#if kPT_add_iphdr
+#if kPT_add_iphdr
 			int		opt = 1;
-			#endif
+#endif
 			pt_log(kLog_debug, "Attempting to create privileged ICMP raw socket..\n");
-			#if kPT_add_iphdr
-			//	experimental
+#if kPT_add_iphdr
+			/* experimental */
 			fwd_sock		= socket(AF_INET, SOCK_RAW, IPPROTO_IP);
-			printf("Set ip-hdr-inc; result = %d\n", setsockopt(fwd_sock, IPPROTO_IP, IP_HDRINCL, &opt, sizeof(opt)));
-			#else
+			printf("Set ip-hdr-inc; result = %d\n",
+			       setsockopt(fwd_sock, IPPROTO_IP, IP_HDRINCL, &opt, sizeof(opt)));
+#else
 			fwd_sock		= socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
-			#endif
+#endif
 		}
 		if (fwd_sock < 0) {
-			pt_log(kLog_error, "Couldn't create %s socket: %s\n", (opts.unprivileged ? "unprivileged datagram" : "privileged raw"), strerror(errno));
+			pt_log(kLog_error, "Couldn't create %s socket: %s\n",
+			                   (opts.unprivileged ? "unprivileged datagram" :
+			                                        "privileged raw"), strerror(errno));
 			return 0;
 		}
 	}
@@ -427,12 +441,15 @@ void*		pt_proxy(void *args) {
 		if (!opts.unprivileged) {
 			memset(&pc, 0, sizeof(pc));
 			pt_log(kLog_info, "Initializing pcap.\n");
-			pc.pcap_err_buf		= malloc(PCAP_ERRBUF_SIZE);
-			pc.pcap_data_buf	= malloc(pcap_buf_size);
-			pc.pcap_desc		= pcap_open_live(opts.pcap_device, pcap_buf_size, 0 /* promiscous */, 50 /* ms */, pc.pcap_err_buf);
+			pc.pcap_err_buf		= (char *) malloc(PCAP_ERRBUF_SIZE);
+			pc.pcap_data_buf	= (char *) malloc(pcap_buf_size);
+			pc.pcap_desc		= pcap_open_live(opts.pcap_device,
+			                                     pcap_buf_size, 0 /* promiscous */,
+			                                     50 /* ms */, pc.pcap_err_buf);
 			if (pc.pcap_desc) {
-				if (pcap_lookupnet(opts.pcap_device, &pc.netp, &pc.netmask, pc.pcap_err_buf) == -1) {
-					
+				if (pcap_lookupnet(opts.pcap_device, &pc.netp,
+				                   &pc.netmask, pc.pcap_err_buf) == -1)
+				{
 					pt_log(kLog_error, "pcap error: %s\n", pc.pcap_err_buf);
 					opts.pcap = 0;
 				}
@@ -456,7 +473,7 @@ void*		pt_proxy(void *args) {
 			pc.pkt_q.head	= 0;
 			pc.pkt_q.tail	= 0;
 			pc.pkt_q.elems	= 0;
-			//	Check if we have succeeded, and free stuff if not
+			/* Check if we have succeeded, and free stuff if not */
 			if (!opts.pcap) {
 				pt_log(kLog_error, "There were errors enabling pcap - pcap has been disabled.\n");
 				free(pc.pcap_err_buf);
@@ -467,61 +484,67 @@ void*		pt_proxy(void *args) {
 		else
 			pt_log(kLog_info, "pcap disabled since we're running in unprivileged mode.\n");
 	}
-	
+
 	pthread_mutex_lock(&num_threads_lock);
 	num_threads++;
 	pthread_mutex_unlock(&num_threads_lock);
-	
-	//	Allocate icmp receive buffer
-	buf					= malloc(icmp_receive_buf_len);
-	
-	//	Start forwarding :)
-	pt_log(kLog_info, "Ping proxy is listening in %s mode.\n", (opts.unprivileged ? "unprivileged" : "privileged"));
 
-	#ifndef WIN32
-	#ifdef HAVE_SELINUX
+	/* Allocate icmp receive buffer */
+	buf					= (char *) malloc(icmp_receive_buf_len);
+
+	/* Start forwarding :) */
+	pt_log(kLog_info, "Ping proxy is listening in %s mode.\n",
+	                  (opts.unprivileged ? "unprivileged" : "privileged"));
+
+#ifndef WIN32
+#ifdef HAVE_SELINUX
 	if (opts.uid || opts.gid || opts.selinux_context)
-	#else
+#else
 	if (opts.uid || opts.gid)
-	#endif
+#endif
 		pt_log(kLog_info, "Dropping privileges now.\n");
 	if (opts.gid && -1 == setgid(opts.gid))
 		pt_log(kLog_error, "setgid(%d): %s\n", opts.gid, strerror(errno));
 	if (opts.uid && -1 == setuid(opts.uid))
 		pt_log(kLog_error, "setuid(%d): %s\n", opts.uid, strerror(errno));
-	#ifdef HAVE_SELINUX
+#ifdef HAVE_SELINUX
 	if (NULL != opts.selinux_context && -1 == setcon(opts.selinux_context))
 		pt_log(kLog_error, "setcon(%s) failed: %s\n", opts.selinux_context, strerror(errno));
-	#endif
-	#endif
+#endif
+#endif
 
 	while (1) {
 		FD_ZERO(&set);
 		FD_SET(fwd_sock, &set);
-		max_sock		= fwd_sock+1;
+		max_sock = fwd_sock+1;
 		pthread_mutex_lock(&chain_lock);
-		for (cur=chain;cur;cur=cur->next) {
+		for (cur = chain; cur; cur = cur->next) {
 			if (cur->sock) {
 				FD_SET(cur->sock, &set);
 				if (cur->sock >= max_sock)
-					max_sock	= cur->sock+1;
+					max_sock = cur->sock+1;
 			}
 		}
 		pthread_mutex_unlock(&chain_lock);
-		timeout.tv_sec		= 0;
-		timeout.tv_usec		= 10000;
-		select(max_sock, &set, 0, 0, &timeout);	//	Don't care about return val, since we need to check for new states anyway..
-		
+		timeout.tv_sec  = 0;
+		timeout.tv_usec = 10000;
+		/* Don't care about return val, since we need to check for new states anyway.. */
+		select(max_sock, &set, 0, 0, &timeout);
+
 		pthread_mutex_lock(&chain_lock);
-		for (prev=0,cur=chain;cur && cur->sock;cur=tmp) {
-			//	Client: If we're starting up, send a message to the remote end saying so,
-			//	causing him to connect to our desired endpoint.
+		for (prev = 0, cur = chain; cur && cur->sock; cur = tmp) {
+			/* Client: If we're starting up, send a message to the remote end saying so,
+			 * causing him to connect to our desired endpoint.
+			 */
 			if (cur->state == kProxy_start) {
 				pt_log(kLog_verbose, "Sending proxy request.\n");
-				cur->last_ack	= time_as_double();
-				queue_packet(fwd_sock, cur->pkt_type, 0, 0, cur->id_no, cur->id_no, &cur->my_seq, cur->send_ring, &cur->send_idx, &cur->send_wait_ack, cur->dst_ip, cur->dst_port, cur->state | cur->type_flag, &cur->dest_addr, cur->next_remote_seq, &cur->send_first_ack, &cur->ping_seq);
+				cur->last_ack = time_as_double();
+				queue_packet(fwd_sock, cur->pkt_type, 0, 0, cur->id_no, cur->id_no,
+				             &cur->my_seq, cur->send_ring, &cur->send_idx, &cur->send_wait_ack,
+				             cur->dst_ip, cur->dst_port, cur->state | cur->type_flag,
+				             &cur->dest_addr, cur->next_remote_seq, &cur->send_first_ack, &cur->ping_seq);
 				cur->xfer.icmp_out++;
-				cur->state		= kProto_data;
+				cur->state = kProto_data;
 			}
 			if (cur->should_remove) {
 				pt_log(kLog_info, "\nSession statistics:\n");
@@ -531,11 +554,14 @@ void*		pt_proxy(void *args) {
 				remove_proxy_desc(cur, prev);
 				continue;
 			}
-			//	Only handle traffic if there is traffic on the socket, we have
-			//	room in our send window AND we either don't use a password, or
-			//	have been authenticated.
-			if (FD_ISSET(cur->sock, &set) && cur->send_wait_ack < kPing_window_size && (!opts.password || cur->authenticated)) {
-				bytes		= recv(cur->sock, cur->buf, tcp_receive_buf_len, 0);
+			/* Only handle traffic if there is traffic on the socket, we have
+			 * room in our send window AND we either don't use a password, or
+			 * have been authenticated.
+			 */
+			if (FD_ISSET(cur->sock, &set) && cur->send_wait_ack < kPing_window_size &&
+			    (!opts.password || cur->authenticated))
+			{
+				bytes = recv(cur->sock, cur->buf, tcp_receive_buf_len, 0);
 				if (bytes <= 0) {
 					pt_log(kLog_info, "Connection closed or lost.\n");
 					tmp	= cur->next;
@@ -543,59 +569,69 @@ void*		pt_proxy(void *args) {
 					pt_log(kLog_info, "Session statistics:\n");
 					print_statistics(&cur->xfer, 0);
 					remove_proxy_desc(cur, prev);
-					//	No need to update prev
+					/* No need to update prev */
 					continue;
 				}
 				cur->xfer.bytes_out	+= bytes;
 				cur->xfer.icmp_out++;
-				queue_packet(fwd_sock, cur->pkt_type, cur->buf, bytes, cur->id_no, cur->icmp_id, &cur->my_seq, cur->send_ring, &cur->send_idx, &cur->send_wait_ack, 0, 0, cur->state | cur->type_flag, &cur->dest_addr, cur->next_remote_seq, &cur->send_first_ack, &cur->ping_seq);
+				queue_packet(fwd_sock, cur->pkt_type, cur->buf, bytes, cur->id_no,
+				             cur->icmp_id, &cur->my_seq, cur->send_ring, &cur->send_idx,
+				             &cur->send_wait_ack, 0, 0, cur->state | cur->type_flag,
+				             &cur->dest_addr, cur->next_remote_seq, &cur->send_first_ack, &cur->ping_seq);
 			}
-			prev	= cur;
-			tmp		= cur->next;
+			prev = cur;
+			tmp  = cur->next;
 		}
 		pthread_mutex_unlock(&chain_lock);
 		
 		if (FD_ISSET(fwd_sock, &set)) {
-			//	Handle ping traffic
-			addr_len	= sizeof(struct sockaddr);
-			bytes		= recvfrom(fwd_sock, buf, icmp_receive_buf_len, 0, (struct sockaddr*)&addr, &addr_len);
+			/* Handle ping traffic */
+			addr_len = sizeof(struct sockaddr);
+			bytes    = recvfrom(fwd_sock, buf, icmp_receive_buf_len, 0, (struct sockaddr*)&addr, &addr_len);
 			if (bytes < 0) {
 				pt_log(kLog_error, "Error receiving packet on ICMP socket: %s\n", strerror(errno));
 				break;
 			}
 			handle_packet(buf, bytes, 0, &addr, fwd_sock);
 		}
-		
-		//	Check for packets needing resend, and figure out if any connections
-		//	should be closed down due to inactivity.
+
+		/* Check for packets needing resend, and figure out if any connections
+		 * should be closed down due to inactivity.
+		 */
 		pthread_mutex_lock(&chain_lock);
-		now		= time_as_double();
-		for (cur=chain;cur;cur=cur->next) {
+		now = time_as_double();
+		for (cur = chain; cur; cur = cur->next) {
 			if (cur->last_activity + kAutomatic_close_timeout < now) {
 				pt_log(kLog_info, "Dropping tunnel to %s:%d due to inactivity.\n", inet_ntoa(*(struct in_addr*)&cur->dst_ip), cur->dst_port, cur->id_no);
-				cur->should_remove	= 1;
+				cur->should_remove = 1;
 				continue;
 			}
 			if (cur->recv_wait_send && cur->sock)
-				cur->xfer.bytes_in	+= send_packets(cur->recv_ring, &cur->recv_xfer_idx, &cur->recv_wait_send, &cur->sock);
-			
-			//	Check for any icmp packets requiring resend, and resend _only_ the first packet.
+				cur->xfer.bytes_in += send_packets(cur->recv_ring, &cur->recv_xfer_idx, &cur->recv_wait_send, &cur->sock);
+
+			/* Check for any icmp packets requiring resend, and resend _only_ the first packet. */
 			idx	= cur->send_first_ack;
 			if (cur->send_ring[idx].pkt && cur->send_ring[idx].last_resend+kResend_interval < now) {
 				pt_log(kLog_debug, "Resending packet with seq-no %d.\n", cur->send_ring[idx].seq_no);
-				cur->send_ring[idx].last_resend		= now;
-				cur->send_ring[idx].pkt->seq		= htons(cur->ping_seq);
+				cur->send_ring[idx].last_resend   = now;
+				cur->send_ring[idx].pkt->seq      = htons(cur->ping_seq);
 				cur->ping_seq++;
-				cur->send_ring[idx].pkt->checksum	= 0;
-				cur->send_ring[idx].pkt->checksum	= htons(calc_icmp_checksum((uint16_t*)cur->send_ring[idx].pkt, cur->send_ring[idx].pkt_len));
-				//printf("ID: %d\n", htons(cur->send_ring[idx].pkt->identifier));
-				sendto(fwd_sock, (const void*)cur->send_ring[idx].pkt, cur->send_ring[idx].pkt_len, 0, (struct sockaddr*)&cur->dest_addr, sizeof(struct sockaddr));
+				cur->send_ring[idx].pkt->checksum = 0;
+				cur->send_ring[idx].pkt->checksum = htons(calc_icmp_checksum((uint16_t*)cur->send_ring[idx].pkt, cur->send_ring[idx].pkt_len));
+				/* printf("ID: %d\n", htons(cur->send_ring[idx].pkt->identifier)); */
+				sendto(fwd_sock, (const void*)cur->send_ring[idx].pkt, cur->send_ring[idx].pkt_len,
+				       0, (struct sockaddr*)&cur->dest_addr, sizeof(struct sockaddr));
 				cur->xfer.icmp_resent++;
 			}
-			//	Figure out if it's time to send an explicit acknowledgement
-			if (cur->last_ack+1.0 < now && cur->send_wait_ack < kPing_window_size && cur->remote_ack_val+1 != cur->next_remote_seq) {
-				cur->last_ack	= now;
-				queue_packet(fwd_sock, cur->pkt_type, 0, 0, cur->id_no, cur->icmp_id, &cur->my_seq, cur->send_ring, &cur->send_idx, &cur->send_wait_ack, cur->dst_ip, cur->dst_port, kProto_ack | cur->type_flag, &cur->dest_addr, cur->next_remote_seq, &cur->send_first_ack, &cur->ping_seq);
+			/* Figure out if it's time to send an explicit acknowledgement */
+			if (cur->last_ack+1.0 < now && cur->send_wait_ack < kPing_window_size &&
+			    cur->remote_ack_val+1 != cur->next_remote_seq)
+			{
+				cur->last_ack = now;
+				queue_packet(fwd_sock, cur->pkt_type, 0, 0, cur->id_no, cur->icmp_id,
+				             &cur->my_seq, cur->send_ring, &cur->send_idx, &cur->send_wait_ack,
+				             cur->dst_ip, cur->dst_port, kProto_ack | cur->type_flag,
+				             &cur->dest_addr, cur->next_remote_seq, &cur->send_first_ack, &cur->ping_seq);
 				cur->xfer.icmp_ack_out++;
 			}
 		}
@@ -603,29 +639,29 @@ void*		pt_proxy(void *args) {
 		if (opts.pcap) {
 			if (pcap_dispatch(pc.pcap_desc, 32, pcap_packet_handler, (u_char*)&pc.pkt_q) > 0) {
 				pqueue_elem_t	*cur;
-				//pt_log(kLog_verbose, "pcap captured %d packets - handling them..\n", pc.pkt_q.elems);
+				/* pt_log(kLog_verbose, "pcap captured %d packets - handling them..\n", pc.pkt_q.elems); */
 				while (pc.pkt_q.head) {
-					cur						= pc.pkt_q.head;
+					cur                  = pc.pkt_q.head;
 					memset(&addr, 0, sizeof(struct sockaddr));
-					addr.sin_family			= AF_INET;
-					pkt						= (ip_packet_t*)&cur->data[0];
-					ip						= pkt->src_ip;
-					adr						= (in_addr_t*)&ip;
-					addr.sin_addr.s_addr	= *adr;
+					addr.sin_family      = AF_INET;
+					pkt                  = (ip_packet_t*)&cur->data[0];
+					ip                   = pkt->src_ip;
+					adr                  = (in_addr_t*)&ip;
+					addr.sin_addr.s_addr = *adr;
 					handle_packet(cur->data, cur->bytes, 1, &addr, fwd_sock);
-					pc.pkt_q.head			= cur->next;
+					pc.pkt_q.head        = cur->next;
 					free(cur);
 					pc.pkt_q.elems--;
 				}
-				pc.pkt_q.tail		= 0;
-				pc.pkt_q.head		= 0;
+				pc.pkt_q.tail            = 0;
+				pc.pkt_q.head            = 0;
 			}
 		}
-		//	Update running statistics, if requested (only once every second)
+		/* Update running statistics, if requested (only once every second) */
 		if (opts.print_stats && opts.mode == kMode_forward && now > last_status_update+1) {
 			pthread_mutex_lock(&chain_lock);
 			memset(&xfer, 0, sizeof(xfer_stats_t));
-			for (cur=chain;cur;cur=cur->next) {
+			for (cur = chain; cur; cur = cur->next) {
 				xfer.bytes_in		+= cur->xfer.bytes_in;
 				xfer.bytes_out		+= cur->xfer.bytes_out;
 				xfer.icmp_in		+= cur->xfer.icmp_in;
@@ -640,73 +676,73 @@ void*		pt_proxy(void *args) {
 	pt_log(kLog_debug, "Proxy exiting..\n");
 	if (fwd_sock)
 		close(fwd_sock);
-	//	TODO: Clean up the other descs. Not really a priority since there's no
-	//	real way to quit ptunnel in the first place..
+	/* TODO: Clean up the other descs. Not really a priority since there's no
+	 * real way to quit ptunnel in the first place..
+	 */
 	free(buf);
 	pt_log(kLog_debug, "Ping proxy done\n");
 	return 0;
 }
 
+/* print_statistics: Prints transfer statistics for the given xfer block. The
+ * is_continuous variable controls the output mode, either printing a new line
+ * or overwriting the old line.
+ */
+void print_statistics(xfer_stats_t *xfer, int is_continuous) {
+	const double mb   = 1024.0*1024.0;
+	double       loss = 0.0;
 
-/*	print_statistics: Prints transfer statistics for the given xfer block. The
-	is_continuous variable controls the output mode, either printing a new line
-	or overwriting the old line.
-*/
-void		print_statistics(xfer_stats_t *xfer, int is_continuous) {
-	const double	mb		= 1024.0*1024.0;
-	double			loss	= 0.0;
-	
 	if (xfer->icmp_out > 0)
-		loss	= (double)xfer->icmp_resent/(double)xfer->icmp_out;
-	
+		loss = (double)xfer->icmp_resent/(double)xfer->icmp_out;
+
 	if (is_continuous)
 		printf("\r");
-	
+
 	printf("[inf]: I/O: %6.2f/%6.2f mb ICMP I/O/R: %8d/%8d/%8d Loss: %4.1f%%",
 			xfer->bytes_in/mb, xfer->bytes_out/mb, xfer->icmp_in, xfer->icmp_out, xfer->icmp_resent, loss);
-	
+
 	if (!is_continuous)
 		printf("\n");
 	else
 		fflush(stdout);
 }
 
+/* pcap_packet_handler:
+ * This is our callback function handling captured packets. We already know that the packets
+ * are ICMP echo or echo-reply messages, so all we need to do is strip off the ethernet header
+ * and append it to the queue descriptor (the refcon argument).
+ *
+ * Ok, the above isn't entirely correct (we can get other ICMP types as well). This function
+ * also has problems when it captures packets on the loopback interface. The moral of the
+ * story: Don't do ping forwarding over the loopback interface.
+ *	
+ * Also, we currently don't support anything else than ethernet when in pcap mode. The reason
+ * is that I haven't read up on yet on how to remove the frame header from the packet..
+ */
+void pcap_packet_handler(u_char *refcon, const struct pcap_pkthdr *hdr, const u_char* pkt) {
+	pqueue_t      *q;
+	pqueue_elem_t *elem;
+	ip_packet_t   *ip;
 
-/*	pcap_packet_handler:
-	This is our callback function handling captured packets. We already know that the packets
-	are ICMP echo or echo-reply messages, so all we need to do is strip off the ethernet header
-	and append it to the queue descriptor (the refcon argument).
-	
-	Ok, the above isn't entirely correct (we can get other ICMP types as well). This function
-	also has problems when it captures packets on the loopback interface. The moral of the
-	story: Don't do ping forwarding over the loopback interface.
-	
-	Also, we currently don't support anything else than ethernet when in pcap mode. The reason
-	is that I haven't read up on yet on how to remove the frame header from the packet..
-*/
-void		pcap_packet_handler(u_char *refcon, const struct pcap_pkthdr *hdr, const u_char* pkt) {
-	pqueue_t		*q;
-	pqueue_elem_t	*elem;
-	ip_packet_t		*ip;
-	
-	//pt_log(kLog_verbose, "Packet handler: %d =? %d\n", hdr->caplen, hdr->len);
-	q		= (pqueue_t*)refcon;
-	elem	= malloc(sizeof(pqueue_elem_t)+hdr->caplen-sizeof(struct ether_header));
+	/* pt_log(kLog_verbose, "Packet handler: %d =? %d\n", hdr->caplen, hdr->len); */
+	q    = (pqueue_t*)refcon;
+	elem = (pqueue_elem_t *) malloc(sizeof(pqueue_elem_t)+hdr->caplen-sizeof(struct ether_header));
 	memcpy(elem->data, pkt+sizeof(struct ether_header), hdr->caplen-sizeof(struct ether_header));
-	ip		= (ip_packet_t*)elem->data;
-	//	TODO: Add fragment support
+	ip   = (ip_packet_t*)elem->data;
+	/* TODO: Add fragment support */
 	elem->bytes	= ntohs(ip->pkt_len);
 	if (elem->bytes > hdr->caplen-sizeof(struct ether_header)) {
 		pt_log(kLog_error, "Received fragmented packet - unable to reconstruct!\n");
-		pt_log(kLog_error, "This error usually occurs because pcap is used on devices that are not wlan or ethernet.\n");
+		pt_log(kLog_error, "This error usually occurs because pcap is used on "
+		                   "devices that are not wlan or ethernet.\n");
 		free(elem);
 		return;
 	}
-	//elem->bytes	= hdr->caplen-sizeof(struct ether_header);
+	/* elem->bytes = hdr->caplen-sizeof(struct ether_header); */
 	elem->next	= 0;
 	if (q->tail) {
-		q->tail->next	= elem;
-		q->tail			= elem;
+		q->tail->next = elem;
+		q->tail       = elem;
 	}
 	else {
 		q->head	= elem;
@@ -715,105 +751,123 @@ void		pcap_packet_handler(u_char *refcon, const struct pcap_pkthdr *hdr, const u
 	q->elems++;
 }
 
-
 #if kPT_add_iphdr
-static int ip_id_counter	= 1;
+static int ip_id_counter = 1;
 #endif
 
-/*	queue_packet:
-	Creates an ICMP packet descriptor, and sends it. The packet descriptor is added
-	to the given send ring, for potential resends later on.
-*/
-int			queue_packet(int icmp_sock, uint8_t type, char *buf, int num_bytes, uint16_t id_no, uint16_t icmp_id, uint16_t *seq, icmp_desc_t ring[], int *insert_idx, int *await_send, uint32_t ip, uint32_t port, uint32_t state, struct sockaddr_in *dest_addr, uint16_t next_expected_seq, int *first_ack, uint16_t *ping_seq) {
-	#if kPT_add_iphdr
-	ip_packet_t			*ip_pkt	= 0;
-	int pkt_len = sizeof(ip_packet_t)+sizeof(icmp_echo_packet_t)+sizeof(ping_tunnel_pkt_t)+num_bytes,
-	#else
-	int pkt_len = sizeof(icmp_echo_packet_t)+sizeof(ping_tunnel_pkt_t)+num_bytes,
-	#endif
-	err				= 0;
-	icmp_echo_packet_t	*pkt	= 0;
-	ping_tunnel_pkt_t	*pt_pkt	= 0;
-	uint16_t ack_val		= next_expected_seq-1;
-	
-	
+/* queue_packet:
+ * Creates an ICMP packet descriptor, and sends it. The packet descriptor is added
+ * to the given send ring, for potential resends later on.
+ */
+int queue_packet(int icmp_sock, uint8_t type, char *buf, int num_bytes,
+                 uint16_t id_no, uint16_t icmp_id, uint16_t *seq, icmp_desc_t ring[],
+                 int *insert_idx, int *await_send, uint32_t ip, uint32_t port,
+                 uint32_t state, struct sockaddr_in *dest_addr, uint16_t next_expected_seq,
+                 int *first_ack, uint16_t *ping_seq)
+{
+#if kPT_add_iphdr
+	ip_packet_t *ip_pkt = 0;
+	int pkt_len         = sizeof(ip_packet_t) + sizeof(icmp_echo_packet_t) +
+	                      sizeof(ping_tunnel_pkt_t) + num_bytes;
+#else
+	int pkt_len         = sizeof(icmp_echo_packet_t) +
+	                      sizeof(ping_tunnel_pkt_t) + num_bytes;
+#endif
+	int err             = 0;
+	icmp_echo_packet_t *pkt   = 0;
+	ping_tunnel_pkt_t *pt_pkt = 0;
+	uint16_t ack_val          = next_expected_seq - 1;
+
 	if (pkt_len % 2)
 		pkt_len++;
-	
-	#if kPT_add_iphdr
+
+#if kPT_add_iphdr
 	printf("add header\n");
-	ip_pkt				= malloc(pkt_len);
-	pkt				= (icmp_echo_packet_t*)ip_pkt->data;
+	ip_pkt            = (ip_packet_t *) malloc(pkt_len);
+	pkt               = (icmp_echo_packet_t *) ip_pkt->data;
 	memset(ip_pkt, 0, sizeof(ip_packet_t));
-	ip_pkt->vers_ihl		= 0x45;//|(pkt_len>>2);//5;//(IPVERSION << 4) | (sizeof(ip_packet_t) >> 2);
-	ip_pkt->tos			= IPTOS_LOWDELAY;
-	ip_pkt->pkt_len			= pkt_len;
-	ip_pkt->id			= 0;	//kernel sets proper value htons(ip_id_counter);
+	/* |(pkt_len>>2);//5;//(IPVERSION << 4) | (sizeof(ip_packet_t) >> 2); */
+	ip_pkt->vers_ihl  = 0x45;
+	ip_pkt->tos       = IPTOS_LOWDELAY;
+	ip_pkt->pkt_len   = pkt_len;
+	/* kernel sets proper value htons(ip_id_counter); */
+	ip_pkt->id        = 0;
 	ip_pkt->flags_frag_offset	= 0;
-	ip_pkt->ttl			= IPDEFTTL;	//	default time to live (64)
-	ip_pkt->proto			= 1;	//	ICMP
-	ip_pkt->checksum		= 0;	//	maybe the kernel helps us out..?
-	ip_pkt->src_ip			= htonl(0x0);	//	insert source IP address here
-	ip_pkt->dst_ip			= dest_addr->sin_addr.s_addr;//htonl(0x7f000001);	//	localhost..
-	#else
-	pkt				= calloc(1, pkt_len);
-	#endif
-	
-	pkt->type			= type;	//	ICMP Echo request or reply
-	pkt->code			= 0;	//	Must be zero (non-zero requires root)
-	pkt->identifier			= htons(icmp_id);
-	pkt->seq			= htons(*ping_seq);
-	pkt->checksum			= 0;
+	/* default time to live (64) */
+	ip_pkt->ttl       = IPDEFTTL;
+	/* ICMP */
+	ip_pkt->proto     = 1;
+	/* maybe the kernel helps us out..? */
+	ip_pkt->checksum  = 0;
+	/* insert source IP address here */
+	ip_pkt->src_ip    = htonl(0x0);
+	/* htonl(0x7f000001); -> localhost.. */
+	ip_pkt->dst_ip    = dest_addr->sin_addr.s_addr;
+#else
+	pkt	              = (icmp_echo_packet_t *) calloc(1, pkt_len);
+#endif
+
+	/* ICMP Echo request or reply */
+	pkt->type         = type;
+	/* Must be zero (non-zero requires root) */
+	pkt->code         = 0;
+	pkt->identifier   = htons(icmp_id);
+	pkt->seq          = htons(*ping_seq);
+	pkt->checksum     = 0;
 	(*ping_seq)++;
-	//	Add our information
-	pt_pkt				= (ping_tunnel_pkt_t*)pkt->data;
-	pt_pkt->magic			= htonl(opts.magic);
-	pt_pkt->dst_ip			= ip;
-	pt_pkt->dst_port		= htonl(port);
-	pt_pkt->ack			= htonl(ack_val);
-	pt_pkt->data_len		= htonl(num_bytes);
-	pt_pkt->state			= htonl(state);
-	pt_pkt->seq_no			= htons(*seq);
-	pt_pkt->id_no			= htons(id_no);
-	//	Copy user data
+	/* Add our information */
+	pt_pkt            = (ping_tunnel_pkt_t*)pkt->data;
+	pt_pkt->magic     = htonl(opts.magic);
+	pt_pkt->dst_ip    = ip;
+	pt_pkt->dst_port  = htonl(port);
+	pt_pkt->ack       = htonl(ack_val);
+	pt_pkt->data_len  = htonl(num_bytes);
+	pt_pkt->state     = htonl(state);
+	pt_pkt->seq_no    = htons(*seq);
+	pt_pkt->id_no     = htons(id_no);
+	/* Copy user data */
 	if (buf && num_bytes > 0)
 		memcpy(pt_pkt->data, buf, num_bytes);
-	#if kPT_add_iphdr
-	pkt->checksum			= htons(calc_icmp_checksum((uint16_t*)pkt, pkt_len-sizeof(ip_packet_t)));
-	ip_pkt->checksum		= htons(calc_icmp_checksum((uint16_t*)ip_pkt, sizeof(ip_packet_t)));
-	#else
-	pkt->checksum			= htons(calc_icmp_checksum((uint16_t*)pkt, pkt_len));
-	#endif
-	
-	//	Send it!
-	pt_log(kLog_sendrecv, "Send: %d [%d] bytes [seq = %d] [type = %s] [ack = %d] [icmp = %d] [user = %s]\n",
-			pkt_len, num_bytes, *seq, state_name[state & (~kFlag_mask)], ack_val, type, ((state & kUser_flag) == kUser_flag ? "yes" : "no"));
-	#if kPT_add_iphdr
-	err						= sendto(icmp_sock, (const void*)ip_pkt, pkt_len, 0, (struct sockaddr*)dest_addr, sizeof(struct sockaddr));
-	#else
-	err						= sendto(icmp_sock, (const void*)pkt, pkt_len, 0, (struct sockaddr*)dest_addr, sizeof(struct sockaddr));
-	#endif
+#if kPT_add_iphdr
+	pkt->checksum     = htons(calc_icmp_checksum((uint16_t*)pkt, pkt_len-sizeof(ip_packet_t)));
+	ip_pkt->checksum  = htons(calc_icmp_checksum((uint16_t*)ip_pkt, sizeof(ip_packet_t)));
+#else
+	pkt->checksum     = htons(calc_icmp_checksum((uint16_t*)pkt, pkt_len));
+#endif
+
+	/* Send it! */
+	pt_log(kLog_sendrecv, "Send: %d [%d] bytes [seq = %d] "
+	                      "[type = %s] [ack = %d] [icmp = %d] [user = %s]\n",
+	                      pkt_len, num_bytes, *seq, state_name[state & (~kFlag_mask)],
+	                      ack_val, type, ((state & kUser_flag) == kUser_flag ? "yes" : "no"));
+#if kPT_add_iphdr
+	err               = sendto(icmp_sock, (const void*)ip_pkt, pkt_len, 0,
+	                           (struct sockaddr*)dest_addr, sizeof(struct sockaddr));
+#else
+	err               = sendto(icmp_sock, (const void*)pkt, pkt_len, 0,
+	                           (struct sockaddr*)dest_addr, sizeof(struct sockaddr));
+#endif
 	if (err < 0) {
 		pt_log(kLog_error, "Failed to send ICMP packet: %s\n", strerror(errno));
 		return -1;
 	}
 	else if (err != pkt_len)
 		pt_log(kLog_error, "WARNING WARNING, didn't send entire packet\n");
-	
-	//	Update sequence no's and so on
-	#if kPT_add_iphdr
-	//	NOTE: Retry mechanism needs update for PT_add_ip_hdr
-	ring[*insert_idx].pkt			= ip_pkt;
-	#else
-	ring[*insert_idx].pkt			= pkt;
-	#endif
-	ring[*insert_idx].pkt_len		= pkt_len;
-	ring[*insert_idx].last_resend	= time_as_double();
-	ring[*insert_idx].seq_no		= *seq;
-	ring[*insert_idx].icmp_id		= icmp_id;
+
+	/* Update sequence no's and so on */
+#if kPT_add_iphdr
+	/* NOTE: Retry mechanism needs update for PT_add_ip_hdr */
+	ring[*insert_idx].pkt      = ip_pkt;
+#else
+	ring[*insert_idx].pkt      = pkt;
+#endif
+	ring[*insert_idx].pkt_len  = pkt_len;
+	ring[*insert_idx].last_resend = time_as_double();
+	ring[*insert_idx].seq_no   = *seq;
+	ring[*insert_idx].icmp_id  = icmp_id;
 	(*seq)++;
 	if (!ring[*first_ack].pkt)
-		*first_ack					= *insert_idx;
+		*first_ack             = *insert_idx;
 	(*await_send)++;
 	(*insert_idx)++;
 	if (*insert_idx >= kPing_window_size)
@@ -821,37 +875,37 @@ int			queue_packet(int icmp_sock, uint8_t type, char *buf, int num_bytes, uint16
 	return 0;
 }
 
+/* send_packets:
+ * Examines the passed-in ring, and forwards data in it over TCP.
+ */
+uint32_t send_packets(forward_desc_t *ring[], int *xfer_idx, int *await_send, int *sock) {
+	forward_desc_t *fwd_desc;
+	int            bytes, total = 0;
 
-/*	send_packets:
-	Examines the passed-in ring, and forwards data in it over TCP.
-*/
-uint32_t	send_packets(forward_desc_t *ring[], int *xfer_idx, int *await_send, int *sock) {
-	forward_desc_t		*fwd_desc;
-	int					bytes, total = 0;
-	
 	while (*await_send > 0) {
-		fwd_desc	= ring[*xfer_idx];
-		if (!fwd_desc)	//	We haven't got this packet yet..
+		fwd_desc = ring[*xfer_idx];
+		if (!fwd_desc)/* We haven't got this packet yet.. */
 			break;
 		if (fwd_desc->length > 0) {
-			bytes		= send(*sock, &fwd_desc->data[fwd_desc->length - fwd_desc->remaining], fwd_desc->remaining, 0);
+			bytes = send(*sock, &fwd_desc->data[fwd_desc->length - fwd_desc->remaining],
+			             fwd_desc->remaining, 0);
 			if (bytes < 0) {
 				printf("Weirdness.\n");
-				//	TODO: send close stuff
+				/* TODO: send close stuff */
 				close(*sock);
-				*sock	= 0;
+				*sock = 0;
 				break;
 			}
-			fwd_desc->remaining	-= bytes;
-			total				+= bytes;
+			fwd_desc->remaining -= bytes;
+			total               += bytes;
 		}
 		if (!fwd_desc->remaining) {
-			ring[*xfer_idx]	= 0;
+			ring[*xfer_idx] = 0;
 			free(fwd_desc);
 			(*xfer_idx)++;
 			(*await_send)--;
 			if (*xfer_idx >= kPing_window_size)
-				*xfer_idx	= 0;
+				*xfer_idx = 0;
 		}
 		else
 			break;
@@ -859,49 +913,55 @@ uint32_t	send_packets(forward_desc_t *ring[], int *xfer_idx, int *await_send, in
 	return total;
 }
 
-
-/*	handle_data:
-	Utility function for handling kProto_data packets, and place the data it contains
-	onto the passed-in receive ring.
-*/
-void		handle_data(icmp_echo_packet_t *pkt, int total_len, forward_desc_t *ring[], int *await_send, int *insert_idx,  uint16_t *next_expected_seq) {
-	ping_tunnel_pkt_t	*pt_pkt			= (ping_tunnel_pkt_t*)pkt->data;
-	int					expected_len	= sizeof(ip_packet_t) + sizeof(icmp_echo_packet_t) + sizeof(ping_tunnel_pkt_t); // 20+8+28
-	
-	/*	Place packet in the receive ring, in its proper place.
-		This works as follows:
-		-1. Packet == ack packet? Perform ack, and continue.
-		0. seq_no < next_remote_seq, and absolute difference is bigger than w size => discard
-		1. If seq_no == next_remote_seq, we have no problems; just put it in the ring.
-		2. If seq_no > next_remote_seq + remaining window size, discard packet. Send resend request for missing packets.
-		3. Else, put packet in the proper place in the ring (don't overwrite if one is already there), but don't increment next_remote_seq_no
-		4. If packed was not discarded, process ack info in packet.
-	*/
-	expected_len	+= pt_pkt->data_len;
-	expected_len	+= expected_len % 2;
+/* handle_data:
+ * Utility function for handling kProto_data packets, and place the data it contains
+ * onto the passed-in receive ring.
+ */
+void handle_data(icmp_echo_packet_t *pkt, int total_len, forward_desc_t *ring[],
+                 int *await_send, int *insert_idx,  uint16_t *next_expected_seq)
+{
+	ping_tunnel_pkt_t *pt_pkt      = (ping_tunnel_pkt_t*)pkt->data;
+	int               expected_len = sizeof(ip_packet_t) + sizeof(icmp_echo_packet_t) +
+	                                 sizeof(ping_tunnel_pkt_t); /* 20+8+28 */	
+	/* Place packet in the receive ring, in its proper place.
+	 * This works as follows:
+	 * -1. Packet == ack packet? Perform ack, and continue.
+	 * 0. seq_no < next_remote_seq, and absolute difference is bigger than w size => discard
+	 * 1. If seq_no == next_remote_seq, we have no problems; just put it in the ring.
+	 * 2. If seq_no > next_remote_seq + remaining window size, discard packet.
+	 *    Send resend request for missing packets.
+	 * 3. Else, put packet in the proper place in the ring
+	 *    (don't overwrite if one is already there), but don't increment next_remote_seq_no
+	 * 4. If packed was not discarded, process ack info in packet.
+	 */
+	expected_len     += pt_pkt->data_len;
+	expected_len     += expected_len % 2;
 	if (opts.udp)
-		expected_len	-= sizeof(ip_packet_t);
+		expected_len -= sizeof(ip_packet_t);
 	if (total_len < expected_len) {
-		pt_log(kLog_error, "Packet not completely received: %d Should be: %d. For some reason, this error is fatal.\n", total_len, expected_len);
+		pt_log(kLog_error, "Packet not completely received: %d Should be: %d. "
+		                   "For some reason, this error is fatal.\n", total_len, expected_len);
 		pt_log(kLog_debug, "Data length: %d Total length: %d\n", pt_pkt->data_len, total_len);
-		//	TODO: This error isn't fatal, so it should definitely be handled in some way. We could simply discard it.
+		/* TODO: This error isn't fatal, so it should definitely be handled in some way.
+		 * We could simply discard it.
+		 */
 		exit(0);
 	}
 	if (pt_pkt->seq_no == *next_expected_seq) {
-		//	hmm, what happens if this test is true?
-		if (!ring[*insert_idx]) {	//  && pt_pkt->state == kProto_data
-		//	pt_log(kLog_debug, "Queing data packet: %d\n", pt_pkt->seq_no);
-			ring[*insert_idx]	= create_fwd_desc(pt_pkt->seq_no, pt_pkt->data_len, pt_pkt->data);
+		/* hmm, what happens if this test is true? */
+		if (!ring[*insert_idx]) { /* && pt_pkt->state == kProto_data */
+			/* pt_log(kLog_debug, "Queing data packet: %d\n", pt_pkt->seq_no); */
+			ring[*insert_idx] = create_fwd_desc(pt_pkt->seq_no, pt_pkt->data_len, pt_pkt->data);
 			(*await_send)++;
 			(*insert_idx)++;
 		}
 		else if (ring[*insert_idx])
 			pt_log(kLog_debug, "Dup packet?\n");
-		
+
 		(*next_expected_seq)++;
 		if (*insert_idx >= kPing_window_size)
 			*insert_idx	= 0;
-		//	Check if we have already received some of the next packets
+		/* Check if we have already received some of the next packets */
 		while (ring[*insert_idx]) {
 			if (ring[*insert_idx]->seq_no == *next_expected_seq) {
 				(*next_expected_seq)++;
@@ -915,44 +975,50 @@ void		handle_data(icmp_echo_packet_t *pkt, int total_len, forward_desc_t *ring[]
 	}
 	else {
 		int	r, s, d, pos;
-		pos	= -1;		//	If pos ends up staying -1, packet is discarded.
-		r	= *next_expected_seq;
-		s	= pt_pkt->seq_no;
-		d	= s - r;
-		if (d < 0) {	//	This packet _may_ be old, or seq_no may have wrapped around
-			d	= (s+0xFFFF) - r;
+		pos = -1; /* If pos ends up staying -1, packet is discarded. */
+		r   = *next_expected_seq;
+		s   = pt_pkt->seq_no;
+		d   = s - r;
+		if (d < 0) { /* This packet _may_ be old, or seq_no may have wrapped around */
+			d = (s+0xFFFF) - r;
 			if (d < kPing_window_size) {
-				//	Counter has wrapped, so we should add this packet to the recv ring
+				/* Counter has wrapped, so we should add this packet to the recv ring */
 				pos	= ((*insert_idx)+d) % kPing_window_size;
 			}
 		}
 		else if (d < kPing_window_size)
 			pos	= ((*insert_idx)+d) % kPing_window_size;
-		
+
 		if (pos != -1) {
 			if (!ring[pos]) {
-				pt_log(kLog_verbose, "Out of order. Expected: %d  Got: %d  Inserted: %d (cur = %d)\n", *next_expected_seq, pt_pkt->seq_no, pos, (*insert_idx));
-				ring[pos]	= create_fwd_desc(pt_pkt->seq_no, pt_pkt->data_len, pt_pkt->data);
+				pt_log(kLog_verbose, "Out of order. Expected: %d  Got: %d  Inserted: %d "
+				                     "(cur = %d)\n", *next_expected_seq, pt_pkt->seq_no, pos,
+				                     (*insert_idx));
+				ring[pos] = create_fwd_desc(pt_pkt->seq_no, pt_pkt->data_len, pt_pkt->data);
 				(*await_send)++;
 			}
 		}
-		//else
-		//	pt_log(kLog_debug, "Packet discarded - outside receive window.\n");
+		/* else
+		 * pt_log(kLog_debug, "Packet discarded - outside receive window.\n");
+		 */
 	}
 }
 
+void handle_ack(uint16_t seq_no, icmp_desc_t ring[], int *packets_awaiting_ack,
+                int one_ack_only, int insert_idx, int *first_ack,
+                uint16_t *remote_ack, int is_pcap)
+{
+	int i, j, k;
+	ping_tunnel_pkt_t *pt_pkt;
 
-void		handle_ack(uint16_t seq_no, icmp_desc_t ring[], int *packets_awaiting_ack, int one_ack_only, int insert_idx, int *first_ack, uint16_t *remote_ack, int is_pcap) {
-	int		i, j, k;
-	ping_tunnel_pkt_t	*pt_pkt;
-	
 	if (*packets_awaiting_ack > 0) {
 		if (one_ack_only) {
-			for (i=0;i<kPing_window_size;i++) {
+			for (i = 0; i < kPing_window_size; i++) {
 				if (ring[i].pkt && ring[i].seq_no == seq_no && !is_pcap) {
 					pt_log(kLog_debug, "Received ack for only seq %d\n", seq_no);
 					pt_pkt	= (ping_tunnel_pkt_t*)ring[i].pkt->data;
-					*remote_ack	= (uint16_t)ntohl(pt_pkt->ack);	//	WARNING: We make the dangerous assumption here that packets arrive in order!
+					/* WARNING: We make the dangerous assumption here that packets arrive in order! */
+					*remote_ack	= (uint16_t)ntohl(pt_pkt->ack);
 					free(ring[i].pkt);
 					ring[i].pkt	= 0;
 					(*packets_awaiting_ack)--;
@@ -960,11 +1026,12 @@ void		handle_ack(uint16_t seq_no, icmp_desc_t ring[], int *packets_awaiting_ack,
 						for (j=1;j<kPing_window_size;j++) {
 							k	= (i+j)%kPing_window_size;
 							if (ring[k].pkt) {
-								*first_ack	= k;
+								*first_ack = k;
 								break;
 							}
-							if (k == i)	//	we have looped through everything
-								*first_ack	= insert_idx;
+							/* we have looped through everything */
+							if (k == i)
+								*first_ack = insert_idx;
 							j++;
 						}
 					}
@@ -977,17 +1044,17 @@ void		handle_ack(uint16_t seq_no, icmp_desc_t ring[], int *packets_awaiting_ack,
 			i	= insert_idx-1;
 			if (i < 0)
 				i	= kPing_window_size - 1;
-			
+
 			pt_log(kLog_debug, "Received ack-series starting at seq %d\n", seq_no);
 			while (count < kPing_window_size) {
 				if (!ring[i].pkt)
 					break;
-				
+
 				if (ring[i].seq_no == seq_no)
 					can_ack	= 1;
 				else if (!can_ack)
 					*first_ack	= i;
-				
+
 				if (can_ack) {
 					free(ring[i].pkt);
 					ring[i].pkt	= 0;
@@ -1000,19 +1067,20 @@ void		handle_ack(uint16_t seq_no, icmp_desc_t ring[], int *packets_awaiting_ack,
 			}
 		}
 	}
-//	else
-//		pt_log(kLog_verbose, "Dropping superfluous acknowledgement (no outstanding packets needing ack.)\n");
+/* else
+ * 	pt_log(kLog_verbose, "Dropping superfluous acknowledgement (no outstanding packets needing ack.)\n");
+ */
 }
 
+uint16_t calc_icmp_checksum(uint16_t *data, int bytes) {
+	uint32_t sum;
+	int      i;
 
-uint16_t	calc_icmp_checksum(uint16_t *data, int bytes) {
-	uint32_t		sum;
-	int				i;
-	
 	sum	= 0;
-	for (i=0;i<bytes/2;i++) {
-		//	WARNING; this might be a bug, but might explain why I occasionally
-		//	see buggy checksums.. (added htons, that might be the correct behaviour)
+	for (i = 0; i < bytes / 2; i++) {
+		/* WARNING; this might be a bug, but might explain why I occasionally
+		 * see buggy checksums.. (added htons, that might be the correct behaviour)
+		 */
 		sum	+= data[i];
 	}
 	sum	= (sum & 0xFFFF) + (sum >> 16);
@@ -1020,13 +1088,18 @@ uint16_t	calc_icmp_checksum(uint16_t *data, int bytes) {
 	return sum;
 }
 
-
-/*	send_termination_msg: Sends two packets to the remote end, informing it that
-	the tunnel is being closed down.
-*/
-void		send_termination_msg(proxy_desc_t *cur, int icmp_sock) {
-	//	Send packet twice, hoping at least one of them makes it through..
-	queue_packet(icmp_sock, cur->pkt_type, 0, 0, cur->id_no, cur->icmp_id, &cur->my_seq, cur->send_ring, &cur->send_idx, &cur->send_wait_ack, 0, 0, kProto_close | cur->type_flag, &cur->dest_addr, cur->next_remote_seq, &cur->send_first_ack, &cur->ping_seq);
-	queue_packet(icmp_sock, cur->pkt_type, 0, 0, cur->id_no, cur->icmp_id, &cur->my_seq, cur->send_ring, &cur->send_idx, &cur->send_wait_ack, 0, 0, kProto_close | cur->type_flag, &cur->dest_addr, cur->next_remote_seq, &cur->send_first_ack, &cur->ping_seq);
-	cur->xfer.icmp_out	+= 2;
+/* send_termination_msg: Sends two packets to the remote end, informing it that
+ * the tunnel is being closed down.
+ */
+void send_termination_msg(proxy_desc_t *cur, int icmp_sock) {
+	/* Send packet twice, hoping at least one of them makes it through.. */
+	queue_packet(icmp_sock, cur->pkt_type, 0, 0, cur->id_no, cur->icmp_id, &cur->my_seq,
+	             cur->send_ring, &cur->send_idx, &cur->send_wait_ack, 0, 0,
+	             kProto_close | cur->type_flag, &cur->dest_addr, cur->next_remote_seq,
+	             &cur->send_first_ack, &cur->ping_seq);
+	queue_packet(icmp_sock, cur->pkt_type, 0, 0, cur->id_no, cur->icmp_id, &cur->my_seq,
+	             cur->send_ring, &cur->send_idx, &cur->send_wait_ack, 0, 0,
+	             kProto_close | cur->type_flag, &cur->dest_addr, cur->next_remote_seq,
+	             &cur->send_first_ack, &cur->ping_seq);
+	cur->xfer.icmp_out += 2;
 }

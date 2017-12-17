@@ -2,6 +2,7 @@
 
 #include "pdesc.h"
 #include "options.h"
+#include "utils.h"
 #include "ptunnel.h"
 
 
