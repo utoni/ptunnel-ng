@@ -120,13 +120,11 @@ static const struct option_usage usage[] = {
 		"When started in privileged mode, restrict file access to the specified directory\n"
 	},
 #endif
-#ifdef HAVE_SELINUX
 	/** --setcon */
 	{NULL,           0, OPT_STR,    {.num = 0},
 		"Set SELinux context when all there is left to do are network I/O operations\n"
 		"To combine with -chroot you will have to `mount --bind /proc /chrootdir/proc`\n"
 	},
-#endif
 	/** --help */
 	{"help",         0, OPT_STR,    {.str = NULL}, "this\n"},
 	{NULL,0,OPT_BOOL,{.unum=0},NULL}
@@ -154,9 +152,7 @@ static struct option long_options[] = {
 	{"group",       optional_argument, 0, 'g'},
 	{"chroot",      optional_argument, 0, 'C'},
 #endif
-#ifdef HAVE_SELINUX
 	{"setcon",            no_argument, 0, 'e'},
-#endif
 	{"help",              no_argument, 0, 'h'},
 	{NULL,0,0,0}
 };
@@ -188,7 +184,9 @@ static void set_options_defaults(void) {
 	opts.given_dst_port  = *(uint32_t *)  get_default_optval(OPT_DEC32, "remote-port");
 	opts.max_tunnels     = *(uint32_t *)  get_default_optval(OPT_DEC32, "connections");
 	opts.log_level       = *(int *)       get_default_optval(OPT_DEC32, "verbosity");
+#ifdef HAVE_PCAP
 	opts.pcap_device     = strdup(*(char **)get_default_optval(OPT_STR, "libpcap"));
+#endif
 	opts.log_path        = strdup(*(char **)get_default_optval(OPT_STR, "logfile"));
 	opts.log_file        = stdout;
 	opts.print_stats     = *(int *)       get_default_optval(OPT_BOOL,  "statistics");
@@ -367,6 +365,7 @@ int parse_options(int argc, char **argv) {
 				opts.log_level = strtol(optarg, NULL, 10);
 				break;
 			case 'a':
+#ifdef HAVE_PCAP
 				opts.pcap = 1;
 				if (!optarg)
 					break;
@@ -374,6 +373,10 @@ int parse_options(int argc, char **argv) {
 					free(opts.pcap_device);
 				opts.pcap_device = strdup(optarg);
 				break;
+#else
+				pt_log(kLog_error, "-%c: feature not supported\n", c);
+				exit(1);
+#endif
 			case 'o':
 				has_logfile = 1;
 				if (!optarg)
@@ -445,7 +448,7 @@ int parse_options(int argc, char **argv) {
 			case 'u':
 			case 'g':
 			case 't':
-				pt_log(kLog_error, "%s: feature not supported\n", argv[optind - 1]);
+				pt_log(kLog_error, "-%c: feature not supported\n", c);
 				exit(1);
 #endif
 			case 'e':
@@ -455,7 +458,7 @@ int parse_options(int argc, char **argv) {
 				opts.selinux_context = strdup(optarg);
 				break;
 #else
-				pt_log(kLog_error, "%s: feature not supported\n", argv[optind - 1]);
+				pt_log(kLog_error, "-%c: feature not supported\n", c);
 				exit(1);
 #endif
 			case 'h':

@@ -32,10 +32,12 @@ struct options {
 	uint32_t max_tunnels;
 	/** Default log level */
 	int log_level;
+#ifdef HAVE_PCAP
 	/** Non zero value if user wants packet capturing */
 	int pcap;
 	/** Device to capture packets from */
 	char *pcap_device;
+#endif
 	/** Usually stdout, but can be altered by the user */
 	char *log_path;
 	FILE *log_file;

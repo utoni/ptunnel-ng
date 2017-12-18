@@ -1,3 +1,5 @@
+#include <stdarg.h>
+
 #ifndef WIN32
 #include <syslog.h>
 #endif

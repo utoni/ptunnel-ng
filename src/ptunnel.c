@@ -144,10 +144,12 @@ int main(int argc, char *argv[]) {
 	if (parse_options(argc, argv))
 		return -1;
 
+#ifdef HAVE_PCAP
 	if (opts.pcap && opts.udp) {
 		pt_log(kLog_error, "Packet capture is not supported (or needed) when using UDP for transport.\n");
 		opts.pcap = 0;
 	}
+#endif
 	pt_log(kLog_info, "Starting ptunnel v %d.%.2d.\n", kMajor_version, kMinor_version);
 	pt_log(kLog_info, "(c) 2004-2011 Daniel Stoedle, <daniels@cs.uit.no>\n");
 #ifdef WIN32
@@ -369,8 +371,6 @@ int pt_create_udp_socket(int port) {
 	return sock;
 }
 
-#define	kPT_add_iphdr	0
-
 /* pt_proxy: This function does all the client and proxy stuff.
  */
 void* pt_proxy(void *args) {
@@ -385,11 +385,15 @@ void* pt_proxy(void *args) {
 	char               *buf;
 	double             now, last_status_update = 0.0;
 	proxy_desc_t       *cur, *prev, *tmp;
+#ifdef HAVE_PCAP
 	pcap_info_t        pc;
+#endif
 	xfer_stats_t       xfer;
+#ifdef HAVE_PCAP
 	ip_packet_t        *pkt;
 	uint32_t           ip;
 	in_addr_t          *adr;
+#endif
 
 	/* Start the thread, initialize protocol and ring states. */
 	pt_log(kLog_debug, "Starting ping proxy..\n");
@@ -410,18 +414,8 @@ void* pt_proxy(void *args) {
 			fwd_sock		= socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
 		}
 		else {
-#if kPT_add_iphdr
-			int		opt = 1;
-#endif
 			pt_log(kLog_debug, "Attempting to create privileged ICMP raw socket..\n");
-#if kPT_add_iphdr
-			/* experimental */
-			fwd_sock		= socket(AF_INET, SOCK_RAW, IPPROTO_IP);
-			printf("Set ip-hdr-inc; result = %d\n",
-			       setsockopt(fwd_sock, IPPROTO_IP, IP_HDRINCL, &opt, sizeof(opt)));
-#else
 			fwd_sock		= socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
-#endif
 		}
 		if (fwd_sock < 0) {
 			pt_log(kLog_error, "Couldn't create %s socket: %s\n",
@@ -431,6 +425,7 @@ void* pt_proxy(void *args) {
 		}
 	}
 	max_sock			= fwd_sock+1;
+#ifdef HAVE_PCAP
 	if (opts.pcap) {
 		if (opts.udp) {
 			pt_log(kLog_error, "Packet capture is not useful with UDP [should not get here!]!\n");
@@ -483,6 +478,7 @@ void* pt_proxy(void *args) {
 		else
 			pt_log(kLog_info, "pcap disabled since we're running in unprivileged mode.\n");
 	}
+#endif
 
 	pthread_mutex_lock(&num_threads_lock);
 	num_threads++;
@@ -635,6 +631,7 @@ void* pt_proxy(void *args) {
 			}
 		}
 		pthread_mutex_unlock(&chain_lock);
+#ifdef HAVE_PCAP
 		if (opts.pcap) {
 			if (pcap_dispatch(pc.pcap_desc, 32, pcap_packet_handler, (u_char*)&pc.pkt_q) > 0) {
 				pqueue_elem_t	*cur;
@@ -656,6 +653,7 @@ void* pt_proxy(void *args) {
 				pc.pkt_q.head            = 0;
 			}
 		}
+#endif
 		/* Update running statistics, if requested (only once every second) */
 		if (opts.print_stats && opts.mode == kMode_forward && now > last_status_update+1) {
 			pthread_mutex_lock(&chain_lock);
@@ -749,10 +747,6 @@ void pcap_packet_handler(u_char *refcon, const struct pcap_pkthdr *hdr, const u_
 	}
 	q->elems++;
 }
-
-#if kPT_add_iphdr
-static int ip_id_counter = 1;
-#endif
 
 uint16_t calc_icmp_checksum(uint16_t *data, int bytes) {
 	uint32_t sum;

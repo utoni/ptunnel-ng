@@ -43,7 +43,6 @@
 #ifndef PING_TUNNEL_H
 #define PING_TUNNEL_H 1
 
-//	Includes
 #ifndef WIN32
 #include <sys/unistd.h>
 #include <sys/types.h>
@@ -108,6 +107,7 @@ typedef struct {
 	int elems;
 } pqueue_t;
 
+#ifdef HAVE_PCAP
 /* pcap_info_t: Structure to hold information related to packet capturing.
  */
 typedef struct {
@@ -123,6 +123,7 @@ typedef struct {
 	/** queue of packets to process */
 	pqueue_t pkt_q;
 } pcap_info_t;
+#endif
 
 /* function Prototypes */
 void*    pt_proxy(void *args);
