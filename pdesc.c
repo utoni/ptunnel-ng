@@ -115,3 +115,40 @@ forward_desc_t* create_fwd_desc(uint16_t seq_no, uint32_t data_len, char *data) 
 	return fwd_desc;
 }
 
+/* send_packets:
+ * Examines the passed-in ring, and forwards data in it over TCP.
+ */
+uint32_t send_packets(forward_desc_t *ring[], int *xfer_idx, int *await_send, int *sock)   {
+	forward_desc_t *fwd_desc;
+	int            bytes, total = 0;
+
+	while (*await_send > 0) {
+		fwd_desc = ring[*xfer_idx];
+		if (!fwd_desc)/* We haven't got this packet yet.. */
+			break;
+		if (fwd_desc->length > 0) {
+			bytes = send(*sock, &fwd_desc->data[fwd_desc->length - fwd_desc->remaining],
+				fwd_desc->remaining, 0);
+			if (bytes < 0) {
+				printf("Weirdness.\n");
+				/* TODO: send close stuff */
+				close(*sock);
+				*sock = 0;
+				break;
+			}
+			fwd_desc->remaining -= bytes;
+			total               += bytes;
+		}
+		if (!fwd_desc->remaining) {
+			ring[*xfer_idx] = 0;
+			free(fwd_desc);
+			(*xfer_idx)++;
+			(*await_send)--;
+			if (*xfer_idx >= kPing_window_size)
+				*xfer_idx = 0;
+		}
+		else
+			break;
+	}
+	return total;
+}

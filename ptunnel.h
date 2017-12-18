@@ -139,8 +139,6 @@ int      queue_packet(int icmp_sock, uint8_t type, char *buf, int num_bytes,
                    uint32_t state, struct sockaddr_in *dest_addr, uint16_t next_expected_seq,
                    int *first_ack, uint16_t *ping_seq);
 
-uint32_t send_packets(forward_desc_t *ring[], int *xfer_idx, int *await_send, int *sock);
-
 void     handle_data(icmp_echo_packet_t *pkt, int total_len, forward_desc_t *ring[],
                      int *await_send, int *insert_idx, uint16_t *next_expected_seq);
 

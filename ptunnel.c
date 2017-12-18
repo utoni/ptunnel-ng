@@ -36,7 +36,7 @@
  * Contacting the author:
  * You can get in touch with me, Daniel Stødle (that's the Norwegian letter oe,
  * in case your text editor didn't realize), here: <daniels@cs.uit.no>
- *	
+ *
  * The official ptunnel website is here:
  * <http://www.cs.uit.no/~daniels/PingTunnel/>
  *
@@ -172,7 +172,7 @@ int main(int argc, char *argv[]) {
 			pt_log(kLog_error, "Logging using syslog overrides the use of a specified logfile (using -f).\n");
 			fclose(opts.log_file);
 			opts.log_file = stdout;
-		}		
+		}
 		openlog("ptunnel", LOG_PID, LOG_USER);
 	}
 	if (opts.chroot) {
@@ -230,7 +230,7 @@ int main(int argc, char *argv[]) {
 #endif /* WIN32 */
   	pthread_mutex_init(&chain_lock, 0);
   	pthread_mutex_init(&num_threads_lock, 0);
-	
+
 	//	Check mode, validate arguments and start either client or proxy.
 	if (opts.mode == kMode_forward) {
 		if (!opts.given_proxy_ip || !opts.given_dst_ip || !opts.given_dst_port || !opts.tcp_listen_port) {
@@ -242,7 +242,7 @@ int main(int argc, char *argv[]) {
 	}
 	else
 		pt_proxy(0);
-	
+
 #ifdef WIN32
 	WSACleanup();
 #else
@@ -356,7 +356,7 @@ int pt_create_udp_socket(int port) {
 	if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (const void*)&yes, sizeof(int)) < 0)
 		pt_log(kLog_error, "Failed to set UDP REUSEPORT socket option. (Not fatal, hopefully.)\n");
 #endif /* SO_REUSEPORT */
-	
+
 	memset(&addr, 0, sizeof(struct sockaddr_in));
 	addr.sin_family			= AF_INET;
 	addr.sin_addr.s_addr	= htonl(INADDR_ANY);
@@ -582,7 +582,7 @@ void* pt_proxy(void *args) {
 			tmp  = cur->next;
 		}
 		pthread_mutex_unlock(&chain_lock);
-		
+
 		if (FD_ISSET(fwd_sock, &set)) {
 			/* Handle ping traffic */
 			addr_len = sizeof(struct sockaddr);
@@ -714,7 +714,7 @@ void print_statistics(xfer_stats_t *xfer, int is_continuous) {
  * Ok, the above isn't entirely correct (we can get other ICMP types as well). This function
  * also has problems when it captures packets on the loopback interface. The moral of the
  * story: Don't do ping forwarding over the loopback interface.
- *	
+ *
  * Also, we currently don't support anything else than ethernet when in pcap mode. The reason
  * is that I haven't read up on yet on how to remove the frame header from the packet..
  */
@@ -874,44 +874,6 @@ int queue_packet(int icmp_sock, uint8_t type, char *buf, int num_bytes,
 	return 0;
 }
 
-/* send_packets:
- * Examines the passed-in ring, and forwards data in it over TCP.
- */
-uint32_t send_packets(forward_desc_t *ring[], int *xfer_idx, int *await_send, int *sock) {
-	forward_desc_t *fwd_desc;
-	int            bytes, total = 0;
-
-	while (*await_send > 0) {
-		fwd_desc = ring[*xfer_idx];
-		if (!fwd_desc)/* We haven't got this packet yet.. */
-			break;
-		if (fwd_desc->length > 0) {
-			bytes = send(*sock, &fwd_desc->data[fwd_desc->length - fwd_desc->remaining],
-			             fwd_desc->remaining, 0);
-			if (bytes < 0) {
-				printf("Weirdness.\n");
-				/* TODO: send close stuff */
-				close(*sock);
-				*sock = 0;
-				break;
-			}
-			fwd_desc->remaining -= bytes;
-			total               += bytes;
-		}
-		if (!fwd_desc->remaining) {
-			ring[*xfer_idx] = 0;
-			free(fwd_desc);
-			(*xfer_idx)++;
-			(*await_send)--;
-			if (*xfer_idx >= kPing_window_size)
-				*xfer_idx = 0;
-		}
-		else
-			break;
-	}
-	return total;
-}
-
 /* handle_data:
  * Utility function for handling kProto_data packets, and place the data it contains
  * onto the passed-in receive ring.
@@ -921,7 +883,7 @@ void handle_data(icmp_echo_packet_t *pkt, int total_len, forward_desc_t *ring[],
 {
 	ping_tunnel_pkt_t *pt_pkt      = (ping_tunnel_pkt_t*)pkt->data;
 	int               expected_len = sizeof(ip_packet_t) + sizeof(icmp_echo_packet_t) +
-	                                 sizeof(ping_tunnel_pkt_t); /* 20+8+28 */	
+	                                 sizeof(ping_tunnel_pkt_t); /* 20+8+28 */
 	/* Place packet in the receive ring, in its proper place.
 	 * This works as follows:
 	 * -1. Packet == ack packet? Perform ack, and continue.

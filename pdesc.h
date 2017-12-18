@@ -120,7 +120,11 @@ proxy_desc_t*   create_and_insert_proxy_desc(uint16_t id_no, uint16_t icmp_id,
                                              int sock, struct sockaddr_in *addr,
                                              uint32_t dst_ip, uint32_t dst_port,
                                              uint32_t init_state, uint32_t type);
+
 void            remove_proxy_desc(proxy_desc_t *cur, proxy_desc_t *prev);
+
 forward_desc_t* create_fwd_desc(uint16_t seq_no, uint32_t data_len, char *data);
+
+uint32_t        send_packets(forward_desc_t *ring[], int *xfer_idx, int *await_send, int *sock);
 
 #endif
