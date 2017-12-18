@@ -115,6 +115,126 @@ forward_desc_t* create_fwd_desc(uint16_t seq_no, uint32_t data_len, char *data) 
 	return fwd_desc;
 }
 
+/* queue_packet:
+ * Creates an ICMP packet descriptor, and sends it. The packet descriptor is added
+ * to the given send ring, for potential resends later on.
+ */
+int queue_packet(int icmp_sock, uint8_t type, char *buf, int num_bytes,
+                 uint16_t id_no, uint16_t icmp_id, uint16_t *seq, icmp_desc_t ring[],
+                 int *insert_idx, int *await_send, uint32_t ip, uint32_t port,
+                 uint32_t state, struct sockaddr_in *dest_addr, uint16_t next_expected_seq,
+                 int *first_ack, uint16_t *ping_seq)
+{
+#if kPT_add_iphdr
+	ip_packet_t *ip_pkt = 0;
+	int pkt_len         = sizeof(ip_packet_t) + sizeof(icmp_echo_packet_t) +
+	                      sizeof(ping_tunnel_pkt_t) + num_bytes;
+#else
+	int pkt_len         = sizeof(icmp_echo_packet_t) +
+	                      sizeof(ping_tunnel_pkt_t) + num_bytes;
+#endif
+	int err             = 0;
+	icmp_echo_packet_t *pkt   = 0;
+	ping_tunnel_pkt_t *pt_pkt = 0;
+	uint16_t ack_val          = next_expected_seq - 1;
+
+	if (pkt_len % 2)
+		pkt_len++;
+
+#if kPT_add_iphdr
+	printf("add header\n");
+	ip_pkt            = (ip_packet_t *) malloc(pkt_len);
+	pkt               = (icmp_echo_packet_t *) ip_pkt->data;
+	memset(ip_pkt, 0, sizeof(ip_packet_t));
+	/* |(pkt_len>>2);//5;//(IPVERSION << 4) | (sizeof(ip_packet_t) >> 2); */
+	ip_pkt->vers_ihl  = 0x45;
+	ip_pkt->tos       = IPTOS_LOWDELAY;
+	ip_pkt->pkt_len   = pkt_len;
+	/* kernel sets proper value htons(ip_id_counter); */
+	ip_pkt->id        = 0;
+	ip_pkt->flags_frag_offset	= 0;
+	/* default time to live (64) */
+	ip_pkt->ttl       = IPDEFTTL;
+	/* ICMP */
+	ip_pkt->proto     = 1;
+	/* maybe the kernel helps us out..? */
+	ip_pkt->checksum  = 0;
+	/* insert source IP address here */
+	ip_pkt->src_ip    = htonl(0x0);
+	/* htonl(0x7f000001); -> localhost.. */
+	ip_pkt->dst_ip    = dest_addr->sin_addr.s_addr;
+#else
+	pkt	              = (icmp_echo_packet_t *) calloc(1, pkt_len);
+#endif
+
+	/* ICMP Echo request or reply */
+	pkt->type         = type;
+	/* Must be zero (non-zero requires root) */
+	pkt->code         = 0;
+	pkt->identifier   = htons(icmp_id);
+	pkt->seq          = htons(*ping_seq);
+	pkt->checksum     = 0;
+	(*ping_seq)++;
+	/* Add our information */
+	pt_pkt            = (ping_tunnel_pkt_t*)pkt->data;
+	pt_pkt->magic     = htonl(opts.magic);
+	pt_pkt->dst_ip    = ip;
+	pt_pkt->dst_port  = htonl(port);
+	pt_pkt->ack       = htonl(ack_val);
+	pt_pkt->data_len  = htonl(num_bytes);
+	pt_pkt->state     = htonl(state);
+	pt_pkt->seq_no    = htons(*seq);
+	pt_pkt->id_no     = htons(id_no);
+	/* Copy user data */
+	if (buf && num_bytes > 0)
+		memcpy(pt_pkt->data, buf, num_bytes);
+#if kPT_add_iphdr
+	pkt->checksum     = htons(calc_icmp_checksum((uint16_t*)pkt, pkt_len-sizeof(ip_packet_t)));
+	ip_pkt->checksum  = htons(calc_icmp_checksum((uint16_t*)ip_pkt, sizeof(ip_packet_t)));
+#else
+	pkt->checksum     = htons(calc_icmp_checksum((uint16_t*)pkt, pkt_len));
+#endif
+
+	/* Send it! */
+	pt_log(kLog_sendrecv, "Send: %d [%d] bytes [seq = %d] "
+	                      "[type = %s] [ack = %d] [icmp = %d] [user = %s]\n",
+	                      pkt_len, num_bytes, *seq, state_name[state & (~kFlag_mask)],
+	                      ack_val, type, ((state & kUser_flag) == kUser_flag ? "yes" : "no"));
+#if kPT_add_iphdr
+	err               = sendto(icmp_sock, (const void*)ip_pkt, pkt_len, 0,
+	                           (struct sockaddr*)dest_addr, sizeof(struct sockaddr));
+#else
+	err               = sendto(icmp_sock, (const void*)pkt, pkt_len, 0,
+	                           (struct sockaddr*)dest_addr, sizeof(struct sockaddr));
+#endif
+	if (err < 0) {
+		pt_log(kLog_error, "Failed to send ICMP packet: %s\n", strerror(errno));
+		return -1;
+	}
+	else if (err != pkt_len)
+		pt_log(kLog_error, "WARNING WARNING, didn't send entire packet\n");
+
+	/* Update sequence no's and so on */
+#if kPT_add_iphdr
+	/* NOTE: Retry mechanism needs update for PT_add_ip_hdr */
+	ring[*insert_idx].pkt      = ip_pkt;
+#else
+	ring[*insert_idx].pkt      = pkt;
+#endif
+	ring[*insert_idx].pkt_len  = pkt_len;
+	ring[*insert_idx].last_resend = time_as_double();
+	ring[*insert_idx].seq_no   = *seq;
+	ring[*insert_idx].icmp_id  = icmp_id;
+	(*seq)++;
+	if (!ring[*first_ack].pkt)
+		*first_ack             = *insert_idx;
+	(*await_send)++;
+	(*insert_idx)++;
+	if (*insert_idx >= kPing_window_size)
+		*insert_idx	= 0;
+	return 0;
+}
+
 /* send_packets:
  * Examines the passed-in ring, and forwards data in it over TCP.
  */

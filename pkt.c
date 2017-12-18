@@ -242,3 +242,162 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 			pt_log(kLog_verbose, "Ignored incoming packet.\n");
 	}
 }
+
+/* handle_data:
+ * Utility function for handling kProto_data packets, and place the data it contains
+ * onto the passed-in receive ring.
+ */
+void handle_data(icmp_echo_packet_t *pkt, int total_len, forward_desc_t *ring[],
+                 int *await_send, int *insert_idx,  uint16_t *next_expected_seq)
+{
+	ping_tunnel_pkt_t *pt_pkt      = (ping_tunnel_pkt_t*)pkt->data;
+	int               expected_len = sizeof(ip_packet_t) + sizeof(icmp_echo_packet_t) +
+	                                 sizeof(ping_tunnel_pkt_t); /* 20+8+28 */
+	/* Place packet in the receive ring, in its proper place.
+	 * This works as follows:
+	 * -1. Packet == ack packet? Perform ack, and continue.
+	 * 0. seq_no < next_remote_seq, and absolute difference is bigger than w size => discard
+	 * 1. If seq_no == next_remote_seq, we have no problems; just put it in the ring.
+	 * 2. If seq_no > next_remote_seq + remaining window size, discard packet.
+	 *    Send resend request for missing packets.
+	 * 3. Else, put packet in the proper place in the ring
+	 *    (don't overwrite if one is already there), but don't increment next_remote_seq_no
+	 * 4. If packed was not discarded, process ack info in packet.
+	 */
+	expected_len     += pt_pkt->data_len;
+	expected_len     += expected_len % 2;
+	if (opts.udp)
+		expected_len -= sizeof(ip_packet_t);
+	if (total_len < expected_len) {
+		pt_log(kLog_error, "Packet not completely received: %d Should be: %d. "
+		                   "For some reason, this error is fatal.\n", total_len, expected_len);
+		pt_log(kLog_debug, "Data length: %d Total length: %d\n", pt_pkt->data_len, total_len);
+		/* TODO: This error isn't fatal, so it should definitely be handled in some way.
+		 * We could simply discard it.
+		 */
+		exit(0);
+	}
+	if (pt_pkt->seq_no == *next_expected_seq) {
+		/* hmm, what happens if this test is true? */
+		if (!ring[*insert_idx]) { /* && pt_pkt->state == kProto_data */
+			/* pt_log(kLog_debug, "Queing data packet: %d\n", pt_pkt->seq_no); */
+			ring[*insert_idx] = create_fwd_desc(pt_pkt->seq_no, pt_pkt->data_len, pt_pkt->data);
+			(*await_send)++;
+			(*insert_idx)++;
+		}
+		else if (ring[*insert_idx])
+			pt_log(kLog_debug, "Dup packet?\n");
+
+		(*next_expected_seq)++;
+		if (*insert_idx >= kPing_window_size)
+			*insert_idx	= 0;
+		/* Check if we have already received some of the next packets */
+		while (ring[*insert_idx]) {
+			if (ring[*insert_idx]->seq_no == *next_expected_seq) {
+				(*next_expected_seq)++;
+				(*insert_idx)++;
+				if (*insert_idx >= kPing_window_size)
+					*insert_idx	= 0;
+			}
+			else
+				break;
+		}
+	}
+	else {
+		int	r, s, d, pos;
+		pos = -1; /* If pos ends up staying -1, packet is discarded. */
+		r   = *next_expected_seq;
+		s   = pt_pkt->seq_no;
+		d   = s - r;
+		if (d < 0) { /* This packet _may_ be old, or seq_no may have wrapped around */
+			d = (s+0xFFFF) - r;
+			if (d < kPing_window_size) {
+				/* Counter has wrapped, so we should add this packet to the recv ring */
+				pos	= ((*insert_idx)+d) % kPing_window_size;
+			}
+		}
+		else if (d < kPing_window_size)
+			pos	= ((*insert_idx)+d) % kPing_window_size;
+
+		if (pos != -1) {
+			if (!ring[pos]) {
+				pt_log(kLog_verbose, "Out of order. Expected: %d  Got: %d  Inserted: %d "
+				                     "(cur = %d)\n", *next_expected_seq, pt_pkt->seq_no, pos,
+				                     (*insert_idx));
+				ring[pos] = create_fwd_desc(pt_pkt->seq_no, pt_pkt->data_len, pt_pkt->data);
+				(*await_send)++;
+			}
+		}
+		/* else
+		 * pt_log(kLog_debug, "Packet discarded - outside receive window.\n");
+		 */
+	}
+}
+
+void handle_ack(uint16_t seq_no, icmp_desc_t ring[], int *packets_awaiting_ack,
+                int one_ack_only, int insert_idx, int *first_ack,
+                uint16_t *remote_ack, int is_pcap)
+{
+	int i, j, k;
+	ping_tunnel_pkt_t *pt_pkt;
+
+	if (*packets_awaiting_ack > 0) {
+		if (one_ack_only) {
+			for (i = 0; i < kPing_window_size; i++) {
+				if (ring[i].pkt && ring[i].seq_no == seq_no && !is_pcap) {
+					pt_log(kLog_debug, "Received ack for only seq %d\n", seq_no);
+					pt_pkt	= (ping_tunnel_pkt_t*)ring[i].pkt->data;
+					/* WARNING: We make the dangerous assumption here that packets arrive in order! */
+					*remote_ack	= (uint16_t)ntohl(pt_pkt->ack);
+					free(ring[i].pkt);
+					ring[i].pkt	= 0;
+					(*packets_awaiting_ack)--;
+					if (i == *first_ack) {
+						for (j=1;j<kPing_window_size;j++) {
+							k	= (i+j)%kPing_window_size;
+							if (ring[k].pkt) {
+								*first_ack = k;
+								break;
+							}
+							/* we have looped through everything */
+							if (k == i)
+								*first_ack = insert_idx;
+							j++;
+						}
+					}
+					return;
+				}
+			}
+		}
+		else {
+			int	i, can_ack = 0, count = 0;
+			i	= insert_idx-1;
+			if (i < 0)
+				i	= kPing_window_size - 1;
+
+			pt_log(kLog_debug, "Received ack-series starting at seq %d\n", seq_no);
+			while (count < kPing_window_size) {
+				if (!ring[i].pkt)
+					break;
+
+				if (ring[i].seq_no == seq_no)
+					can_ack	= 1;
+				else if (!can_ack)
+					*first_ack	= i;
+
+				if (can_ack) {
+					free(ring[i].pkt);
+					ring[i].pkt	= 0;
+					(*packets_awaiting_ack)--;
+				}
+				i--;
+				if (i < 0)
+					i	= kPing_window_size - 1;
+				count++;
+			}
+		}
+	}
+/* else
+ * 	pt_log(kLog_verbose, "Dropping superfluous acknowledgement (no outstanding packets needing ack.)\n");
+ */
+}

@@ -24,7 +24,7 @@
  * The same procedure is followed in proxy-to-client communication. Just replace
  * proxy with client and vice versa in the list above.
  */
-typedef struct {
+typedef struct forward_desc_t {
 	/** ping_tunnel_pkt_t seq_no */
 	int seq_no;
 	/** length of data */
@@ -40,7 +40,7 @@ typedef struct {
  * it will be removed from the send-ring, freeing up space for more outgoing
  * ICMP packets.
  */
-typedef struct {
+typedef struct icmp_desc_t {
 	/** total length of ICMP packet, including ICMP header and ptunnel data. */
 	int pkt_len;
 	double  last_resend;
@@ -124,6 +124,12 @@ proxy_desc_t*   create_and_insert_proxy_desc(uint16_t id_no, uint16_t icmp_id,
 void            remove_proxy_desc(proxy_desc_t *cur, proxy_desc_t *prev);
 
 forward_desc_t* create_fwd_desc(uint16_t seq_no, uint32_t data_len, char *data);
+
+int             queue_packet(int icmp_sock, uint8_t type, char *buf, int num_bytes,
+                             uint16_t id_no, uint16_t icmp_id, uint16_t *seq, icmp_desc_t ring[],
+                             int *insert_idx, int *await_send, uint32_t ip, uint32_t port,
+                             uint32_t state, struct sockaddr_in *dest_addr, uint16_t next_expected_seq,
+                             int *first_ack, uint16_t *ping_seq);
 
 uint32_t        send_packets(forward_desc_t *ring[], int *xfer_idx, int *await_send, int *sock);
 

@@ -133,24 +133,10 @@ void     pt_forwarder(void);
 
 void     print_statistics(xfer_stats_t *xfer, int is_continuous);
 
-int      queue_packet(int icmp_sock, uint8_t type, char *buf, int num_bytes,
-                   uint16_t id_no, uint16_t icmp_id, uint16_t *seq, icmp_desc_t ring[],
-                   int *insert_idx, int *await_send, uint32_t ip, uint32_t port,
-                   uint32_t state, struct sockaddr_in *dest_addr, uint16_t next_expected_seq,
-                   int *first_ack, uint16_t *ping_seq);
-
-void     handle_data(icmp_echo_packet_t *pkt, int total_len, forward_desc_t *ring[],
-                     int *await_send, int *insert_idx, uint16_t *next_expected_seq);
-
-void     handle_ack(uint16_t seq_no, icmp_desc_t ring[], int *packets_awaiting_ack,
-                    int one_ack_only, int insert_idx, int *first_ack, uint16_t *remote_ack,
-                    int is_pcap);
-
 void     init_ip_packet(ip_packet_t *packet, uint16_t id, uint16_t frag_offset,
                         uint16_t pkt_len, uint8_t ttl, uint32_t src_ip, uint32_t dst_ip,
                         bool is_last_frag, bool dont_frag);
 
-uint16_t calc_ip_checksum(ip_packet_t *pkt);
 uint16_t calc_icmp_checksum(uint16_t *data, int bytes);
 
 void     send_termination_msg(proxy_desc_t *cur, int icmp_sock);
