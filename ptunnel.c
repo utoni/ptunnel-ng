@@ -76,7 +76,6 @@ static char * print_last_windows_error()  {
 	return errorstr;
 }
 #define strerror(x) print_last_windows_error()
-#else
 #endif /* WIN32 */
 
 /* globals */
@@ -91,7 +90,7 @@ uint32_t num_tunnels = 0;
 /** Table indicating when a connection ID is allowable (used by proxy) */
 uint32_t *seq_expiry_tbl = NULL;
 
-/** Some buffer constants */
+/* Some buffer constants */
 const int tcp_receive_buf_len  = kDefault_buf_size;
 const int icmp_receive_buf_len = kDefault_buf_size + kIP_header_size +
                                  kICMP_header_size + sizeof(ping_tunnel_pkt_t);
@@ -105,7 +104,7 @@ proxy_desc_t *chain = 0;
 const char *state_name[kNum_proto_types] = { "start", "ack", "data",
                                              "close", "authenticate" };
 
-/** Let the fun begin! */
+/* Let the fun begin! */
 int main(int argc, char *argv[]) {
 #ifndef WIN32
 	pid_t   pid;

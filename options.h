@@ -49,6 +49,8 @@ struct options {
 	int udp;
 	/** unpriviledged mode */
 	int unprivileged;
+	/** use base64 encoded packets */
+	int base64;
 
 #ifndef WIN32
 	/** run as daemon if non zero value */

@@ -6,28 +6,6 @@
 #include "base64.h"
 
 
-#if 0
-static const char hextab[] = "0123456789ABCDEF";
-
-void print_hexstr(unsigned char *buf, size_t siz) {
-	char *out = (char *) calloc(3, siz+1);
-	unsigned char high, low;
-
-	for (size_t i = 0; i < siz; ++i) {
-		high = (buf[i] & 0xF0) >> 4;
-		low  = buf[i] & 0x0F;
-
-		out[i  ] = hextab[high];
-		out[i+1] = hextab[low];
-		out[i+2] = ' ';
-	}
-
-	printf("%s\n", out);
-	free(out);
-}
-#endif
-
-
 static void build_decoding_table(void);
 
 static char encoding_table[] = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',

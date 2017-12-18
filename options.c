@@ -95,6 +95,9 @@ static const struct option_usage usage[] = {
 		"Unprivileged mode will only work on some systems, and is in general less reliable\n"
 		"than running in privileged mode.\n"
 	},
+	/** --base64 */
+	{NULL,           0, OPT_BOOL,   {.num = 0},
+		"Base64 encode/decode all outoging/incoming packets."},
 #ifndef WIN32
 	/** --daemon */
 	{"pidfile",      0, OPT_STR,    {.str = "/run/ptunnel.pid"},
@@ -143,6 +146,7 @@ static struct option long_options[] = {
 	{"passwd",      required_argument, 0, 'x'},
 	{"udp",               no_argument, &opts.udp, 1 },
 	{"unprivileged",      no_argument, &opts.unprivileged, 1 },
+	{"base64",            no_argument, &opts.base64, 1 },
 #ifndef WIN32
 	{"daemon",      optional_argument, 0, 'd'},
 	{"syslog",            no_argument, 0, 'S'},
@@ -487,6 +491,10 @@ int parse_options(int argc, char **argv) {
 			pt_log(kLog_error, "Failed to open log file: \"%s\", Cause: %s\n", opts.log_path, strerror(errno));
 			pt_log(kLog_error, "Reverting log to standard out.\n");
 		} else opts.log_file = tmp_log;
+	}
+
+	if (opts.base64 != 0) {
+		pt_log(kLog_debug, "Base64 enabled.");
 	}
 
 	return 0;
