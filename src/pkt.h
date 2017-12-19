@@ -3,6 +3,12 @@
 
 #include <stdint.h>
 
+#ifndef __MINGW32__
+#define __PTATTR__ __attribute__ ((packed))
+#else
+#define __PTATTR__ __attribute__ ((packed, gcc_struct))
+#endif
+
 #ifdef WIN32
 #include <winsock2.h>
 typedef int socklen_t;
@@ -12,7 +18,7 @@ struct ether_header {
 	uint8_t  ether_dhost[ETH_ALEN]; /* destination eth addr */
 	uint8_t  ether_shost[ETH_ALEN]; /* source ether addr    */
 	uint16_t ether_type;            /* packet type ID field */
-};
+} __PTATTR__;
 #endif /* WIN32 */
 
 /** Resend packets after this interval (in seconds) */
@@ -42,7 +48,7 @@ typedef struct {
 	uint16_t id_no;
 	/** optional data buffer */
 	char data[0];
-} __attribute__ ((packed)) ping_tunnel_pkt_t;
+} __PTATTR__ ping_tunnel_pkt_t;
 
 /** ip_packet_t: This is basically my own definition of the IP packet, which
  * of course complies with the official definition ;) See any good book on IP
@@ -60,7 +66,7 @@ typedef struct {
 	uint32_t src_ip;
 	uint32_t dst_ip;
 	char data[0];
-} __attribute__ ((packed)) ip_packet_t;
+} __PTATTR__ ip_packet_t;
 
 /** icmp_echo_packet_t: This is the definition of a standard ICMP header. The
  * ptunnel packets are constructed as follows:
@@ -78,7 +84,7 @@ typedef struct {
 	uint16_t identifier;
 	uint16_t seq;
 	char data[0];
-} __attribute__ ((packed)) icmp_echo_packet_t;
+} __PTATTR__ icmp_echo_packet_t;
 
 typedef struct forward_desc_t forward_desc_t;
 typedef struct icmp_desc_t icmp_desc_t;
