@@ -5,7 +5,7 @@ CFLAGS:=$(shell dpkg-buildflags --get CFLAGS)
 LDFLAGS:=$(shell dpkg-buildflags --get LDFLAGS)
 
 %:
-	dh  $@
+	dh $@ --with autoreconf
 
 override_dh_auto_build:
 	dh_auto_build -- CFLAGS="-Wall $(CFLAGS)" LDFLAGS="$(LDFLAGS)" CPPFLAGS="$(CPPFLAGS)"
