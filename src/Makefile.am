@@ -2,11 +2,15 @@ bin_PROGRAMS = ptunnel-ng
 man8_MANS = ptunnel-ng.8
 
 ptunnel_ng_CFLAGS = -Wall
+ptunnel_ng_LDADD =
 if HAVE_PCAP
 ptunnel_ng_CFLAGS += -DHAVE_PCAP=1
 endif
 if HAVE_SELINUX
 ptunnel_ng_CFLAGS += -DHAVE_SELINUX=1
+endif
+if IS_WINDOWS
+ptunnel_ng_LDADD += -lws2_32
 endif
 
 ptunnel_ng_SOURCES = \

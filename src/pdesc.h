@@ -2,9 +2,11 @@
 #define PDESC_H 1
 
 #include <stdint.h>
+#ifndef WIN32
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#endif
 
 #include "pkt.h"
 #include "challenge.h"

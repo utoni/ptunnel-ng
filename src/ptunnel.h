@@ -74,6 +74,14 @@
 #include "pdesc.h"
 #include "challenge.h"
 
+#ifdef WIN32
+/* pthread porting to windows */
+typedef CRITICAL_SECTION  pthread_mutex_t;
+typedef unsigned long     pthread_t;
+#define pthread_mutex_init    InitializeCriticalSectionAndSpinCount
+#define pthread_mutex_lock    EnterCriticalSection
+#define pthread_mutex_unlock  LeaveCriticalSection
+#endif
 extern pthread_mutex_t chain_lock;
 extern uint32_t num_tunnels;
 extern const int icmp_receive_buf_len;
@@ -129,8 +137,10 @@ typedef struct {
 
 /* function Prototypes */
 void*    pt_proxy(void *args);
+#ifdef HAVE_PCAP
 void     pcap_packet_handler(u_char *refcon, const struct pcap_pkthdr *hdr,
                          const u_char* pkt);
+#endif
 
 void     pt_forwarder(void);
 

@@ -4,8 +4,10 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
+#ifndef WIN32
 #include <pwd.h>
 #include <grp.h>
+#endif
 #ifdef HAVE_SELINUX
 #include <selinux/selinux.h>
 #endif

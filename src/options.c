@@ -504,8 +504,10 @@ int parse_options(int argc, char **argv) {
 	}
 	opts.given_dst_ip = *(uint32_t*)host_ent->h_addr_list[0];
 
+#ifndef WIN32
 	if (NULL == (opts.pid_file = fopen(opts.pid_path, "w")))
 		pt_log(kLog_error, "Failed to open pidfile: \"%s\", Cause: %s\n", opts.pid_path, strerror(errno));
+#endif
 
 	if (has_logfile && opts.log_path) {
 		pt_log(kLog_info, "Open Logfile: \"%s\"\n", opts.log_path);

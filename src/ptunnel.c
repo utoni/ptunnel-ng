@@ -54,13 +54,6 @@
 #endif
 
 #ifdef WIN32
-/** pthread porting to windows */
-typedef CRITICAL_SECTION  pthread_mutex_t;
-typedef unsigned long     pthread_t;
-#define pthread_mutex_init    InitializeCriticalSectionAndSpinCount
-#define pthread_mutex_lock    EnterCriticalSection
-#define pthread_mutex_unlock  LeaveCriticalSection
-
 #include <winsock2.h>
 /* Map errno (which Winsock doesn't use) to GetLastError; include the code in the strerror */
 #ifdef errno
@@ -74,7 +67,7 @@ static char * print_last_windows_error()  {
 	memset(errorstr, 0, sizeof(errorstr));
 	FormatMessage(FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_FROM_SYSTEM,
 	              NULL, last_error, 0, errorstr, sizeof(errorstr), NULL);
-	snprintf(errorstr, sizeof(errorstr), "%s (%d)", errorstr, last_error);
+	snprintf(errorstr, sizeof(errorstr), "%s (%lu)", errorstr, last_error);
 	return errorstr;
 }
 #define strerror(x) print_last_windows_error()
@@ -116,7 +109,7 @@ int main(int argc, char *argv[]) {
 	WSADATA wsaData;
 	int     err;
 
-	wVersionRequested = MAKEWORD( 2, 2 );
+	wVersionRequested = MAKEWORD(2, 2);
 
 	err = WSAStartup( wVersionRequested, &wsaData );
 	if ( err != 0 ) {
@@ -216,24 +209,6 @@ int main(int argc, char *argv[]) {
 	}
 #endif /* !WIN32 */
 
-#ifdef WIN32
-	WORD wVersionRequested;
-	WSADATA wsaData;
-	int err;
-
-	wVersionRequested = MAKEWORD( 2, 2 );
-
-	err = WSAStartup( wVersionRequested, &wsaData );
-	if ( err != 0 ) {
-		return -1;
-	}
-
-	if ( LOBYTE( wsaData.wVersion ) != 2 ||
-		HIBYTE( wsaData.wVersion ) != 2 ) {
-		WSACleanup();
-		return -1;
-	}
-#endif /* WIN32 */
   	pthread_mutex_init(&chain_lock, 0);
   	pthread_mutex_init(&num_threads_lock, 0);
 
@@ -710,6 +685,7 @@ void print_statistics(xfer_stats_t *xfer, int is_continuous) {
 		fflush(stdout);
 }
 
+#ifdef HAVE_PCAP
 /* pcap_packet_handler:
  * This is our callback function handling captured packets. We already know that the packets
  * are ICMP echo or echo-reply messages, so all we need to do is strip off the ethernet header
@@ -753,6 +729,7 @@ void pcap_packet_handler(u_char *refcon, const struct pcap_pkthdr *hdr, const u_
 	}
 	q->elems++;
 }
+#endif
 
 uint16_t calc_icmp_checksum(uint16_t *data, int bytes) {
 	uint32_t sum;

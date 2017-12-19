@@ -145,6 +145,7 @@ fi
 dnl Set automake conf vars
 AM_CONDITIONAL([HAVE_PCAP], [test x"${pcap_enabled}" = xyes])
 AM_CONDITIONAL([HAVE_SELINUX], [test x"${selinux_enabled}" = xyes])
+AM_CONDITIONAL([IS_WINDOWS], [test x"${use_msw}" = xyes])
 
 dnl output config headers
 AC_CONFIG_HEADERS([src/config.h:src/config.h.in])
