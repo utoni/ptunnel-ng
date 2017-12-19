@@ -44,8 +44,8 @@ static const struct option_usage usage[] = {
 	/** --proxy */
 	{"address",      1, OPT_STR,    {.str = NULL},
 		"Set address of peer running packet forwarder. This causes\n"
-		"ptunnel to operate in forwarding mode - the absence of this\n"
-		"option causes ptunnel to operate in proxy mode.\n"
+		"ptunnel to operate in forwarding mode (Client) - the absence of this\n"
+		"option causes ptunnel to operate in proxy mode (Server).\n"
 	},
 	/** --listen */
 	{"port",         1, OPT_DEC32,  {.unum = 2222},
@@ -144,7 +144,7 @@ static const struct option_usage usage[] = {
 		"To combine with --chroot you will have to `mount --bind /proc /chrootdir/proc`\n"
 	},
 	/** --help */
-	{"help",         0, OPT_STR,    {.str = NULL}, "this\n"},
+	{NULL,           0, OPT_STR,    {.str = NULL}, "this\n"},
 	{NULL,0,OPT_BOOL,{.unum=0},NULL}
 };
 
@@ -287,6 +287,7 @@ static void print_long_help(unsigned index, int required_state) {
 static void print_short_help(unsigned index, int required_state) {
 	const char *ob = (required_state == 0 ? "[" : "");
 	const char *cb = (required_state == 0 ? "]" : "");
+	const char *ov = (long_options[index].has_arg != optional_argument ? " " : "");
 
 	if (usage[index].required != required_state)
 		return;
@@ -300,7 +301,7 @@ static void print_short_help(unsigned index, int required_state) {
 		printf(" %s--%s%s", ob, long_options[index].name, cb);
 	}
 	else if (isalpha(long_options[index].val)) {
-		printf(" %s-%c <%s>%s", ob, long_options[index].val, usage[index].short_help, cb);
+		printf(" %s-%c%s<%s>%s", ob, long_options[index].val, ov, usage[index].short_help, cb);
 	}
 	else {
 		printf(" %s--%s <%s>%s", ob, long_options[index].name, usage[index].short_help, cb);
