@@ -72,6 +72,9 @@ static const struct option_usage usage[] = {
 	},
 	/** --libpcap */
 	{"interface",    0, OPT_STR,    {.str = "eth0"},
+#ifdef HAVE_PCAP
+		"(Not available on this platform.)\n"
+#endif
 		"Enable libpcap on the given device.\n"
 	},
 	/** --logfile */
@@ -84,8 +87,7 @@ static const struct option_usage usage[] = {
 	},
 	/** --passwd */
 	{"password",     0, OPT_STR,    {.str = NULL},
-		"Set password (must be same on client and proxy)\n"
-		"If no password is set, you will be asked during runtime.\n"
+		"Set a password (must be same on client and proxy)\n"
 	},
 	/** --udp */
 	{NULL,           0, OPT_BOOL,   {.num = 0},
@@ -98,35 +100,48 @@ static const struct option_usage usage[] = {
 		"Unprivileged mode will only work on some systems, and is in general less reliable\n"
 		"than running in privileged mode.\n"
 	},
-	/** --base64 */
-	{NULL,           0, OPT_BOOL,   {.num = 0},
-		"Base64 encode/decode all outoging/incoming packets."},
-#ifndef WIN32
 	/** --daemon */
 	{"pidfile",      0, OPT_STR,    {.str = "/run/ptunnel.pid"},
+#ifdef WIN32
+		"(Not available on this platform.)\n"
+#endif
 		"Run in background, the PID will be written in the file supplied as argument\n"
 	},
 	/** --syslog */
 	{NULL,           0, OPT_BOOL,   {.num = 0},
+#ifdef WIN32
+		"(Not available on this platform.)\n"
+#endif
 		"Output debug to syslog instead of standard out.\n"
 	},
 	/** --user */
 	{"user",         0, OPT_STR,    {.str = "nobody"},
+#ifdef WIN32
+		"(Not available on this platform.)\n"
+#endif
 		"When started in privileged mode, drop down to user's rights as soon as possible\n"
 	},
 	/** --group */
 	{"group",        0, OPT_STR,    {.str = "nogroup"},
+#ifdef WIN32
+		"(Not available on this platform.)\n"
+#endif
 		"When started in privileged mode, drop down to group's rights as soon as possible\n"
 	},
 	/** --chroot */
 	{"directory",    0, OPT_STR,    {.str = "/var/lib/ptunnel"},
+#ifdef WIN32
+		"(Not available on this platform.)\n"
+#endif
 		"When started in privileged mode, restrict file access to the specified directory\n"
 	},
-#endif
 	/** --setcon */
-	{NULL,           0, OPT_STR,    {.num = 0},
+	{"context",      0, OPT_STR,    {.str = "ptunnel"},
+#ifndef HAVE_SELINUX
+		"(Not available on this platform.)\n"
+#endif
 		"Set SELinux context when all there is left to do are network I/O operations\n"
-		"To combine with -chroot you will have to `mount --bind /proc /chrootdir/proc`\n"
+		"To combine with --chroot you will have to `mount --bind /proc /chrootdir/proc`\n"
 	},
 	/** --help */
 	{"help",         0, OPT_STR,    {.str = NULL}, "this\n"},
@@ -147,15 +162,12 @@ static struct option long_options[] = {
 	{"passwd",      required_argument, 0, 'P'},
 	{"udp",               no_argument, &opts.udp, 1 },
 	{"unprivileged",      no_argument, &opts.unprivileged, 1 },
-	{"base64",            no_argument, &opts.base64, 1 },
-#ifndef WIN32
 	{"daemon",      optional_argument, 0, 'd'},
 	{"syslog",            no_argument, 0, 'S'},
 	{"user",        optional_argument, 0, 'u'},
 	{"group",       optional_argument, 0, 'g'},
 	{"chroot",      optional_argument, 0, 'C'},
-#endif
-	{"setcon",            no_argument, 0, 'e'},
+	{"setcon",      optional_argument, 0, 'e'},
 	{"help",              no_argument, 0, 'h'},
 	{NULL,0,0,0}
 };
@@ -216,6 +228,9 @@ static void set_options_defaults(void) {
 		opts.gid = grnam->gr_gid;
 
 	opts.root_dir        = strdup(*(char **)get_default_optval(OPT_STR, "chroot"));
+#endif
+#ifdef HAVE_SELINUX
+	opts.selinux_context = strdup(*(char **)get_default_optval(OPT_STR, "setcon"));
 #endif
 }
 
@@ -331,7 +346,7 @@ int parse_options(int argc, char **argv) {
 
 	/* parse command line arguments */
 	while (1) {
-		c = getopt_long(argc, argv, "m:p:l:r::R::c:v:L::o::sP:d::Su::g::C::eh", &long_options[0], &optind);
+		c = getopt_long(argc, argv, "m:p:l:r::R::c:v:L::o::sP:d::Su::g::C::e::h", &long_options[0], &optind);
 		if (c == -1) break;
 
 		switch (c) {
@@ -450,12 +465,15 @@ int parse_options(int argc, char **argv) {
 			case 'S':
 			case 'u':
 			case 'g':
-			case 't':
+			case 'C':
 				pt_log(kLog_error, "-%c: feature not supported\n", c);
 				exit(1);
 #endif
 			case 'e':
 #ifdef HAVE_SELINUX
+				opts.selinux = 1;
+				if (!optarg)
+					break;
 				if (opts.selinux_context)
 					free(opts.selinux_context);
 				opts.selinux_context = strdup(optarg);
@@ -497,10 +515,6 @@ int parse_options(int argc, char **argv) {
 			pt_log(kLog_error, "Failed to open log file: \"%s\", Cause: %s\n", opts.log_path, strerror(errno));
 			pt_log(kLog_error, "Reverting log to standard out.\n");
 		} else opts.log_file = tmp_log;
-	}
-
-	if (opts.base64 != 0) {
-		pt_log(kLog_debug, "Base64 enabled.");
 	}
 
 	return 0;

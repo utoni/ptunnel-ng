@@ -51,8 +51,6 @@ struct options {
 	int udp;
 	/** unpriviledged mode */
 	int unprivileged;
-	/** use base64 encoded packets */
-	int base64;
 
 #ifndef WIN32
 	/** run as daemon if non zero value */
@@ -72,6 +70,9 @@ struct options {
 #endif
 
 #ifdef HAVE_SELINUX
+	/** Non zero value if uer wants SeLinux */
+	int selinux;
+	/** SeLinux context name */
 	char *selinux_context;
 #endif
 };

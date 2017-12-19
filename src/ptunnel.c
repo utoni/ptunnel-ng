@@ -506,8 +506,10 @@ void* pt_proxy(void *args) {
 	if (opts.uid && -1 == setuid(opts.uid))
 		pt_log(kLog_error, "setuid(%d): %s\n", opts.uid, strerror(errno));
 #ifdef HAVE_SELINUX
-	if (NULL != opts.selinux_context && -1 == setcon(opts.selinux_context))
-		pt_log(kLog_error, "setcon(%s) failed: %s\n", opts.selinux_context, strerror(errno));
+	if (opts.selinux) {
+		if (NULL != opts.selinux_context && -1 == setcon(opts.selinux_context))
+			pt_log(kLog_error, "setcon(%s) failed: %s\n", opts.selinux_context, strerror(errno));
+	}
 #endif
 #endif
 

@@ -39,7 +39,7 @@ void pt_log(int level, const char *fmt, ...) {
 #else
 		if (opts.log_file != stdout)
 #endif
-		fflush(opts.log_file);
+			fflush(opts.log_file);
 	}
 }
 

@@ -66,7 +66,9 @@
 #include <signal.h>
 #include <stdint.h>
 #include <stdbool.h>
+#ifdef HAVE_PCAP
 #include <pcap.h>
+#endif
 
 #include "pkt.h"
 #include "pdesc.h"
