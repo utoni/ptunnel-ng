@@ -72,7 +72,7 @@ static const struct option_usage usage[] = {
 	},
 	/** --libpcap */
 	{"interface",    0, OPT_STR,    {.str = "eth0"},
-#ifdef HAVE_PCAP
+#ifndef HAVE_PCAP
 		"(Not available on this platform.)\n"
 #endif
 		"Enable libpcap on the given device.\n"
@@ -222,9 +222,7 @@ static void set_options_defaults(void) {
 
 	errno = 0;
 	tmp = *(char **) get_default_optval(OPT_STR, "group");
-	if (NULL == (grnam = getgrnam(tmp)))
-		pt_log(kLog_error, "%s: %s\n", tmp, errno ? strerror(errno) : "unknown group");
-	else
+	if (NULL != (grnam = getgrnam(tmp)))
 		opts.gid = grnam->gr_gid;
 
 	opts.root_dir        = strdup(*(char **)get_default_optval(OPT_STR, "chroot"));

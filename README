@@ -1,9 +1,9 @@
-PingTunnel-ng Read Me
-==================
+PingTunnel-[N]ew[G]eneration Read Me
+====================================
 
 What is ptunnel-ng?
 ----------------
-Ptunnel-ng is a bugfixed and refactored version of Ptunnel with some additional
+Ptunnel-NG is a bugfixed and refactored version of Ptunnel with some additional
 features e.g. change the magic value without recompiling (bypass Cisco IPS).
 
 
