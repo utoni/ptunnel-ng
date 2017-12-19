@@ -26,6 +26,7 @@ esac
 AM_SILENT_RULES([yes])
 AM_INIT_AUTOMAKE
 AC_PROG_INSTALL
+AC_USE_SYSTEM_EXTENSIONS
 AC_C_CONST
 AC_C_INLINE
 AC_TYPE_SIZE_T
@@ -41,12 +42,29 @@ if test x"${use_msw}" != x"yes"; then
 	    [AC_MSG_ERROR([Missing essential non-Windows std headers.])])
 	AC_SEARCH_LIBS([pthread_create], [pthread],,
 	    [AC_MSG_ERROR([Missing pthread library.])],)
-	AC_CHECK_FUNCS([pthread_mutex_init pthread_mutex_lock pthread_mutex_unlock],,
+	AC_CHECK_FUNCS([pthread_mutex_init pthread_mutex_lock pthread_mutex_unlock syslog],,
 	    [AC_MSG_ERROR([Missing essential pthread functions.])])
 else
 	AC_CHECK_HEADERS([winsock2.h windows.h ws2tcpip.h],,
 	    [AC_MSG_ERROR([Missing essential Windows std headers.])])
 fi
+
+AC_MSG_CHECKING([for GNU getopt_long])
+AC_COMPILE_IFELSE(
+[AC_LANG_PROGRAM([[
+#include <stdlib.h>
+#include <getopt.h>
+struct option long_options[] = {
+	{"opt1", required_argument, 0, 'a'},
+	{"opt2", optional_argument, 0, 'b'},
+	{"opt3",       no_argument, 0, 'c'}
+};
+void parse_opts(int argc, char **argv) {
+	getopt_long(argc, argv, "a:b::c", &long_options[0], &optind);
+}
+]], [])]
+,[AC_MSG_RESULT([yes])]
+,[AC_MSG_ERROR([Your compiler does not support \`_GNU_SOURCE\`.])])
 
 dnl Check timeval struct members.
 AC_CHECK_MEMBER([struct timeval.tv_sec], [],
@@ -84,7 +102,7 @@ struct foo {
 ,[AC_MSG_ERROR([Your compiler does not support \`__attribute__ ((packed))\`.])])
 
 dnl Check for std functions.
-AC_CHECK_FUNCS([malloc calloc free memcpy memset signal printf sprintf vsnprintf strerror strlen strncmp strstr strtol strtoul fopen fprintf gettimeofday close fclose exit],,
+AC_CHECK_FUNCS([malloc calloc free memcpy memset signal printf sprintf vsnprintf strerror strlen strncmp strstr strtol strtoul fopen fprintf gettimeofday close fclose exit getopt_long],,
     [AC_MSG_ERROR([Missing essential std functions.])])
 
 dnl `--disable-pcap`: Enabled if found.

@@ -1,3 +1,21 @@
+PingTunnel-NG Changelog
+=======================
+
+1.00 - 18. December 2017
+- First public release
+- Fixes a exploitable memory leak (proxy/forwarder) if using password
+  protected challenge response authentication.
+- Fixes an invalid memory write during a pcap capture.
+- Full source refactoring. The code should be more readable imho.
+- This project is now Autotools based.
+  Disable optional features: SeLinux, pcap.
+- Removed an already disabled and highly buggy feature: kPT_add_iphdr
+- Added a more "GNU" alike option parsing.
+- Support a user defined PingTunnel-NG magic value which is required
+  for bypassing Cisco IPS (and maybe other IDS/IPS/Firewalls).
+  This feature was well tested against Cisco's "IronPort" which
+  scans for fingerprints in an ICMP packet (PingTunnel magic value).
+
 PingTunnel Changelog
 ====================
 
