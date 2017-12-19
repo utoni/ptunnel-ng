@@ -167,6 +167,7 @@ int main(int argc, char *argv[]) {
 
 	pt_log(kLog_debug, "Destination at %s:%u\n", opts.given_dst_hostname, opts.given_dst_port);
 
+	/* TODO: Maybe give the user the opportunity to bind to certain addresses e.g. 127.0.0.1 ? */
 	if (opts.mode == kMode_forward)
 		pt_log(kLog_debug, "Listen for incoming connections at 0.0.0.0:%u\n", opts.tcp_listen_port);
 

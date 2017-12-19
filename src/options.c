@@ -48,7 +48,7 @@ static const struct option_usage usage[] = {
 		"option causes ptunnel to operate in proxy mode (Server).\n"
 	},
 	/** --listen */
-	{"port",         1, OPT_DEC32,  {.unum = 2222},
+	{"port",         0, OPT_DEC32,  {.unum = 2222},
 		"Set TCP listening port (only used when operating in forward mode)\n"
 	},
 	/** --remote-adr */
