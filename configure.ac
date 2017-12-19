@@ -42,11 +42,12 @@ if test x"${use_msw}" != x"yes"; then
 	    [AC_MSG_ERROR([Missing essential non-Windows std headers.])])
 	AC_SEARCH_LIBS([pthread_create], [pthread],,
 	    [AC_MSG_ERROR([Missing pthread library.])],)
-	AC_CHECK_FUNCS([pthread_mutex_init pthread_mutex_lock pthread_mutex_unlock syslog],,
-	    [AC_MSG_ERROR([Missing essential pthread functions.])])
+	AC_CHECK_FUNCS([pthread_mutex_init pthread_mutex_lock pthread_mutex_unlock syslog getaddrinfo freeaddrinfo gai_strerror],,
+	    [AC_MSG_ERROR([Missing essential Linux std functions.])])
 else
 	AC_CHECK_HEADERS([winsock2.h windows.h ws2tcpip.h],,
 	    [AC_MSG_ERROR([Missing essential Windows std headers.])])
+	AC_CHECK_LIB([ws2_32],[main])
 fi
 
 AC_MSG_CHECKING([for GNU getopt_long])
@@ -145,7 +146,6 @@ fi
 dnl Set automake conf vars
 AM_CONDITIONAL([HAVE_PCAP], [test x"${pcap_enabled}" = xyes])
 AM_CONDITIONAL([HAVE_SELINUX], [test x"${selinux_enabled}" = xyes])
-AM_CONDITIONAL([IS_WINDOWS], [test x"${use_msw}" = xyes])
 
 dnl output config headers
 AC_CONFIG_HEADERS([src/config.h:src/config.h.in])

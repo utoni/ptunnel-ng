@@ -1,7 +1,13 @@
 #include <stdarg.h>
+#include <string.h>
 
 #ifndef WIN32
 #include <syslog.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#else
+#include <ws2tcpip.h>
 #endif
 #include <sys/time.h>
 
@@ -50,6 +56,25 @@ double time_as_double(void) {
 	gettimeofday(&tt, 0);
 	result = (double)tt.tv_sec + ((double)tt.tv_usec / (double)10e5);
 	return result;
+}
+
+int host_to_addr(const char *hostname, uint32_t *result)
+{
+	int ret;
+	struct addrinfo *addrs = NULL;
+	struct addrinfo hints;
+	struct sockaddr_in *addr;
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_INET;
+
+	if ((ret = getaddrinfo(hostname, NULL, &hints, &addrs)) != 0)
+		return ret;
+	addr = (struct sockaddr_in *) addrs->ai_addr;
+	*result = *(uint32_t *) &addr->sin_addr;
+	freeaddrinfo(addrs);
+
+	return 0;
 }
 
 #if 0

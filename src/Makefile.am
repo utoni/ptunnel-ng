@@ -9,9 +9,6 @@ endif
 if HAVE_SELINUX
 ptunnel_ng_CFLAGS += -DHAVE_SELINUX=1
 endif
-if IS_WINDOWS
-ptunnel_ng_LDADD += -lws2_32
-endif
 
 ptunnel_ng_SOURCES = \
 	md5.c \

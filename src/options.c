@@ -5,6 +5,9 @@
 #include <getopt.h>
 #include <ctype.h>
 #include <assert.h>
+#ifdef WIN32
+#include <ws2tcpip.h>
+#endif
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -329,8 +332,7 @@ void print_usage(const char *arg0) {
 }
 
 int parse_options(int argc, char **argv) {
-	int c = 0, optind = -1, has_logfile = 0;
-	struct hostent *host_ent;
+	int c = 0, optind = -1, has_logfile = 0, ret;
 	md5_state_t state;
 #ifndef WIN32
 	struct passwd *pwnam;
@@ -491,18 +493,18 @@ int parse_options(int argc, char **argv) {
 	}
 
 	if (opts.given_proxy_hostname) {
-		if (NULL == (host_ent = gethostbyname(opts.given_proxy_hostname))) {
-			pt_log(kLog_error, "Failed to look up %s as proxy address\n", opts.given_proxy_hostname);
+		if ((ret = host_to_addr(opts.given_proxy_hostname, &opts.given_proxy_ip)) != 0) {
+			pt_log(kLog_error, "Failed to look up %s as destination address: %s\n",
+			       opts.given_proxy_hostname, gai_strerror(ret));
 			return 1;
 		}
-		opts.given_proxy_ip = *(uint32_t*)host_ent->h_addr_list[0];
 	}
 
-	if (NULL == (host_ent = gethostbyname(opts.given_dst_hostname))) {
-		pt_log(kLog_error, "Failed to look up %s as destination address\n", opts.given_dst_hostname);
+	if ((ret = host_to_addr(opts.given_dst_hostname, &opts.given_dst_ip)) != 0) {
+		pt_log(kLog_error, "Failed to look up %s as destination address: %s\n",
+		       opts.given_dst_hostname, gai_strerror(ret));
 		return 1;
 	}
-	opts.given_dst_ip = *(uint32_t*)host_ent->h_addr_list[0];
 
 #ifndef WIN32
 	if (NULL == (opts.pid_file = fopen(opts.pid_path, "w")))
