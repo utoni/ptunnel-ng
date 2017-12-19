@@ -42,7 +42,9 @@
  *
  * Note that the source code is best viewed with tabs set to 4 spaces.
  */
-
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 #include "ptunnel.h"
 #include "options.h"
 #include "utils.h"
@@ -150,8 +152,9 @@ int main(int argc, char *argv[]) {
 		opts.pcap = 0;
 	}
 #endif
-	pt_log(kLog_info, "Starting ptunnel v %d.%.2d.\n", kMajor_version, kMinor_version);
+	pt_log(kLog_info, "Starting %s.\n", PACKAGE_STRING);
 	pt_log(kLog_info, "(c) 2004-2011 Daniel Stoedle, <daniels@cs.uit.no>\n");
+	pt_log(kLog_info, "(c) 2017      Toni Uhlig,     <matzeton@googlemail.com>\n");
 #ifdef WIN32
 	pt_log(kLog_info, "Windows version by Mike Miller, <mike@mikeage.net>\n");
 #else
@@ -635,7 +638,7 @@ void* pt_proxy(void *args) {
 		if (opts.pcap) {
 			if (pcap_dispatch(pc.pcap_desc, 32, pcap_packet_handler, (u_char*)&pc.pkt_q) > 0) {
 				pqueue_elem_t	*cur;
-				/* pt_log(kLog_verbose, "pcap captured %d packets - handling them..\n", pc.pkt_q.elems); */
+				pt_log(kLog_verbose, "pcap captured %d packets - handling them..\n", pc.pkt_q.elems);
 				while (pc.pkt_q.head) {
 					cur                  = pc.pkt_q.head;
 					memset(&addr, 0, sizeof(struct sockaddr));

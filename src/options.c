@@ -6,6 +6,9 @@
 #include <ctype.h>
 #include <assert.h>
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 #include "options.h"
 #include "utils.h"
 #include "ptunnel.h"
@@ -138,10 +141,10 @@ static struct option long_options[] = {
 	{"remote-port", optional_argument, 0, 'R'},
 	{"connections", required_argument, 0, 'c'},
 	{"verbosity",   required_argument, 0, 'v'},
-	{"libpcap",     required_argument, 0, 'a'},
+	{"libpcap",     required_argument, 0, 'L'},
 	{"logfile",     optional_argument, 0, 'o'},
 	{"statistics",        no_argument, 0, 's'},
-	{"passwd",      required_argument, 0, 'x'},
+	{"passwd",      required_argument, 0, 'P'},
 	{"udp",               no_argument, &opts.udp, 1 },
 	{"unprivileged",      no_argument, &opts.unprivileged, 1 },
 	{"base64",            no_argument, &opts.base64, 1 },
@@ -292,7 +295,7 @@ static void print_short_help(unsigned index, int required_state) {
 void print_usage(const char *arg0) {
 	unsigned i;
 
-	printf("ptunnel-ng v%d.%.2d\n\nUsage: %s", kMajor_version, kMinor_version, arg0);
+	printf("%s\n\nUsage: %s", PACKAGE_STRING, arg0);
 	/* print (short)help argument line */
 	for (i = 0; i < ARRAY_SIZE(usage); ++i) {
 		print_short_help(i, 1);
@@ -328,7 +331,7 @@ int parse_options(int argc, char **argv) {
 
 	/* parse command line arguments */
 	while (1) {
-		c = getopt_long(argc, argv, "m:p:l:r::R::c:v:a::o::sd::Sx:u::g::C::eh", &long_options[0], &optind);
+		c = getopt_long(argc, argv, "m:p:l:r::R::c:v:L::o::sP:d::Su::g::C::eh", &long_options[0], &optind);
 		if (c == -1) break;
 
 		switch (c) {
@@ -364,7 +367,7 @@ int parse_options(int argc, char **argv) {
 			case 'v':
 				opts.log_level = strtol(optarg, NULL, 10);
 				break;
-			case 'a':
+			case 'L':
 #ifdef HAVE_PCAP
 				opts.pcap = 1;
 				if (!optarg)
@@ -388,7 +391,7 @@ int parse_options(int argc, char **argv) {
 			case 's':
 				opts.print_stats = !opts.print_stats;
 				break;
-			case 'x':
+			case 'P':
 				if (opts.password)
 					free(opts.password);
 				opts.password = strdup(optarg);

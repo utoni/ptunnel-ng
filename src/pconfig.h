@@ -18,10 +18,7 @@ enum {
 	kLog_verbose,
 	kLog_debug,
 	kLog_sendrecv,
-	/** Major (0.xx) and minor (x.70) version */
-	kMajor_version       = 0,
 	/** numbers */
-	kMinor_version       = 72,
 	kIP_packet_max_size  = 576,
 	/** In bytes, mind you */
 	kIP_header_size      = 20,
