@@ -131,7 +131,8 @@ case ${selinux_enabled} in
 esac
 
 dnl Check libcap headers/functions.
-if test x"${pcap_enabled}" != x; then
+if test x"${pcap_enabled}" != x -a \
+        x"${use_msw}" != xyes; then
 	AC_CHECK_HEADERS([pcap.h],,
 	    [pcap_enabled=])
 	AC_SEARCH_LIBS([pcap_lookupnet], [pcap],,

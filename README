@@ -37,6 +37,8 @@ If you want pcap support you will need the WinPcap library as well.
 WinPcap is available here:
   <http://www.winpcap.org/install/bin/WpdPack_4_0_2.zip>
 
+REMEMBER: ptunnel-ng might not work on Windows without WinPcap!
+
 
 Running
 -------

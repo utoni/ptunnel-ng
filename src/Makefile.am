@@ -26,7 +26,7 @@ ptunnel_ng_SOURCES = \
 if IS_WINDOWS
 wpcap_DEF = $(abs_srcdir)/win32/WPCAP.DEF
 wpcap_IMP = $(abs_srcdir)/win32/libwpcap_implib.a
-ptunnel_ng_CFLAGS += -I$(abs_srcdir)/win32/includes -DHAVE_PCAP=1
+ptunnel_ng_CFLAGS += -I$(abs_srcdir)/win32/includes
 ptunnel_ng_LDADD += $(wpcap_IMP)
 ptunnel_ng_SOURCES += $(wpcap_DEF)
 
