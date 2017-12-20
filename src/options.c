@@ -332,7 +332,7 @@ void print_usage(const char *arg0) {
 }
 
 int parse_options(int argc, char **argv) {
-	int c = 0, optind = -1, has_logfile = 0, ret;
+	int c = 0, oidx = -1, has_logfile = 0, ret;
 	md5_state_t state;
 #ifndef WIN32
 	struct passwd *pwnam;
@@ -347,7 +347,7 @@ int parse_options(int argc, char **argv) {
 
 	/* parse command line arguments */
 	while (1) {
-		c = getopt_long(argc, argv, "m:p:l:r::R::c:v:L::o::sP:d::Su::g::C::e::h", &long_options[0], &optind);
+		c = getopt_long(argc, argv, "m:p:l:r::R::c:v:L::o::sP:d::Su::g::C::e::h", &long_options[0], &oidx);
 		if (c == -1) break;
 
 		switch (c) {
@@ -365,6 +365,7 @@ int parse_options(int argc, char **argv) {
 					opts.tcp_listen_port = strtoul(optarg, NULL, 10);
 				break;
 			case 'r':
+				opts.restrict_dst_ip = 1;
 				if (!optarg)
 					break;
 				if (opts.given_dst_hostname)
@@ -372,6 +373,7 @@ int parse_options(int argc, char **argv) {
 				opts.given_dst_hostname = strdup(optarg);
 				break;
 			case 'R':
+				opts.restrict_dst_port = 1;
 				if (optarg)
 					opts.given_dst_port = strtoul(optarg, NULL, 10);
 				break;
@@ -393,7 +395,7 @@ int parse_options(int argc, char **argv) {
 				opts.pcap_device = strdup(optarg);
 				break;
 #else
-				pt_log(kLog_error, "-%c: feature not supported\n", c);
+				pt_log(kLog_error, "pcap: %s\n", "feature not supported");
 				exit(1);
 #endif
 			case 'o':
@@ -467,7 +469,7 @@ int parse_options(int argc, char **argv) {
 			case 'u':
 			case 'g':
 			case 'C':
-				pt_log(kLog_error, "-%c: feature not supported\n", c);
+				pt_log(kLog_error, "-%c: %s\n", c, "feature not supported");
 				exit(1);
 #endif
 			case 'e':
@@ -480,16 +482,21 @@ int parse_options(int argc, char **argv) {
 				opts.selinux_context = strdup(optarg);
 				break;
 #else
-				pt_log(kLog_error, "-%c: feature not supported\n", c);
+				pt_log(kLog_error, "SeLinux: %s\n", "feature not supported");
 				exit(1);
 #endif
 			case 'h':
 				print_usage(argv[0]);
-				_exit(EXIT_SUCCESS);
+				exit(EXIT_SUCCESS);
 			case 0: /* long opt only */
 			default:
 				break;
 		}
+	}
+
+	if (optind != argc) {
+		pt_log(kLog_error, "Unknown argument: %s\n", argv[optind]);
+		exit(1);
 	}
 
 	if (opts.given_proxy_hostname) {

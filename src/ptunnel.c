@@ -144,6 +144,11 @@ int main(int argc, char *argv[]) {
 		pt_log(kLog_error, "Packet capture is not supported (or needed) when using UDP for transport.\n");
 		opts.pcap = 0;
 	}
+#ifdef WIN32
+	if (!opts.pcap && !opts.udp) {
+		pt_log(kLog_info, "WARNING: Running ptunnel-ng on Windows in ICMP mode without WinPcap enabled is not supported and may not work!\n");
+	}
+#endif
 #endif
 	pt_log(kLog_info, "Starting %s.\n", PACKAGE_STRING);
 	pt_log(kLog_info, "(c) 2004-2011 Daniel Stoedle, <daniels@cs.uit.no>\n");
@@ -368,6 +373,7 @@ void* pt_proxy(void *args) {
 	proxy_desc_t       *cur, *prev, *tmp;
 #ifdef HAVE_PCAP
 	pcap_info_t        pc;
+	pcap_if_t          *alldevs = 0, *pdev;
 #endif
 	xfer_stats_t       xfer;
 #ifdef HAVE_PCAP
@@ -429,8 +435,10 @@ void* pt_proxy(void *args) {
 					pt_log(kLog_error, "pcap error: %s\n", pc.pcap_err_buf);
 					opts.pcap = 0;
 				}
-				pt_log(kLog_verbose, "Network: %s\n", inet_ntoa(*(struct in_addr*)&pc.netp));
-				pt_log(kLog_verbose, "Netmask: %s\n", inet_ntoa(*(struct in_addr*)&pc.netmask));
+				in_addr.s_addr = pc.netp;
+				pt_log(kLog_verbose, "Network: %s\n", inet_ntoa(in_addr));
+				in_addr.s_addr = pc.netmask;
+				pt_log(kLog_verbose, "Netmask: %s\n", inet_ntoa(in_addr));
 				if (pcap_compile(pc.pcap_desc, &pc.fp, pcap_filter_program, 0, pc.netp) == -1) {
 					pt_log(kLog_error, "Failed to compile pcap filter program.\n");
 					pcap_close(pc.pcap_desc);
@@ -445,6 +453,16 @@ void* pt_proxy(void *args) {
 			else {
 				pt_log(kLog_error, "pcap error: %s\n", pc.pcap_err_buf);
 				opts.pcap = 0;
+
+				if (pcap_findalldevs(&alldevs, pc.pcap_err_buf) == 0) {
+					idx = 0;
+					pt_log(kLog_error, "Available pcap devices:\n");
+					for (pdev = alldevs; pdev != NULL; pdev = pdev->next) {
+						pt_log(kLog_error, "[%d] \"%s\": \"%s\"\n", ++idx,
+						       pdev->name, (pdev->description ? pdev->description : "UNKNOWN"));
+					}
+					pcap_freealldevs(alldevs);
+				}
 			}
 			pc.pkt_q.head	= 0;
 			pc.pkt_q.tail	= 0;

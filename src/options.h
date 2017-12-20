@@ -25,10 +25,12 @@ struct options {
 	uint32_t given_proxy_ip;
 	/** Port the client listens on */
 	uint32_t tcp_listen_port;
-	/** Forward/Proxy destination internet address */
+	/** restrict Forward/Proxy destination internet address */
+	int restrict_dst_ip;
 	char *given_dst_hostname;
 	uint32_t given_dst_ip;
-	/** Forward/Proxy destination port */
+	/** restrict Forward/Proxy destination port */
+	int restrict_dst_port;
 	uint32_t given_dst_port;
 	/** Default maximum number of tunnels to support at once */
 	uint32_t max_tunnels;

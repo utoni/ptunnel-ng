@@ -107,8 +107,10 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 						pt_log(kLog_info, "Starting new session to %s:%d with ID %d\n",
 						                  inet_ntoa(in_addr),
 						                  ntohl(pt_pkt->dst_port), pt_pkt->id_no);
-						if ((opts.given_dst_ip && opts.given_dst_ip != pt_pkt->dst_ip) ||
-						    ((uint32_t)-1 != opts.given_dst_port && opts.given_dst_port != ntohl(pt_pkt->dst_port)))
+						if ((opts.restrict_dst_ip && opts.given_dst_ip &&
+						     opts.given_dst_ip != pt_pkt->dst_ip) ||
+						    (opts.restrict_dst_port && (uint32_t)-1 != opts.given_dst_port &&
+						     opts.given_dst_port != ntohl(pt_pkt->dst_port)))
 						{
 							pt_log(kLog_info, "Destination administratively prohibited!\n");
 							return;
