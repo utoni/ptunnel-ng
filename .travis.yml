@@ -13,4 +13,4 @@ after_failure:
 script:
     - ./autogen.sh
     - git clean -df . && dpkg-buildpackage -b -us -uc
-    - git clean -df . && ./autogen.sh --host=i686-w64-mingw32 --build=$(gcc -dumpmachine)
+    - git clean -df . && export CC=i686-w64-mingw32-gcc && ./autogen.sh --host=i686-w64-mingw32 --build=$(gcc -dumpmachine)
