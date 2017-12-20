@@ -4,7 +4,7 @@ before_install:
     - sudo apt-get -qq update
     - sudo apt-get install -y debhelper fakeroot
     - sudo apt-get install -y libpcap-dev libselinux1-dev
-    - sudo apt-get install -y binutils-mingw-w64-i686 gcc-mingw-w64
+    - sudo apt-get install -y binutils-mingw-w64-i686 gcc-mingw-w64 mingw-w64-i686-dev
     - sudo apt-get install -y autoconf automake dh-autoreconf
 
 script: ./autogen.sh && git clean -df . && dpkg-buildpackage -b -us -uc && git clean -df . && ./autogen.sh --host=i686-w64-mingw32 --build=$(gcc -dumpmachine)
