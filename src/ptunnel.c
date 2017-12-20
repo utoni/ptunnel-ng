@@ -251,6 +251,7 @@ void pt_forwarder(void) {
 	socklen_t           addr_len;
 	pthread_t           pid;
 	uint16_t            rand_id;
+	struct in_addr      in_addr;
 
 	pt_log(kLog_debug, "Starting forwarder..\n");
 	/** Open our listening socket */
@@ -277,8 +278,9 @@ void pt_forwarder(void) {
 		dest_addr.sin_port    = htons(kDNS_port /* dns port.. */);
 	else
 		dest_addr.sin_port    = 0;
+	in_addr.s_addr = opts.given_proxy_ip;
 	dest_addr.sin_addr.s_addr = opts.given_proxy_ip;
-	pt_log(kLog_verbose, "Proxy IP address: %s\n", inet_ntoa(*((struct in_addr*)&opts.given_proxy_ip)));
+	pt_log(kLog_verbose, "Proxy IP address: %s\n", inet_ntoa(in_addr));
 
 	listen(server_sock, 10);
 	while (1) {
@@ -373,6 +375,7 @@ void* pt_proxy(void *args) {
 	uint32_t           ip;
 	in_addr_t          *adr;
 #endif
+	struct in_addr     in_addr;
 
 	/* Start the thread, initialize protocol and ring states. */
 	pt_log(kLog_debug, "Starting ping proxy..\n");
@@ -577,8 +580,9 @@ void* pt_proxy(void *args) {
 		pthread_mutex_lock(&chain_lock);
 		now = time_as_double();
 		for (cur = chain; cur; cur = cur->next) {
+			in_addr.s_addr = cur->dst_ip;
 			if (cur->last_activity + kAutomatic_close_timeout < now) {
-				pt_log(kLog_info, "Dropping tunnel to %s:%d due to inactivity.\n", inet_ntoa(*(struct in_addr*)&cur->dst_ip), cur->dst_port, cur->id_no);
+				pt_log(kLog_info, "Dropping tunnel to %s:%d due to inactivity.\n", inet_ntoa(in_addr), cur->dst_port, cur->id_no);
 				cur->should_remove = 1;
 				continue;
 			}
