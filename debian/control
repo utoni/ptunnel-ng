@@ -4,8 +4,7 @@ Priority: optional
 Maintainer: Debian QA Group <packages@qa.debian.org>
 Build-Depends: debhelper (>= 9),
                libpcap0.8-dev | libpcap-dev,
-               libselinux1-dev [linux-any],
-               patchutils (>= 0.2.25)
+               libselinux1-dev [linux-any]
 Standards-Version: 3.9.7
 Homepage: https://github.com/lnslbrty/ptunnel-ng
 
