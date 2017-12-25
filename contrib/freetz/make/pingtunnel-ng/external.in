@@ -1,0 +1,7 @@
+config EXTERNAL_FREETZ_PACKAGE_PINGTUNNEL_NG
+	depends on EXTERNAL_ENABLED && FREETZ_PACKAGE_PINGTUNNEL_NG
+	bool "pingtunnel-ng"
+	default n
+	help
+		externals the following file(s):
+		 /usr/sbin/ptunnel-ng
