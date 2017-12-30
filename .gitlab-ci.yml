@@ -1,0 +1,28 @@
+image: debian:stable-slim
+
+stages:
+  - build
+
+build:
+  script:
+    - apt-get -qq update
+    - apt-get install -y git debhelper fakeroot
+    - apt-get install -y libpcap-dev libselinux1-dev
+    - apt-get install -y binutils-mingw-w64-i686 gcc-mingw-w64 mingw-w64-i686-dev mingw-w64-common
+    - apt-get install -y autoconf automake dh-autoreconf
+    - mkdir -p ../bin
+    - ./autogen.sh
+    - cp ./src/ptunnel-ng ../bin/
+    - git clean -df . && dpkg-buildpackage -b -us -uc
+    - git clean -df . && export CC=i686-w64-mingw32-gcc && ./autogen.sh --host=i686-w64-mingw32 --build=$(gcc -dumpmachine)
+    - cp ./src/ptunnel-ng.exe ../bin/
+    - mkdir -p ./bin
+    - cp -v ../*.deb ../bin/* ./bin/
+    - cp -v ./bin/ptunnel-ng ./bin/ptunnel-ng-dbgsym && strip -s ./bin/ptunnel-ng
+    - cp -v ./bin/ptunnel-ng.exe ./bin/ptunnel-ng-dbgsym.exe && i686-w64-mingw32-strip -s ./bin/ptunnel-ng.exe
+  artifacts:
+    paths:
+      - bin/
+  stage: build
+  only:
+    - master
