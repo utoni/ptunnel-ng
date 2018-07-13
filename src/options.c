@@ -394,8 +394,7 @@ int parse_options(int argc, char **argv) {
 				opts.given_proxy_hostname = strdup(optarg);
 				break;
 			case 'l':
-				if (optarg)
-					opts.tcp_listen_port = strtoul(optarg, NULL, 10);
+				opts.tcp_listen_port = strtoul(optarg, NULL, 10);
 				break;
 			case 'r':
 				opts.restrict_dst_ip = 1;
