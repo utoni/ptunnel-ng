@@ -214,6 +214,7 @@ int queue_packet(int icmp_sock, uint8_t type, char *buf, int num_bytes,
 	                           (struct sockaddr*)dest_addr, sizeof(struct sockaddr));
 	if (err < 0) {
 		pt_log(kLog_error, "Failed to send ICMP packet: %s\n", strerror(errno));
+		free(pkt);
 		return -1;
 	}
 	else if (err != pkt_len)
