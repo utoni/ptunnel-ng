@@ -1,34 +1,27 @@
 language: c
-
 before_install:
-    - sudo apt-get -qq update
-    - sudo apt-get install -y git debhelper fakeroot
-    - sudo apt-get install -y libpcap-dev libselinux1-dev
-    - sudo apt-get install -y binutils-mingw-w64-i686 gcc-mingw-w64 mingw-w64-i686-dev mingw-w64-common
-    - sudo apt-get install -y autoconf automake dh-autoreconf
-
+- sudo apt-get -qq update
+- sudo apt-get install -y git debhelper fakeroot
+- sudo apt-get install -y libpcap-dev libselinux1-dev
+- sudo apt-get install -y binutils-mingw-w64-i686 gcc-mingw-w64 mingw-w64-i686-dev
+  mingw-w64-common
+- sudo apt-get install -y autoconf automake dh-autoreconf
 after_failure:
-    - cat config.log
-
+- cat config.log
 script:
-    - ./autogen.sh
-    - git clean -df . && dpkg-buildpackage -b -us -uc
-    - git clean -df . && export CC=i686-w64-mingw32-gcc && ./autogen.sh --host=i686-w64-mingw32 --build=$(gcc -dumpmachine)
-
-# automatic coverity scan
+- "./autogen.sh"
+- git clean -df . && dpkg-buildpackage -b -us -uc
+- git clean -df . && export CC=i686-w64-mingw32-gcc && ./autogen.sh --host=i686-w64-mingw32
+  --build=$(gcc -dumpmachine)
 env:
-	global:
-		- secure: "CN5K1QzTszUC/+U9m7cs2JJON/xUHf5umtAGQDrDCkr1o0y4+jbLv6LS5iBoJ3mG5mCeoVHfubg+2kk46+QiwgoRnENw59/aXotAELYZjkYDhi4KpZ/AjJ0sUiC2YlHE6pyC9PO/atMWGqATboP77EwbgYd+JAjblzh3FzKZ8GTavpaHDo8P96UE/YlmYewlHe2iqm36OyXhrOApqqa2hEDYmSXS8HIWhXszm0nwpdeee6ys8pC+ZHxSkPZ0u+N8pf71my25vqRGcpz7VWktv0FMfNvld9+dgw+SZBk9i9YALvJHkEdcBwAmlg9EoT8LsI3GPvuPI1C0sQPq5fT2POUa4DB59IiKbhRoajwFs7g+LiJvuW2VewWWf3K0eacyQ5/G5ATfzuCC83qo1mr3UwVSTwdpPdHumUV6DnR7JPbh1d2ZzzpG9rUpkB7Gg7DiR19w0DRyRq5FvaBmEdRudjBeySXmOE+MwxfBqZUgmNtd2rTaNKWj2XlGCHuyi5rUD2Y0cFaOOdqqwYEIDNEPpdOGoihHfGDFsvAg21h81peW/9p9CBmnXOH+8b/BnSeh0ibP0SXnPZMFUy8RaHBVnNTmOqDSym4uBB+KzJ5a/VGdO4O4SAwHF/PkQfqHQr5TNO4WaZd6mY7JWsXkYRi+4KIglQIIBYhkhBO1Z7L855k="
-
+  global:
+  - secure: CN5K1QzTszUC/+U9m7cs2JJON/xUHf5umtAGQDrDCkr1o0y4+jbLv6LS5iBoJ3mG5mCeoVHfubg+2kk46+QiwgoRnENw59/aXotAELYZjkYDhi4KpZ/AjJ0sUiC2YlHE6pyC9PO/atMWGqATboP77EwbgYd+JAjblzh3FzKZ8GTavpaHDo8P96UE/YlmYewlHe2iqm36OyXhrOApqqa2hEDYmSXS8HIWhXszm0nwpdeee6ys8pC+ZHxSkPZ0u+N8pf71my25vqRGcpz7VWktv0FMfNvld9+dgw+SZBk9i9YALvJHkEdcBwAmlg9EoT8LsI3GPvuPI1C0sQPq5fT2POUa4DB59IiKbhRoajwFs7g+LiJvuW2VewWWf3K0eacyQ5/G5ATfzuCC83qo1mr3UwVSTwdpPdHumUV6DnR7JPbh1d2ZzzpG9rUpkB7Gg7DiR19w0DRyRq5FvaBmEdRudjBeySXmOE+MwxfBqZUgmNtd2rTaNKWj2XlGCHuyi5rUD2Y0cFaOOdqqwYEIDNEPpdOGoihHfGDFsvAg21h81peW/9p9CBmnXOH+8b/BnSeh0ibP0SXnPZMFUy8RaHBVnNTmOqDSym4uBB+KzJ5a/VGdO4O4SAwHF/PkQfqHQr5TNO4WaZd6mY7JWsXkYRi+4KIglQIIBYhkhBO1Z7L855k=
+  - secure: hiXIUA1FAFvFoAsw5PHTqjhcOC3Iji2Kc7dbaaC8GRFzg5nlZTTLpsI9u0vA7OcCMAR5EfQsMp6a8p7VDPnJVcydAS3wz534GpHr5ooDfVngQDIFdtZ3SHn17KoM20X/3ksZZmqUjACXYxYwAOOQxLWf9Ribi94T0uaTWAiw9m9fBm3YGLVf20AFsschHSil0XqrTE/EK1an6enqQkCsiodsNaoBnMij8KpgUy4n9CoA0afbOgc10LEwChqbuEytZoP2Nr0mIxNA/ZdOk8BmdSMCJE0SOfJdZl0NFmo1UY69WOIuhUCvRnnWfTMRn0T5VncXLBL8kXoETwsVGUkjaDkdwwNWT/t6AIKRyzz0sH/wiht5wf0+f8uVwszcMhEFJU3QonfZ1JQrjfqQpaX7zeH9SSfpMJsgaWc8cFGHwxeU8+LNMuSnSXDNgLUxG2lX7ozoXVs85jUL6RG6ET9AZCf70OonKT9S+fXFDtfIFrdJPyQ2xDANthDsp3v4cuGYesSGSOk3LGc4GOheorRSUovwBVfACTaVvTf8m5XkU6Kt9rMOgG50SeZlum3tsJt0DH6GOGoYglkoKUtqFur1PGTcyaGFMQscj4yVBBd+0g7h2ypl+9uQsqdREbJoYXA9IXQ+Goj24C2AmZQ880k46K1z0uHalDZYaiHmNf25RYE=
 addons:
-	coverity_scan:
-
-	project:
-		name: my_github/my_project
-		version: 1.0
-		description: My Project
-
-	notification_email: matzeton@googlemail.com
-	build_command_prepend: autoreconf -i && ./configure
-	build_command: make
-	branch_pattern: coverity_scan
+  coverity_scan:
+    project:
+      name: lnslbrty/ptunnel-ng
+    notification_email: matzeton@googlemail.com
+    build_command_prepend: autoreconf -i && ./configure
+    build_command: make
+    branch_pattern: coverity_scan
