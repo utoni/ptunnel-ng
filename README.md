@@ -40,6 +40,12 @@ The official ptunnel website is located here:
    <http://www.cs.uit.no/~daniels/PingTunnel/>
 ```
 
+## Dependencies
+```
+Required: pthread
+Optional: pcap, selinux
+```
+
 ## Compiling
 ```
 Either run "./autogen.sh" for a fully automatic build or run it manually with:
