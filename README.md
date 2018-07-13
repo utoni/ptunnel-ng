@@ -20,6 +20,16 @@ to a remote host using ICMP echo request and reply packets, commonly known as
 ping requests and replies.
 ```
 
+## How does it work?
+```
+ICMP Packet structure
+```
+![Ptunnel Packet Structure](https://github.com/lnslbrty/ptunnel-ng/raw/master/web/packet-format.png)
+```
+Ptunnel program setup
+```
+![Ptunnel Setup](https://github.com/lnslbrty/ptunnel-ng/raw/master/web/setup.png)
+
 ## Contact details
 ```
 The ptunnel-ng fork was done by Toni Uhlig:
