@@ -87,7 +87,9 @@ proxy_desc_t* create_and_insert_proxy_desc(uint16_t id_no, uint16_t icmp_id,
 		addr->sin_addr.s_addr   = dst_ip;
 		addr->sin_family        = AF_INET;
 		/*  Let's just assume success, shall we? */
-		if (connect(cur->sock, (struct sockaddr*)addr, sizeof(struct sockaddr_in)) < 0) {
+		if (cur->sock >= 0 &&
+			connect(cur->sock, (struct sockaddr*)addr, sizeof(struct sockaddr_in)) < 0)
+		{
 			pt_log(kLog_error, "Connect to %s:%d failed: %s\n", inet_ntoa(*(struct in_addr*)&addr->sin_addr.s_addr)  , ntohs(addr->sin_port), strerror(errno));
 		}
 	}
