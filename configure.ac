@@ -1,5 +1,5 @@
 AC_PREREQ(2.69)
-AC_INIT([ptunnel-ng], [1.1], [], [], [])
+AC_INIT([ptunnel-ng], [1.2], [], [], [])
 AC_CONFIG_SRCDIR([src/config.h.in])
 AC_CONFIG_FILES([Makefile src/Makefile])
 

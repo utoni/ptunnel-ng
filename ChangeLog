@@ -1,6 +1,12 @@
 PingTunnel-NG Changelog
 =======================
 
+1.20 - 15. July 2018
+- Readme improvements
+- Fixes a possible memory leak when a packet could not send
+- Better error handling on socket descriptor creation
+- All Coverity issues fixed
+
 1.00 - 18. December 2017
 - First public release
 - Fixes a exploitable memory leak (proxy/forwarder) if using password
