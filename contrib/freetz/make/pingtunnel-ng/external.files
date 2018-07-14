@@ -1,0 +1,1 @@
+[ "$EXTERNAL_FREETZ_PACKAGE_PINGTUNNEL_NG" == "y" ] && EXTERNAL_FILES+=" /usr/sbin/ptunnel-ng"

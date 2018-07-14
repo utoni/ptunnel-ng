@@ -1,5 +1,5 @@
 AC_PREREQ(2.69)
-AC_INIT([ptunnel-ng], [1.0], [], [], [])
+AC_INIT([ptunnel-ng], [1.2], [], [], [])
 AC_CONFIG_SRCDIR([src/config.h.in])
 AC_CONFIG_FILES([Makefile src/Makefile])
 
@@ -26,6 +26,8 @@ esac
 AM_SILENT_RULES([yes])
 AM_INIT_AUTOMAKE
 AC_PROG_INSTALL
+AC_PROG_CC
+AC_PROG_CC_STDC
 AC_USE_SYSTEM_EXTENSIONS
 AC_C_CONST
 AC_C_INLINE
@@ -33,6 +35,11 @@ AC_TYPE_SIZE_T
 AC_CHECK_HEADER_STDBOOL
 AC_FUNC_VPRINTF
 AC_FUNC_MEMCMP
+
+dnl Check for -std=gnu99
+if test x"${ac_cv_prog_cc_stdc}" = x"no"; then
+	AC_MSG_ERROR([Your compiler does not support \`-std=gnu99\`. This is fatal.])
+fi
 
 dnl Check for std includes.
 AC_CHECK_HEADERS([stdarg.h stdio.h unistd.h stdlib.h string.h stdint.h time.h signal.h assert.h],,

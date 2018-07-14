@@ -1,0 +1,9 @@
+config FREETZ_PACKAGE_PINGTUNNEL_NG
+	bool "Pingtunnel-NG 1.1"
+	default n
+	help
+		Ptunnel-NG is an application that allows you to reliably tunnel TCP
+		connections to a remote host using ICMP echo request and reply packets,
+		commonly known as ping requests and replies. At first glance, this might
+		seem like a rather useless thing to do, but it can actually come in
+		handy in some cases. This is the [N]ew [G]eneration fork of PingTunnel!

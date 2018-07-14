@@ -261,6 +261,10 @@ void pt_forwarder(void) {
 	pt_log(kLog_debug, "Starting forwarder..\n");
 	/** Open our listening socket */
 	sock = socket(AF_INET, SOCK_STREAM, 0);
+	if (sock < 0) {
+		pt_log(kLog_error, "Failed to create socket: %s\n", strerror(errno));
+		return;
+	}
 	if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (const void *) &yes, sizeof(int)) == -1) {
 		pt_log(kLog_error, "Failed to set SO_REUSEADDR option on listening socket: %s\n", strerror(errno));
 		close(sock);

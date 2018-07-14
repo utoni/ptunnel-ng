@@ -1,3 +1,48 @@
+/*
+ * pdesc.c
+ * ptunnel is licensed under the BSD license:
+ *
+ * Copyright (c) 2004-2011, Daniel Stoedle <daniels@cs.uit.no>,
+ * Yellow Lemon Software. All rights reserved.
+ *
+ * Copyright (c) 2017 Toni Uhlig <matzeton@googlemail.com>
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * - Redistributions of source code must retain the above copyright notice,
+ *   this list of conditions and the following disclaimer.
+ *
+ * - Redistributions in binary form must reproduce the above copyright notice,
+ *   this list of conditions and the following disclaimer in the documentation
+ *   and/or other materials provided with the distribution.
+ *
+ * - Neither the name of the Yellow Lemon Software nor the names of its
+ *   contributors may be used to endorse or promote products derived from this
+ *   software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Contacting the author:
+ * You can get in touch with me, Daniel Stødle (that's the Norwegian letter oe,
+ * in case your text editor didn't realize), here: <daniels@cs.uit.no>
+ *
+ * The official ptunnel website is here:
+ * <http://www.cs.uit.no/~daniels/PingTunnel/>
+ *
+ * Note that the source code is best viewed with tabs set to 4 spaces.
+ */
+
 #include <stdlib.h>
 #include <sys/time.h>
 
@@ -42,7 +87,9 @@ proxy_desc_t* create_and_insert_proxy_desc(uint16_t id_no, uint16_t icmp_id,
 		addr->sin_addr.s_addr   = dst_ip;
 		addr->sin_family        = AF_INET;
 		/*  Let's just assume success, shall we? */
-		if (connect(cur->sock, (struct sockaddr*)addr, sizeof(struct sockaddr_in)) < 0) {
+		if (cur->sock >= 0 &&
+			connect(cur->sock, (struct sockaddr*)addr, sizeof(struct sockaddr_in)) < 0)
+		{
 			pt_log(kLog_error, "Connect to %s:%d failed: %s\n", inet_ntoa(*(struct in_addr*)&addr->sin_addr.s_addr)  , ntohs(addr->sin_port), strerror(errno));
 		}
 	}
@@ -169,6 +216,7 @@ int queue_packet(int icmp_sock, uint8_t type, char *buf, int num_bytes,
 	                           (struct sockaddr*)dest_addr, sizeof(struct sockaddr));
 	if (err < 0) {
 		pt_log(kLog_error, "Failed to send ICMP packet: %s\n", strerror(errno));
+		free(pkt);
 		return -1;
 	}
 	else if (err != pkt_len)

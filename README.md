@@ -1,37 +1,53 @@
-PingTunnel-[N]ew[G]eneration Read Me
-====================================
+[![Build Status](https://travis-ci.org/lnslbrty/ptunnel-ng.svg?branch=master)](https://travis-ci.org/lnslbrty/ptunnel-ng)
+[![Coverity Status](https://scan.coverity.com/projects/14737/badge.svg?flat=1)](https://scan.coverity.com/projects/14737)
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/021aa1d88dd7486db83df3ff96f9eff8)](https://www.codacy.com/app/lnslbrty/ptunnel-ng?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=lnslbrty/ptunnel-ng&amp;utm_campaign=Badge_Grade)
+[![GitHub issues](https://img.shields.io/github/issues/lnslbrty/ptunnel-ng.svg)](https://github.com/lnslbrty/ptunnel-ng/issues)
+[![GitHub license](https://img.shields.io/github/license/lnslbrty/ptunnel-ng.svg)](https://github.com/lnslbrty/ptunnel-ng/blob/master/COPYING)
+[![Gitter chat](https://badges.gitter.im/ptunnel-ng/Lobby.png)](https://gitter.im/ptunnel-ng/Lobby)
 
-What is ptunnel-ng?
-----------------
+# PingTunnel-[N]ew[G]eneration Read Me
+
+## What is ptunnel-ng?
+```
 Ptunnel-NG is a bugfixed and refactored version of Ptunnel with some additional
 features e.g. change the magic value without recompiling (bypass Cisco IPS).
+```
 
-
-What is ptunnel?
-----------------
+## What is ptunnel?
+```
 Ptunnel is an application that allows you to reliably tunnel TCP connections
 to a remote host using ICMP echo request and reply packets, commonly known as
 ping requests and replies.
+```
 
+## How does it work?
+```
+ICMP Packet structure
+```
+![Ptunnel Packet Structure](https://github.com/lnslbrty/ptunnel-ng/raw/master/web/packet-format.png)
+```
+Ptunnel program setup
+```
+![Ptunnel Setup](https://github.com/lnslbrty/ptunnel-ng/raw/master/web/setup.png)
 
-Contact details
----------------
+## Contact details
+```
 The ptunnel-ng fork was done by Toni Uhlig:
    <matzeton@googlemail.com>
 You can contact the author of ptunnel, Daniel Stoedle, here:
    <daniels@cs.uit.no>
 The official ptunnel website is located here:
    <http://www.cs.uit.no/~daniels/PingTunnel/>
+```
 
-
-Dependencies
-------------
+## Dependencies
+```
 Required: pthread
 Optional: pcap, selinux
+```
 
-
-Compiling
----------
+## Compiling
+```
 Either run "./autogen.sh" for a fully automatic build or run it manually with:
     "./configure && make"
 
@@ -44,10 +60,10 @@ WinPcap is available here:
   <http://www.winpcap.org/install/bin/WpdPack_4_0_2.zip>
 
 REMEMBER: ptunnel-ng might not work on Windows without WinPcap!
+```
 
-
-Running
--------
+## Running
+```
 Ptunnel works best when starting as root, and usually requires starting as root.
 Common ptunnel-ng options:
 
@@ -110,24 +126,25 @@ level 5 displays absolutely everything, including the nasty details of sends and
 receives. The -o switch allows output to be saved to a logfile.
 
 Security features: Please see the ptunnel-ng man-page for instructions.
+```
 
-
-Supported operating systems
----------------------------
+## Supported operating systems
+```
 Ptunnel supports most operating systems with libpcap, the usual POSIX functions
 and a BSD sockets compatible API. In particular, it has been tested on Linux
 Fedora Core 2 and Mac OS X 10.3.6 and above. As of version 0.7, ptunnel-ng can also
 be compiled on Windows, courtesy of Mike Miller, assuming mingw and WinPcap is
 installed.
+```
 
-
-Credits and contributors
-------------------------
+## Credits and contributors
+```
 Daniel Stoedle et al.
+```
 
-
-License
--------
+## License
+```
 Ping Tunnel NG is Copyright (c) 2017, Toni Uhlig <matzeton@googlemail.com>,
 All rights reserved. Ping Tunnel NG is licensed under the
 BSD License. Please see the COPYING file for details.
+```
