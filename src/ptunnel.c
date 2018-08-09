@@ -704,7 +704,7 @@ void print_statistics(xfer_stats_t *xfer, int is_continuous) {
 	if (is_continuous)
 		printf("\r");
 
-	printf("[inf]: I/O: %6.2f/%6.2f mb ICMP I/O/R: %8d/%8d/%8d Loss: %4.1f%%",
+	printf("[inf]: I/O: %6.2f/%6.2f mb ICMP I/O/R: %8u/%8u/%8u Loss: %4.1f%%",
 			xfer->bytes_in/mb, xfer->bytes_out/mb, xfer->icmp_in, xfer->icmp_out, xfer->icmp_resent, loss);
 
 	if (!is_continuous)
