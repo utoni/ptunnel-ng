@@ -5,16 +5,6 @@ AC_CONFIG_FILES([Makefile src/Makefile])
 
 AC_CANONICAL_BUILD
 AC_CANONICAL_HOST
-if test x"$cross_compiling" != x"no"; then
-	HOST_PREFIX="${host_alias}-"
-	HOST_SUFFIX="-$host_alias"
-	if test x"${build_alias}" = x; then
-		AC_MSG_ERROR([Cross compile enabled but no --build *explicitly* specified. For example: --build=$(gcc -dumpmachine)])
-	fi
-else
-	HOST_PREFIX=
-	HOST_SUFFIX=
-fi
 case x"${host}" in
 	x*-*-cygwin* | x*-*-mingw32*)
 		dnl Some Windows includes required by third-party modules.
