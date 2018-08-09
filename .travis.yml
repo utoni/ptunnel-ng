@@ -9,7 +9,7 @@ before_install:
 after_failure:
 - cat config.log
 script:
-- "./autogen.sh"
+- ./autogen.sh
 - git clean -df . && dpkg-buildpackage -b -us -uc
 - git clean -df . && export CC=i686-w64-mingw32-gcc && ./autogen.sh --host=i686-w64-mingw32
   --build=$(gcc -dumpmachine)
