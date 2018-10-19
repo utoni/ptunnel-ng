@@ -63,11 +63,13 @@
 /** Local error string storage */
 static char errorstr[255];
 static char * print_last_windows_error()  {
+	char last_errorstr[255];
 	DWORD last_error = GetLastError();
-	memset(errorstr, 0, sizeof(errorstr));
+
+	memset(last_errorstr, 0, sizeof(last_errorstr));
 	FormatMessage(FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_FROM_SYSTEM,
-	              NULL, last_error, 0, errorstr, sizeof(errorstr), NULL);
-	snprintf(errorstr, sizeof(errorstr), "%s (%lu)", errorstr, last_error);
+	              NULL, last_error, 0, last_errorstr, sizeof(last_errorstr), NULL);
+	snprintf(errorstr, sizeof(errorstr), "%s (%lu)", last_errorstr, last_error);
 	return errorstr;
 }
 #define strerror(x) print_last_windows_error()
@@ -702,7 +704,7 @@ void print_statistics(xfer_stats_t *xfer, int is_continuous) {
 	if (is_continuous)
 		printf("\r");
 
-	printf("[inf]: I/O: %6.2f/%6.2f mb ICMP I/O/R: %8d/%8d/%8d Loss: %4.1f%%",
+	printf("[inf]: I/O: %6.2f/%6.2f mb ICMP I/O/R: %8u/%8u/%8u Loss: %4.1f%%",
 			xfer->bytes_in/mb, xfer->bytes_out/mb, xfer->icmp_in, xfer->icmp_out, xfer->icmp_resent, loss);
 
 	if (!is_continuous)
