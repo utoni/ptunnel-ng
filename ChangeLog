@@ -1,6 +1,11 @@
 PingTunnel-NG Changelog
 =======================
 
+1.30 - 19. October 2018
+- travis-ci, coverity integration
+- xcompile issue for mingw-w64 fixed
+- fixed wrong usage of format() specifiers
+
 1.20 - 15. July 2018
 - Readme improvements
 - Fixes a possible memory leak when a packet could not send
