@@ -385,15 +385,21 @@ int parse_options(int argc, char **argv) {
 
 		switch (c) {
 			case 'm':
+				if (!optarg)
+					break;
 				opts.magic = strtoul(optarg, NULL, 16);
 				break;
 			case 'p':
+				if (!optarg)
+					break;
 				opts.mode = kMode_forward;
 				if (opts.given_proxy_hostname)
 					free(opts.given_proxy_hostname);
 				opts.given_proxy_hostname = strdup(optarg);
 				break;
 			case 'l':
+				if (!optarg)
+					break;
 				opts.tcp_listen_port = strtoul(optarg, NULL, 10);
 				break;
 			case 'r':
@@ -410,11 +416,15 @@ int parse_options(int argc, char **argv) {
 					opts.given_dst_port = strtoul(optarg, NULL, 10);
 				break;
 			case 'c':
+				if (!optarg)
+					break;
 				opts.max_tunnels = strtoul(optarg, NULL,10);
 				if (opts.max_tunnels > kMax_tunnels)
 					opts.max_tunnels = kMax_tunnels;
 				break;
 			case 'v':
+				if (!optarg)
+					break;
 				opts.log_level = strtol(optarg, NULL, 10);
 				break;
 			case 'L':
@@ -442,6 +452,8 @@ int parse_options(int argc, char **argv) {
 				opts.print_stats = !opts.print_stats;
 				break;
 			case 'P':
+				if (!optarg)
+					break;
 				if (opts.password)
 					free(opts.password);
 				opts.password = strdup(optarg);
