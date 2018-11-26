@@ -45,7 +45,7 @@
 #define PING_TUNNEL_H 1
 
 #ifndef WIN32
-#ifndef __ANDROID__
+#ifdef HAVE_SYS_UNISTD_H
 #include <sys/unistd.h>
 #endif
 #include <sys/types.h>

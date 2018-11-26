@@ -38,9 +38,7 @@ dnl Check for std includes.
 AC_CHECK_HEADERS([stdarg.h stdio.h unistd.h stdlib.h string.h stdint.h time.h signal.h assert.h],,
     [AC_MSG_ERROR([Missing essential std headers.])])
 if test x"${use_msw}" != x"yes"; then
-	if test x"${use_android}" != x"yes"; then
-		AC_CHECK_HEADERS([sys/unistd.h],,[AC_MSG_ERROR([Missing essential non-Windows/Android std headers.])])
-	fi
+	AC_CHECK_HEADERS([sys/unistd.h],,)
 	AC_CHECK_HEADERS([sys/types.h sys/socket.h netinet/in.h arpa/inet.h netdb.h pthread.h errno.h net/ethernet.h syslog.h pwd.h grp.h],,
 	    [AC_MSG_ERROR([Missing essential non-Windows std headers.])])
 	AC_SEARCH_LIBS([pthread_create], [pthread],,
