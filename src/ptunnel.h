@@ -45,7 +45,9 @@
 #define PING_TUNNEL_H 1
 
 #ifndef WIN32
+#ifndef __ANDROID__
 #include <sys/unistd.h>
+#endif
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>

@@ -11,6 +11,9 @@ case x"${host}" in
 		use_msw=yes
 		PROGRAM_EXT=".exe"
 	;;
+	*-androideabi)
+		use_android=yes
+	;;
 esac
 
 AM_SILENT_RULES([yes])
@@ -35,10 +38,16 @@ dnl Check for std includes.
 AC_CHECK_HEADERS([stdarg.h stdio.h unistd.h stdlib.h string.h stdint.h time.h signal.h assert.h],,
     [AC_MSG_ERROR([Missing essential std headers.])])
 if test x"${use_msw}" != x"yes"; then
-	AC_CHECK_HEADERS([sys/unistd.h sys/types.h sys/socket.h netinet/in.h arpa/inet.h netdb.h pthread.h errno.h net/ethernet.h syslog.h pwd.h grp.h],,
+	if test x"${use_android}" != x"yes"; then
+		AC_CHECK_HEADERS([sys/unistd.h],,[AC_MSG_ERROR([Missing essential non-Windows/Android std headers.])])
+	fi
+	AC_CHECK_HEADERS([sys/types.h sys/socket.h netinet/in.h arpa/inet.h netdb.h pthread.h errno.h net/ethernet.h syslog.h pwd.h grp.h],,
 	    [AC_MSG_ERROR([Missing essential non-Windows std headers.])])
 	AC_SEARCH_LIBS([pthread_create], [pthread],,
 	    [AC_MSG_ERROR([Missing pthread library.])],)
+	if test x"${use_android}" != x"yes"; then
+		AC_CHECK_FUNCS([signal],,[AC_MSG_ERROR([Missing essential non-Android std functions.])])
+	fi
 	AC_CHECK_FUNCS([pthread_mutex_init pthread_mutex_lock pthread_mutex_unlock syslog getaddrinfo freeaddrinfo gai_strerror],,
 	    [AC_MSG_ERROR([Missing essential Linux std functions.])])
 else
@@ -104,7 +113,7 @@ struct foo {
 ,[AC_MSG_ERROR([Your compiler does not support \`__attribute__ ((packed))\`.])])
 
 dnl Check for std functions.
-AC_CHECK_FUNCS([malloc calloc free memcpy memset signal printf sprintf vsnprintf strerror strlen strncmp strstr strtol strtoul fopen fprintf gettimeofday close fclose exit getopt_long],,
+AC_CHECK_FUNCS([malloc calloc free memcpy memset printf sprintf vsnprintf strerror strlen strncmp strstr strtol strtoul fopen fprintf gettimeofday close fclose exit getopt_long],,
     [AC_MSG_ERROR([Missing essential std functions.])])
 
 dnl `--disable-pcap`: Enabled if found.
