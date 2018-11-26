@@ -154,6 +154,9 @@ if test x"${selinux_enabled}" != x; then
 	AC_SEARCH_LIBS([setcon], [selinux],,[selinux_enabled=],)
 fi
 
+dnl Check for Android liblog.so
+AC_SEARCH_LIBS([__android_log_vprint], [log],,,)
+
 dnl Set automake conf vars
 AM_CONDITIONAL([HAVE_PCAP], [test x"${pcap_enabled}" = xyes])
 AM_CONDITIONAL([HAVE_SELINUX], [test x"${selinux_enabled}" = xyes])
