@@ -1,5 +1,5 @@
 pkgname="ptunnel-ng"
-pkgver=1.2
+pkgver=1.3
 pkgrel=1
 pkgdesc="A TCP forwarder and proxy used for ICMP/UDP tunneling without creating tun devices. (Ping Tunnel, ICMP Echo Tunnel, UDP Tunnel)"
 arch=('i686' 'x86_64')
@@ -8,7 +8,7 @@ license=('BSD-3')
 makedepends=('git')
 provides=("ptunnel-ng=${pkgver}")
 source=("https://github.com/lnslbrty/ptunnel-ng/archive/v${pkgver}.tar.gz")
-md5sums=('55ea297a34ae35ddc8d5586b15040a15')
+md5sums=('c28cbb3465ddeb22b18f83ff52dd9323')
 
 build() {
 	cd "${srcdir}/${pkgname}-${pkgver}"
