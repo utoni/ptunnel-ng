@@ -1,6 +1,10 @@
 PingTunnel-NG Changelog
 =======================
 
+1.31 - 03. December 2018
+- added Android build support (requires a root'ed device!)
+- fixed ArchLinux PKGBUILD/AUR
+
 1.30 - 19. October 2018
 - travis-ci, coverity integration
 - xcompile issue for mingw-w64 fixed
