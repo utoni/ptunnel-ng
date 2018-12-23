@@ -184,7 +184,7 @@ int main(int argc, char *argv[]) {
 	if (opts.chroot) {
 		pt_log(kLog_info, "Restricting file access to %s\n", opts.root_dir);
 		if (-1 == chdir(opts.root_dir) || -1 == chroot(opts.root_dir)) {
-			pt_log(kLog_error, "%s: %s\n", opts.root_dir, strerror(errno));
+			pt_log(kLog_error, "chdir/chroot `%s': %s\n", opts.root_dir, strerror(errno));
 			exit(1);
 		}
 	}
@@ -210,7 +210,7 @@ int main(int argc, char *argv[]) {
 					if (! freopen("/dev/null", "r", stdin) ||
 					    ! freopen("/dev/null", "w", stdout) ||
 					    ! freopen("/dev/null", "w", stderr))
-						pt_log(kLog_error, "freopen: %s\n", strerror(errno));
+						pt_log(kLog_error, "freopen `%s': %s\n", "/dev/null", strerror(errno));
 				}
 			}
 	}

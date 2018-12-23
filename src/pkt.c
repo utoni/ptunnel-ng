@@ -189,7 +189,9 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 						return;
 					}
 					else
-						pt_log(kLog_error, "Dropping duplicate proxy session request.\n");
+						pt_log(kLog_error, "Dropping duplicate proxy session request "
+						                   "with ID %d and seq %d.\n",
+						                   pt_pkt->id_no, pt_pkt->seq_no);
 				}
 				else if (cur && pt_pkt->state == kProto_authenticate) {
 					/* Sanity check packet length, and make sure it matches what we expect */
