@@ -62,7 +62,7 @@
 #define errno GetLastError()
 /** Local error string storage */
 static char errorstr[255];
-static char * print_last_windows_error()  {
+static char * print_last_windows_error() {
 	char last_errorstr[255];
 	DWORD last_error = GetLastError();
 
@@ -388,6 +388,7 @@ void* pt_proxy(void *args) {
 	in_addr_t          *adr;
 #endif
 	struct in_addr     in_addr;
+	struct icmp_filter filt;
 
 	/* Start the thread, initialize protocol and ring states. */
 	pt_log(kLog_debug, "Starting ping proxy..\n");
@@ -410,6 +411,9 @@ void* pt_proxy(void *args) {
 		else {
 			pt_log(kLog_debug, "Attempting to create privileged ICMP raw socket..\n");
 			fwd_sock		= socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+			filt.data		= ~((1<<ICMP_ECHO) | (1<<ICMP_ECHOREPLY));
+			if (setsockopt(fwd_sock, SOL_RAW, ICMP_FILTER, &filt, sizeof filt) == -1)
+				pt_log(kLog_error, "setockopt for ICMP_FILTER: %s\n", strerror(errno));
 		}
 		if (fwd_sock < 0) {
 			pt_log(kLog_error, "Couldn't create %s socket: %s\n",

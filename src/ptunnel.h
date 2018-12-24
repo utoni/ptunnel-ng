@@ -45,6 +45,7 @@
 #define PING_TUNNEL_H 1
 
 #ifndef WIN32
+#include <linux/icmp.h>
 #ifdef HAVE_SYS_UNISTD_H
 #include <sys/unistd.h>
 #endif
