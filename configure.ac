@@ -152,6 +152,25 @@ if test x"${selinux_enabled}" != x; then
 	AC_SEARCH_LIBS([setcon], [selinux],,[selinux_enabled=],)
 fi
 
+dnl Check for ICMP_FILTER
+AC_MSG_CHECKING([for working ICMP_FILTER])
+AC_COMPILE_IFELSE(
+[AC_LANG_PROGRAM([[
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <linux/icmp.h>
+void foo() {
+    struct icmp_filter filt;
+    int sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+    filt.data  = ~((1<<ICMP_ECHO) | (1<<ICMP_ECHOREPLY));
+    setsockopt(sockfd, SOL_RAW, ICMP_FILTER, &filt, sizeof filt);
+}
+]], [])]
+,[AC_MSG_RESULT([yes])
+  with_icmp_filter="yes"]
+,[AC_MSG_RESULT([no])
+  with_icmp_filter="no"])
+
 dnl Check for Android liblog.so
 AC_SEARCH_LIBS([__android_log_vprint], [log],,,)
 
@@ -159,6 +178,7 @@ dnl Set automake conf vars
 AM_CONDITIONAL([HAVE_PCAP], [test x"${pcap_enabled}" = xyes])
 AM_CONDITIONAL([HAVE_SELINUX], [test x"${selinux_enabled}" = xyes])
 AM_CONDITIONAL([IS_WINDOWS], [test x"${use_msw}" = xyes])
+AM_CONDITIONAL([HAVE_ICMPFILTER], [test x"${with_icmp_filter}" = xyes])
 
 dnl output config headers
 AC_CONFIG_HEADERS([src/config.h:src/config.h.in])

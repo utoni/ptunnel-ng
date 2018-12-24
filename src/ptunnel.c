@@ -388,7 +388,9 @@ void* pt_proxy(void *args) {
 	in_addr_t          *adr;
 #endif
 	struct in_addr     in_addr;
+#ifdef HAVE_ICMPFILTER
 	struct icmp_filter filt;
+#endif
 
 	/* Start the thread, initialize protocol and ring states. */
 	pt_log(kLog_debug, "Starting ping proxy..\n");
@@ -411,9 +413,11 @@ void* pt_proxy(void *args) {
 		else {
 			pt_log(kLog_debug, "Attempting to create privileged ICMP raw socket..\n");
 			fwd_sock		= socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+#ifdef HAVE_ICMPFILTER
 			filt.data		= ~((1<<ICMP_ECHO) | (1<<ICMP_ECHOREPLY));
 			if (setsockopt(fwd_sock, SOL_RAW, ICMP_FILTER, &filt, sizeof filt) == -1)
 				pt_log(kLog_error, "setockopt for ICMP_FILTER: %s\n", strerror(errno));
+#endif
 		}
 		if (fwd_sock < 0) {
 			pt_log(kLog_error, "Couldn't create %s socket: %s\n",
