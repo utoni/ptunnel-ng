@@ -2,7 +2,7 @@ language: c
 before_install:
 - sudo apt-get -qq update
 - sudo apt-get install -y git debhelper fakeroot
-- sudo apt-get install -y libpcap-dev libselinux1-dev
+- sudo apt-get install -y libpcap-dev libselinux1-dev libbsd-dev
 - sudo apt-get install -y binutils-mingw-w64-i686 gcc-mingw-w64 mingw-w64-i686-dev
   mingw-w64-common
 - sudo apt-get install -y autoconf automake dh-autoreconf
