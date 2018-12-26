@@ -18,6 +18,10 @@ if HAVE_ICMPFILTER
 ptunnel_ng_CFLAGS += -DHAVE_ICMPFILTER=1
 endif
 
+if HAVE_RANDOM
+ptunnel_ng_CFLAGS += -DHAVE_RANDOM=1
+endif
+
 ptunnel_ng_SOURCES = \
 	md5.c \
 	challenge.c \

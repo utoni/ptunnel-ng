@@ -145,6 +145,11 @@ if test x"${pcap_enabled}" != x -a \
 	    [pcap_enabled=])
 fi
 
+dnl Check for more secure randomization functions
+AC_CHECK_FUNCS([timespec_get srandom random],
+               [random_enabled=yes],
+               [random_enabled=])
+
 dnl Check for SELINUX
 if test x"${selinux_enabled}" != x; then
 	AC_CHECK_HEADERS([selinux/selinux.h],,
@@ -179,6 +184,7 @@ AM_CONDITIONAL([HAVE_PCAP], [test x"${pcap_enabled}" = xyes])
 AM_CONDITIONAL([HAVE_SELINUX], [test x"${selinux_enabled}" = xyes])
 AM_CONDITIONAL([IS_WINDOWS], [test x"${use_msw}" = xyes])
 AM_CONDITIONAL([HAVE_ICMPFILTER], [test x"${with_icmp_filter}" = xyes])
+AM_CONDITIONAL([HAVE_RANDOM], [test x"${random_enabled}" = xyes])
 
 dnl output config headers
 AC_CONFIG_HEADERS([src/config.h:src/config.h.in])

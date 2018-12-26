@@ -148,9 +148,17 @@ void print_hexstr(unsigned char *buf, size_t siz) {
 #endif
 
 int pt_random(void) {
+#ifdef HAVE_RANDOM
+#ifndef TIME_UTC
+#define TIME_UTC 1
+#endif
 	struct timespec ts;
 
 	assert(timespec_get(&ts, TIME_UTC));
 	srandom(ts.tv_nsec ^ ts.tv_sec);
 	return random();
+#else
+	srand(time(0));
+	return rand();
+#endif
 }

@@ -126,10 +126,6 @@ int main(int argc, char *argv[]) {
 	}
 #endif /* WIN32 */
 
-	/* Seed random generator; it'll be used in combination with a timestamp
-	 * when generating authentication challenges.
-	 */
-	srand(time(0));
 	memset(opts.password_digest, 0, kMD5_digest_size);
 
 	/* The seq_expiry_tbl is used to prevent the remote ends from prematurely
