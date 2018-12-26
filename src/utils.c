@@ -43,8 +43,12 @@
  * Note that the source code is best viewed with tabs set to 4 spaces.
  */
 
+#include <stdio.h>
+#include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+#include <time.h>
+#include <assert.h>
 
 #ifndef WIN32
 #include <syslog.h>
@@ -142,3 +146,11 @@ void print_hexstr(unsigned char *buf, size_t siz) {
 	free(out);
 }
 #endif
+
+int pt_random(void) {
+	struct timespec ts;
+
+	assert(timespec_get(&ts, TIME_UTC));
+	srandom(ts.tv_nsec ^ ts.tv_sec);
+	return random();
+}

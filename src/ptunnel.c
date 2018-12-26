@@ -323,7 +323,7 @@ void pt_forwarder(void) {
 				}
 			}
 			addr	= dest_addr;
-			rand_id	= (uint16_t)rand();
+			rand_id	= (uint16_t) pt_random();
 			create_and_insert_proxy_desc(rand_id, rand_id, new_sock, &addr, opts.given_dst_ip, opts.given_dst_port, kProxy_start, kUser_flag);
 			pthread_mutex_unlock(&num_threads_lock);
 		}

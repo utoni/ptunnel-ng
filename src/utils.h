@@ -60,4 +60,6 @@ int host_to_addr(const char *hostname, uint32_t *result);
 void print_hexstr(unsigned char *buf, size_t siz);
 #endif
 
+int pt_random(void);
+
 #endif
