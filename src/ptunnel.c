@@ -402,17 +402,23 @@ void* pt_proxy(void *args) {
 		}
 	}
 	else {
-		if (opts.unprivileged) {
+		if (opts.unprivileged)
+		{
 			pt_log(kLog_debug, "Attempting to create unprivileged ICMP datagram socket..\n");
 			fwd_sock		= socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
-		}
-		else {
+		} else {
 			pt_log(kLog_debug, "Attempting to create privileged ICMP raw socket..\n");
 			fwd_sock		= socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
 #ifdef HAVE_ICMPFILTER
-			filt.data		= ~((1<<ICMP_ECHO) | (1<<ICMP_ECHOREPLY));
-			if (setsockopt(fwd_sock, SOL_RAW, ICMP_FILTER, &filt, sizeof filt) == -1)
+			if (opts.mode == kMode_forward)
+				filt.data	= ~(1<<ICMP_ECHOREPLY);
+			else
+				filt.data	= ~(1<<ICMP_ECHO);
+			if (fwd_sock >= 0 &&
+			    setsockopt(fwd_sock, SOL_RAW, ICMP_FILTER, &filt, sizeof filt) == -1)
+			{
 				pt_log(kLog_error, "setockopt for ICMP_FILTER: %s\n", strerror(errno));
+			}
 #endif
 		}
 		if (fwd_sock < 0) {
