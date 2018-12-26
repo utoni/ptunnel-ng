@@ -49,6 +49,9 @@
 #include <string.h>
 #include <time.h>
 #include <assert.h>
+#ifdef HAVE_ARC4RANDOM
+#include <bsd/stdlib.h>
+#endif
 
 #ifndef WIN32
 #include <syslog.h>
@@ -148,6 +151,9 @@ void print_hexstr(unsigned char *buf, size_t siz) {
 #endif
 
 int pt_random(void) {
+#ifdef HAVE_ARC4RANDOM
+	return arc4random();
+#else
 #ifdef HAVE_RANDOM
 #ifndef TIME_UTC
 #define TIME_UTC 1
@@ -160,5 +166,6 @@ int pt_random(void) {
 #else
 	srand(time(0));
 	return rand();
+#endif
 #endif
 }
