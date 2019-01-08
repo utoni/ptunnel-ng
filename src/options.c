@@ -2,7 +2,7 @@
  * options.c
  * ptunnel is licensed under the BSD license:
  *
- * Copyright (c) 2017 Toni Uhlig <matzeton@googlemail.com>
+ * Copyright (c) 2017-2019, Toni Uhlig <matzeton@googlemail.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:

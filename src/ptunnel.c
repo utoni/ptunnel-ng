@@ -5,7 +5,7 @@
  * Copyright (c) 2004-2011, Daniel Stoedle <daniels@cs.uit.no>,
  * Yellow Lemon Software. All rights reserved.
  *
- * Copyright (c) 2017 Toni Uhlig <matzeton@googlemail.com>
+ * Copyright (c) 2017-2019, Toni Uhlig <matzeton@googlemail.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -150,7 +150,7 @@ int main(int argc, char *argv[]) {
 #endif
 	pt_log(kLog_info, "Starting %s.\n", PACKAGE_STRING);
 	pt_log(kLog_info, "(c) 2004-2011 Daniel Stoedle, <daniels@cs.uit.no>\n");
-	pt_log(kLog_info, "(c) 2017      Toni Uhlig,     <matzeton@googlemail.com>\n");
+	pt_log(kLog_info, "(c) 2017-2019 Toni Uhlig,     <matzeton@googlemail.com>\n");
 #ifdef WIN32
 	pt_log(kLog_info, "Windows version by Mike Miller, <mike@mikeage.net>\n");
 #else

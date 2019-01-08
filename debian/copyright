@@ -3,7 +3,7 @@ Upstream-Name: ptunnel
 Source: http://www.cs.uit.no/~daniels/PingTunnel/index.html
 
 Files: *
-Copyright: Copyright 2017 Toni Uhlig <matzeton@googlemail.com>
+Copyright: Copyright 2017-2019 Toni Uhlig <matzeton@googlemail.com>
 License: BSD-3-Clause
 
 Files: md5.*
