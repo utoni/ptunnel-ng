@@ -56,7 +56,7 @@
  * the descriptor chain. If the sock argument is 0, the function will establish
  * a TCP connection to the ip and port given by dst_ip, dst_port.
  */
-proxy_desc_t* create_and_insert_proxy_desc(uint16_t id_no, uint16_t icmp_id,
+proxy_desc_t *create_and_insert_proxy_desc(uint16_t id_no, uint16_t icmp_id,
                                            int sock, struct sockaddr_in *addr,
 			                               uint32_t dst_ip, uint32_t dst_port,
                                            uint32_t init_state, uint32_t type) {
