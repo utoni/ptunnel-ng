@@ -124,6 +124,10 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
   
 			pkt_flag        = pt_pkt->state & kFlag_mask;
 			pt_pkt->state   &= ~kFlag_mask;
+			if (pt_pkt->state > (kNum_proto_types-1)) {
+				pt_log(kLog_error, "Dropping packet with invalid state.\n");
+				return;
+			}
 			pt_log(kLog_sendrecv, "Recv: %d [%d] bytes "
 			                      "[seq = %d] [type = %s] "
 			                      "[ack = %d] [icmp = %d] "
@@ -166,14 +170,20 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 						else
 							init_state  = kProto_data;
 
-						cur = create_and_insert_proxy_desc(pt_pkt->id_no, pkt->identifier, 0,
+						cur = (proxy_desc_t*) create_and_insert_proxy_desc(pt_pkt->id_no, pkt->identifier, 0,
 						                                   addr, pt_pkt->dst_ip,
 						                                   ntohl(pt_pkt->dst_port),
 						                                   init_state, kProxy_flag);
+					       if (!cur) {
+							/* if failed, abort. Logging is done in create_insert_proxy_desc */
+							pt_log(kLog_info, "failed to create proxy descriptor\n");
+							return;
+						}
 						if (init_state == kProto_authenticate) {
 							pt_log(kLog_debug, "Sending authentication challenge..\n");
 							/* Send challenge */
 							cur->challenge  = generate_challenge();
+							pt_log(kLog_debug, "Challenge generated\n");
 							memcpy(cur->buf, cur->challenge, sizeof(challenge_t));
 							queue_packet(icmp_sock, cur->pkt_type, cur->buf,
 							             sizeof(challenge_t), cur->id_no,
