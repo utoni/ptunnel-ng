@@ -254,22 +254,25 @@ class PingQuery(asyncore.dispatcher):
     def handle_close(self):
         self.close()
 
+def build_pt_pkt(ip, port, state, ack, seq, rsv, data):
+    if type(ip) is int:
+        dst_ip = ip
+    elif type(ip) is str:
+        dst_ip = struct.unpack('<L', socket.inet_aton(ip))[0]
+    else:
+        raise Exception('ip is not of type str|int')
+    dst_port = int(port)
+    return struct.pack('!IIIIIIHH',
+        0xdeadc0de, dst_ip, dst_port, state, ack, len(data),
+        seq, rsv) + data
 
 
 if __name__ == '__main__':
     # Testing
     while True:
-        pt_pkt = struct.pack('!IIIIIIHHs',
-            0xdeadc0de,                     # magic
-            random.randint(0, UINT_MAX),    # ip
-            random.randint(0, UINT_MAX),    # port
-            random.randint(0, 4),           # state
-            random.randint(0, UINT_MAX),    # ack
-            random.randint(0, UINT_MAX),    # length
-            random.randint(0, USHORT_MAX),  # seq
-            random.randint(0, USHORT_MAX),  # rsv
-            '2222'                          # data..
-        )
+        pt_pkt = build_pt_pkt('127.0.0.1', '22', 1, 2,
+            random.randint(0, USHORT_MAX),
+            random.randint(0, USHORT_MAX), 'blah')
 
         verbose_ping('127.0.0.1', pt_pkt, 1, 1)
         random.seed(time.clock())
