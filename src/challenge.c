@@ -5,7 +5,7 @@
  * Copyright (c) 2004-2011, Daniel Stoedle <daniels@cs.uit.no>,
  * Yellow Lemon Software. All rights reserved.
  *
- * Copyright (c) 2017 Toni Uhlig <matzeton@googlemail.com>
+ * Copyright (c) 2017-2019, Toni Uhlig <matzeton@googlemail.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -50,6 +50,7 @@
 #include "challenge.h"
 #include "options.h"
 #include "md5.h"
+#include "utils.h"
 
 /* generate_challenge: Generates a random challenge, incorporating the current
  * local timestamp to avoid replay attacks.
@@ -62,9 +63,9 @@ challenge_t* generate_challenge(void) {
 	c = (challenge_t *) calloc(1, sizeof(challenge_t));
 	gettimeofday(&tt, 0);
 	c->sec      = tt.tv_sec;
-	c->usec_rnd = tt.tv_usec + rand();
+	c->usec_rnd = tt.tv_usec + pt_random();
 	for (i=0;i<6;i++)
-		c->random[i] = rand();
+		c->random[i] = pt_random();
 
 	return c;
 }

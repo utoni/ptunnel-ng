@@ -5,7 +5,7 @@
  * Copyright (c) 2004-2011, Daniel Stoedle <daniels@cs.uit.no>,
  * Yellow Lemon Software. All rights reserved.
  *
- * Copyright (c) 2017 Toni Uhlig <matzeton@googlemail.com>
+ * Copyright (c) 2017-2019, Toni Uhlig <matzeton@googlemail.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -62,7 +62,7 @@
 #define errno GetLastError()
 /** Local error string storage */
 static char errorstr[255];
-static char * print_last_windows_error()  {
+static char * print_last_windows_error() {
 	char last_errorstr[255];
 	DWORD last_error = GetLastError();
 
@@ -126,10 +126,6 @@ int main(int argc, char *argv[]) {
 	}
 #endif /* WIN32 */
 
-	/* Seed random generator; it'll be used in combination with a timestamp
-	 * when generating authentication challenges.
-	 */
-	srand(time(0));
 	memset(opts.password_digest, 0, kMD5_digest_size);
 
 	/* The seq_expiry_tbl is used to prevent the remote ends from prematurely
@@ -154,7 +150,7 @@ int main(int argc, char *argv[]) {
 #endif
 	pt_log(kLog_info, "Starting %s.\n", PACKAGE_STRING);
 	pt_log(kLog_info, "(c) 2004-2011 Daniel Stoedle, <daniels@cs.uit.no>\n");
-	pt_log(kLog_info, "(c) 2017      Toni Uhlig,     <matzeton@googlemail.com>\n");
+	pt_log(kLog_info, "(c) 2017-2019 Toni Uhlig,     <matzeton@googlemail.com>\n");
 #ifdef WIN32
 	pt_log(kLog_info, "Windows version by Mike Miller, <mike@mikeage.net>\n");
 #else
@@ -184,7 +180,7 @@ int main(int argc, char *argv[]) {
 	if (opts.chroot) {
 		pt_log(kLog_info, "Restricting file access to %s\n", opts.root_dir);
 		if (-1 == chdir(opts.root_dir) || -1 == chroot(opts.root_dir)) {
-			pt_log(kLog_error, "%s: %s\n", opts.root_dir, strerror(errno));
+			pt_log(kLog_error, "chdir/chroot `%s': %s\n", opts.root_dir, strerror(errno));
 			exit(1);
 		}
 	}
@@ -210,7 +206,7 @@ int main(int argc, char *argv[]) {
 					if (! freopen("/dev/null", "r", stdin) ||
 					    ! freopen("/dev/null", "w", stdout) ||
 					    ! freopen("/dev/null", "w", stderr))
-						pt_log(kLog_error, "freopen: %s\n", strerror(errno));
+						pt_log(kLog_error, "freopen `%s': %s\n", "/dev/null", strerror(errno));
 				}
 			}
 	}
@@ -323,7 +319,7 @@ void pt_forwarder(void) {
 				}
 			}
 			addr	= dest_addr;
-			rand_id	= (uint16_t)rand();
+			rand_id	= (uint16_t) pt_random();
 			create_and_insert_proxy_desc(rand_id, rand_id, new_sock, &addr, opts.given_dst_ip, opts.given_dst_port, kProxy_start, kUser_flag);
 			pthread_mutex_unlock(&num_threads_lock);
 		}
@@ -388,6 +384,9 @@ void* pt_proxy(void *args) {
 	in_addr_t          *adr;
 #endif
 	struct in_addr     in_addr;
+#ifdef HAVE_ICMPFILTER
+	struct icmp_filter filt;
+#endif
 
 	/* Start the thread, initialize protocol and ring states. */
 	pt_log(kLog_debug, "Starting ping proxy..\n");
@@ -403,13 +402,24 @@ void* pt_proxy(void *args) {
 		}
 	}
 	else {
-		if (opts.unprivileged) {
+		if (opts.unprivileged)
+		{
 			pt_log(kLog_debug, "Attempting to create unprivileged ICMP datagram socket..\n");
 			fwd_sock		= socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
-		}
-		else {
+		} else {
 			pt_log(kLog_debug, "Attempting to create privileged ICMP raw socket..\n");
 			fwd_sock		= socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+#ifdef HAVE_ICMPFILTER
+			if (opts.mode == kMode_forward)
+				filt.data	= ~(1<<ICMP_ECHOREPLY);
+			else
+				filt.data	= ~(1<<ICMP_ECHO);
+			if (fwd_sock >= 0 &&
+			    setsockopt(fwd_sock, SOL_RAW, ICMP_FILTER, &filt, sizeof filt) == -1)
+			{
+				pt_log(kLog_error, "setockopt for ICMP_FILTER: %s\n", strerror(errno));
+			}
+#endif
 		}
 		if (fwd_sock < 0) {
 			pt_log(kLog_error, "Couldn't create %s socket: %s\n",

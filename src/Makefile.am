@@ -14,6 +14,18 @@ if HAVE_SELINUX
 ptunnel_ng_CFLAGS += -DHAVE_SELINUX=1
 endif
 
+if HAVE_ICMPFILTER
+ptunnel_ng_CFLAGS += -DHAVE_ICMPFILTER=1
+endif
+
+if HAVE_ARC4RANDOM
+ptunnel_ng_CFLAGS += -DHAVE_ARC4RANDOM=1
+else
+if HAVE_RANDOM
+ptunnel_ng_CFLAGS += -DHAVE_RANDOM=1
+endif
+endif
+
 ptunnel_ng_SOURCES = \
 	md5.c \
 	challenge.c \

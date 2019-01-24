@@ -144,7 +144,7 @@ Daniel Stoedle et al.
 
 ## License
 ```
-Ping Tunnel NG is Copyright (c) 2017, Toni Uhlig <matzeton@googlemail.com>,
+Ping Tunnel NG is Copyright (c) 2017-2019, Toni Uhlig <matzeton@googlemail.com>,
 All rights reserved. Ping Tunnel NG is licensed under the
 BSD License. Please see the COPYING file for details.
 ```

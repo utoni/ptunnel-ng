@@ -5,7 +5,7 @@
  * Copyright (c) 2004-2011, Daniel Stoedle <daniels@cs.uit.no>,
  * Yellow Lemon Software. All rights reserved.
  *
- * Copyright (c) 2017 Toni Uhlig <matzeton@googlemail.com>
+ * Copyright (c) 2017-2019, Toni Uhlig <matzeton@googlemail.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -124,6 +124,10 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
   
 			pkt_flag        = pt_pkt->state & kFlag_mask;
 			pt_pkt->state   &= ~kFlag_mask;
+			if (pt_pkt->state > (kNum_proto_types-1)) {
+				pt_log(kLog_error, "Dropping packet with invalid state.\n");
+				return;
+			}
 			pt_log(kLog_sendrecv, "Recv: %d [%d] bytes "
 			                      "[seq = %d] [type = %s] "
 			                      "[ack = %d] [icmp = %d] "
@@ -166,10 +170,15 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 						else
 							init_state  = kProto_data;
 
-						cur = create_and_insert_proxy_desc(pt_pkt->id_no, pkt->identifier, 0,
+						cur = (proxy_desc_t *) create_and_insert_proxy_desc(pt_pkt->id_no, pkt->identifier, 0,
 						                                   addr, pt_pkt->dst_ip,
 						                                   ntohl(pt_pkt->dst_port),
 						                                   init_state, kProxy_flag);
+					       if (!cur) {
+							/* if failed, abort. Logging is done in create_insert_proxy_desc */
+							pt_log(kLog_error, "Failed to create proxy descriptor!\n");
+							return;
+						}
 						if (init_state == kProto_authenticate) {
 							pt_log(kLog_debug, "Sending authentication challenge..\n");
 							/* Send challenge */
@@ -189,7 +198,9 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 						return;
 					}
 					else
-						pt_log(kLog_error, "Dropping duplicate proxy session request.\n");
+						pt_log(kLog_error, "Dropping duplicate proxy session request "
+						                   "with ID %d and seq %d.\n",
+						                   pt_pkt->id_no, pt_pkt->seq_no);
 				}
 				else if (cur && pt_pkt->state == kProto_authenticate) {
 					/* Sanity check packet length, and make sure it matches what we expect */

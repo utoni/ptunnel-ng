@@ -1,10 +1,16 @@
 /* src/config.h.in.  Generated from configure.ac by autoheader.  */
 
+/* Define to 1 if you have the `arc4random' function. */
+#undef HAVE_ARC4RANDOM
+
 /* Define to 1 if you have the <arpa/inet.h> header file. */
 #undef HAVE_ARPA_INET_H
 
 /* Define to 1 if you have the <assert.h> header file. */
 #undef HAVE_ASSERT_H
+
+/* Define to 1 if you have the <bsd/stdlib.h> header file. */
+#undef HAVE_BSD_STDLIB_H
 
 /* Define to 1 if you have the `calloc' function. */
 #undef HAVE_CALLOC
@@ -111,6 +117,9 @@
 /* Define to 1 if you have the <pwd.h> header file. */
 #undef HAVE_PWD_H
 
+/* Define to 1 if you have the `random' function. */
+#undef HAVE_RANDOM
+
 /* Define to 1 if you have the <selinux/selinux.h> header file. */
 #undef HAVE_SELINUX_SELINUX_H
 
@@ -122,6 +131,9 @@
 
 /* Define to 1 if you have the `sprintf' function. */
 #undef HAVE_SPRINTF
+
+/* Define to 1 if you have the `srandom' function. */
+#undef HAVE_SRANDOM
 
 /* Define to 1 if you have the <stdarg.h> header file. */
 #undef HAVE_STDARG_H
@@ -176,6 +188,9 @@
 
 /* Define to 1 if you have the <sys/unistd.h> header file. */
 #undef HAVE_SYS_UNISTD_H
+
+/* Define to 1 if you have the `timespec_get' function. */
+#undef HAVE_TIMESPEC_GET
 
 /* Define to 1 if you have the <time.h> header file. */
 #undef HAVE_TIME_H

@@ -5,7 +5,7 @@
  * Copyright (c) 2004-2011, Daniel Stoedle <daniels@cs.uit.no>,
  * Yellow Lemon Software. All rights reserved.
  *
- * Copyright (c) 2017 Toni Uhlig <matzeton@googlemail.com>
+ * Copyright (c) 2017-2019, Toni Uhlig <matzeton@googlemail.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -43,8 +43,15 @@
  * Note that the source code is best viewed with tabs set to 4 spaces.
  */
 
+#include <stdio.h>
+#include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+#include <time.h>
+#include <assert.h>
+#ifdef HAVE_ARC4RANDOM
+#include <bsd/stdlib.h>
+#endif
 
 #ifndef WIN32
 #include <syslog.h>
@@ -142,3 +149,23 @@ void print_hexstr(unsigned char *buf, size_t siz) {
 	free(out);
 }
 #endif
+
+int pt_random(void) {
+#ifdef HAVE_ARC4RANDOM
+	return arc4random();
+#else
+#ifdef HAVE_RANDOM
+#ifndef TIME_UTC
+#define TIME_UTC 1
+#endif
+	struct timespec ts;
+
+	assert(timespec_get(&ts, TIME_UTC));
+	srandom(ts.tv_nsec ^ ts.tv_sec);
+	return random();
+#else
+	srand(time(0));
+	return rand();
+#endif
+#endif
+}

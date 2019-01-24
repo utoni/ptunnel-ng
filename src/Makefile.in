@@ -91,11 +91,14 @@ host_triplet = @host@
 bin_PROGRAMS = ptunnel-ng$(EXEEXT)
 @HAVE_PCAP_TRUE@am__append_1 = -DHAVE_PCAP=1
 @HAVE_SELINUX_TRUE@am__append_2 = -DHAVE_SELINUX=1
-@IS_WINDOWS_TRUE@am__append_3 = -I$(abs_srcdir)/win32/includes
-@IS_WINDOWS_TRUE@am__append_4 = $(wpcap_IMP)
-@IS_WINDOWS_TRUE@am__append_5 = $(wpcap_DEF)
-@IS_WINDOWS_TRUE@am__append_6 = $(wpcap_IMP)
-@IS_WINDOWS_TRUE@am__append_7 = $(wpcap_DEF)
+@HAVE_ICMPFILTER_TRUE@am__append_3 = -DHAVE_ICMPFILTER=1
+@HAVE_ARC4RANDOM_TRUE@am__append_4 = -DHAVE_ARC4RANDOM=1
+@HAVE_ARC4RANDOM_FALSE@@HAVE_RANDOM_TRUE@am__append_5 = -DHAVE_RANDOM=1
+@IS_WINDOWS_TRUE@am__append_6 = -I$(abs_srcdir)/win32/includes
+@IS_WINDOWS_TRUE@am__append_7 = $(wpcap_IMP)
+@IS_WINDOWS_TRUE@am__append_8 = $(wpcap_DEF)
+@IS_WINDOWS_TRUE@am__append_9 = $(wpcap_IMP)
+@IS_WINDOWS_TRUE@am__append_10 = $(wpcap_DEF)
 subdir = src
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.ac
@@ -118,7 +121,7 @@ am_ptunnel_ng_OBJECTS = ptunnel_ng-md5.$(OBJEXT) \
 	ptunnel_ng-pdesc.$(OBJEXT) ptunnel_ng-ptunnel.$(OBJEXT) \
 	$(am__objects_2)
 ptunnel_ng_OBJECTS = $(am_ptunnel_ng_OBJECTS)
-ptunnel_ng_DEPENDENCIES = $(am__append_4)
+ptunnel_ng_DEPENDENCIES = $(am__append_7)
 ptunnel_ng_LINK = $(CCLD) $(ptunnel_ng_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
 AM_V_P = $(am__v_P_@AM_V@)
@@ -312,12 +315,13 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 man8_MANS = ptunnel-ng.8
 ptunnel_ng_CFLAGS = -Wall $(am__append_1) $(am__append_2) \
-	$(am__append_3)
-ptunnel_ng_LDADD = $(am__append_4)
-CLEANFILES = $(am__append_6)
-EXTTRA_DIST = $(am__append_7)
+	$(am__append_3) $(am__append_4) $(am__append_5) \
+	$(am__append_6)
+ptunnel_ng_LDADD = $(am__append_7)
+CLEANFILES = $(am__append_9)
+EXTTRA_DIST = $(am__append_10)
 ptunnel_ng_SOURCES = md5.c challenge.c options.c utils.c pkt.c pdesc.c \
-	ptunnel.c $(am__append_5)
+	ptunnel.c $(am__append_8)
 @IS_WINDOWS_TRUE@wpcap_DEF = $(abs_srcdir)/win32/WPCAP.DEF
 @IS_WINDOWS_TRUE@wpcap_IMP = $(abs_srcdir)/win32/libwpcap_implib.a
 all: config.h
