@@ -1,6 +1,13 @@
 PingTunnel-NG Changelog
 =======================
 
+1.32 - 24. January 2019
+- improved error logging
+- introduced icmp_filter via setsockopt to filter unwanted icmp messages
+- more "secure" random number generator
+- fixed NULL deref and invalid memory access by elnerd
+(https://github.com/elnerd) PoC: https://www.securityfocus.com/bid/54627/info
+
 1.31 - 03. December 2018
 - added Android build support (requires a root'ed device!)
 - fixed ArchLinux PKGBUILD/AUR
