@@ -43,13 +43,16 @@
  * Note that the source code is best viewed with tabs set to 4 spaces.
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
 #include <time.h>
 #include <assert.h>
-#ifdef HAVE_ARC4RANDOM
+#ifdef HAVE_BSD_STDLIB_H
 #include <bsd/stdlib.h>
 #endif
 
