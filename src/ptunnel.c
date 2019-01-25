@@ -532,7 +532,13 @@ void* pt_proxy(void *args) {
 		max_sock = fwd_sock+1;
 		pthread_mutex_lock(&chain_lock);
 		for (cur = chain; cur; cur = cur->next) {
-			if (cur->sock) {
+			/* Only handle traffic if there is traffic on the socket, we have
+			 * room in our send window AND we either don't use a password, or
+			 * have been authenticated.
+			 */
+			if (cur->sock && cur->send_wait_ack < kPing_window_size &&
+			    (!opts.password || cur->authenticated))
+			{
 				FD_SET(cur->sock, &set);
 				if (cur->sock >= max_sock)
 					max_sock = cur->sock+1;
@@ -567,13 +573,8 @@ void* pt_proxy(void *args) {
 				remove_proxy_desc(cur, prev);
 				continue;
 			}
-			/* Only handle traffic if there is traffic on the socket, we have
-			 * room in our send window AND we either don't use a password, or
-			 * have been authenticated.
-			 */
-			if (FD_ISSET(cur->sock, &set) && cur->send_wait_ack < kPing_window_size &&
-			    (!opts.password || cur->authenticated))
-			{
+			/* Handle TCP traffic */
+			if (FD_ISSET(cur->sock, &set)) {
 				bytes = recv(cur->sock, cur->buf, tcp_receive_buf_len, 0);
 				if (bytes <= 0) {
 					pt_log(kLog_info, "Connection closed or lost.\n");
