@@ -82,7 +82,7 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 		                     sizeof(icmp_echo_packet_t) +
 		                     sizeof(ping_tunnel_pkt_t), bytes);
 	else {
-		if (opts.udp) {
+		if (opts.udp || opts.unprivileged) {
 			ip_pkt      = 0;
 			pkt         = (icmp_echo_packet_t*)buf;
 			pt_pkt      = (ping_tunnel_pkt_t*)pkt->data;
@@ -326,7 +326,7 @@ void handle_data(icmp_echo_packet_t *pkt, int total_len, forward_desc_t *ring[],
 	 */
 	expected_len     += pt_pkt->data_len;
 	expected_len     += expected_len % 2;
-	if (opts.udp)
+	if (opts.udp || opts.unprivileged)
 		expected_len -= sizeof(ip_packet_t);
 	if (total_len < expected_len) {
 		pt_log(kLog_error, "Packet not completely received: %d Should be: %d. "
