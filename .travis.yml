@@ -3,7 +3,7 @@ before_install:
 - sudo apt-get -qq update
 - sudo apt-get install -y git debhelper fakeroot
 - sudo apt-get install -y libpcap-dev libselinux1-dev libbsd-dev
-- sudo apt-get install -y binutils-mingw-w64-i686 gcc-mingw-w64 mingw-w64-i686-dev
+- sudo apt-get install -y binutils-mingw-w64-i686 gcc-mingw-w64 mingw-w64-i686-dev clang-5.0
   mingw-w64-common
 - sudo apt-get install -y autoconf automake dh-autoreconf
 after_failure:
@@ -11,8 +11,11 @@ after_failure:
 script:
 - ./autogen.sh
 - git clean -df . && dpkg-buildpackage -b -us -uc
-- git clean -df . && export CC=i686-w64-mingw32-gcc && ./autogen.sh --host=i686-w64-mingw32
-  --build=$(gcc -dumpmachine)
+- git clean -df . && export CC=i686-w64-mingw32-gcc && autoreconf -fi &&
+  ./configure --host=i686-w64-mingw32 --build=$(gcc -dumpmachine) && make
+  CFLAGS='-Werror'
+- git clean -df . && export CC=clang-5.0 && autoreconf -fi && ./configure && make
+  CFLAGS='-Werror -Wno-error=for-loop-analysis' V=s
 env:
   global:
   - secure: DqyBATbSy6uoCpJ9MsedJID1SBWnHM0FMXJS2E4FbMwEaoOLWw/7EiLZUrIxcuAGyaztd4xuve3den07xt7uOL6RBebVjh8ZbNxR92ndxsDcsvLFEUTeTvDOsu7vYmocLw95x5GFPWygOP1PGe/QpQKHo6MMT5Px0if7LFiFi8bGj5lpuiL5C7l2IsWhmaLB3oIMK7z/JXPQSkXjYjzahS7dDRr7LnkQpEtywmSHGn5xD3QCZIUysDQV3lsy6zWUC6YLXMeu7JLgh/T6BAO2Zqj4uNlIrhGkh9OOx6OopjvklP0GFqJkSN1i2iPEDuuLx0+eLMUiGREAmWldt7aKwyCVH7r8zcTRSMk2E0jJ4wdd5hHbMUzG3LohmRfxlbcwL0MiOBeCR2MTQBsPXmjXJs4Qf82blQrp2Hxm0sE3KyswDEDQUBTKbRzVFPjYLTRASzIZrDG7j+CjkLRSESyXU3u8IIiE0wr75lhNWL58ZrVzjyZIxCgo8oOeK/yF+6F3hyCSnh/bFkCjvcHMsYInyVZCLgYkYeLHujbvgbiIPOAk50ikTz8AvKMCgK313O6/LjNaJu2GgezN0j2/mKGyvucBJM2QTys7AYp8QfUWy5bOaKcyHq0guu8/lrB8gp2bvIe5xL1HVrmBBvOKzuvwylLCO71Mb4P0zTxeMFwQyVs=
