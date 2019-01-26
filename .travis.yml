@@ -3,7 +3,7 @@ before_install:
 - sudo apt-get -qq update
 - sudo apt-get install -y git debhelper fakeroot
 - sudo apt-get install -y libpcap-dev libselinux1-dev libbsd-dev
-- sudo apt-get install -y binutils-mingw-w64-i686 gcc-mingw-w64 mingw-w64-i686-dev clang-5.0
+- sudo apt-get install -y binutils-mingw-w64-i686 gcc-mingw-w64 mingw-w64-i686-dev clang
   mingw-w64-common
 - sudo apt-get install -y autoconf automake dh-autoreconf
 after_failure:
@@ -14,7 +14,7 @@ script:
 - git clean -df . && export CC=i686-w64-mingw32-gcc && autoreconf -fi &&
   ./configure --host=i686-w64-mingw32 --build=$(gcc -dumpmachine) && make
   CFLAGS='-Werror'
-- git clean -df . && export CC=clang-5.0 && autoreconf -fi && ./configure && make
+- git clean -df . && export CC=clang && autoreconf -fi && ./configure && make
   CFLAGS='-Werror -Wno-error=for-loop-analysis' V=s
 env:
   global:
