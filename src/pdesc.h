@@ -156,8 +156,11 @@ typedef struct proxy_desc_t {
 	double last_ack;
 	/** Time when a packet was last received. */
 	double last_activity;
-    icmp_desc_t send_ring[kPing_window_size];
-    forward_desc_t *recv_ring[kPing_window_size];
+	uint16_t window_size;
+	double ack_interval;
+	double resend_interval;
+    icmp_desc_t *send_ring;
+    forward_desc_t **recv_ring;
     xfer_stats_t xfer;
     struct proxy_desc_t *next;
 } proxy_desc_t;
@@ -176,8 +179,8 @@ int             queue_packet(int icmp_sock, uint8_t type, char *buf, int num_byt
                              uint16_t id_no, uint16_t icmp_id, uint16_t *seq, icmp_desc_t ring[],
                              int *insert_idx, int *await_send, uint32_t ip, uint32_t port,
                              uint32_t state, struct sockaddr_in *dest_addr, uint16_t next_expected_seq,
-                             int *first_ack, uint16_t *ping_seq);
+                             int *first_ack, uint16_t *ping_seq, uint16_t window_size);
 
-uint32_t        send_packets(forward_desc_t *ring[], int *xfer_idx, int *await_send, int *sock);
+uint32_t        send_packets(forward_desc_t *ring[], int *xfer_idx, int *await_send, int *sock, uint16_t window_size);
 
 #endif

@@ -179,6 +179,9 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 							pt_log(kLog_error, "Failed to create proxy descriptor!\n");
 							return;
 						}
+						if (pt_pkt->data_len > 0) {
+							handle_data(pkt, bytes, 0, 0, 0, 0, cur, 0);
+						}
 						if (init_state == kProto_authenticate) {
 							pt_log(kLog_debug, "Sending authentication challenge..\n");
 							/* Send challenge */
@@ -190,7 +193,7 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 							             &cur->send_idx, &cur->send_wait_ack, 0, 0,
 							             kProto_authenticate | cur->type_flag,
 							             &cur->dest_addr, cur->next_remote_seq,
-							             &cur->send_first_ack, &cur->ping_seq);
+							             &cur->send_first_ack, &cur->ping_seq, cur->window_size);
 						}
 					}
 					else if (type_flag == kUser_flag) {
@@ -231,13 +234,13 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 						             &cur->my_seq, cur->send_ring, &cur->send_idx,
 						             &cur->send_wait_ack, 0, 0,
 						             kProto_authenticate | cur->type_flag, &cur->dest_addr,
-						             cur->next_remote_seq, &cur->send_first_ack, &cur->  ping_seq);
+						             cur->next_remote_seq, &cur->send_first_ack, &cur->  ping_seq, cur->window_size);
 						/* We have authenticated locally.
 						 * It's up to the proxy now if it accepts our   response or not..
 						 */
 						cur->authenticated  = 1;
 						handle_data(pkt, bytes, cur->recv_ring, &cur->recv_wait_send,
-						            &cur->recv_idx, &cur->next_remote_seq);
+						            &cur->recv_idx, &cur->next_remote_seq, 0, cur->window_size);
 						return;
 					}
 					/* If proxy: Handle client's response to challenge */
@@ -256,7 +259,7 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 							 * confusing the reliab  ility mechanism.
 							 */
 							handle_data(pkt, bytes, cur->recv_ring, &cur->recv_wait_send,
-							            &cur->recv_idx, &cur->next_remote_seq);
+							            &cur->recv_idx, &cur->next_remote_seq, 0, cur->window_size);
 						}
 						else {
 							pt_log(kLog_info, "Remote end failed authentication.\n");
@@ -288,12 +291,15 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 					if (pt_pkt->state == kProto_data || pt_pkt->state == kProxy_start ||
 					    pt_pkt->state   == kProto_ack)
 					{
+						if (pt_pkt->state == kProxy_start) {
+							pt_pkt->data_len = 0;
+						}
 						handle_data(pkt, bytes, cur->recv_ring, &cur->recv_wait_send,
-						            &cur->recv_idx,   &cur->next_remote_seq);
+						            &cur->recv_idx,   &cur->next_remote_seq, 0, cur->window_size);
 					}
 					handle_ack((uint16_t)pt_pkt->ack, cur->send_ring, &cur->send_wait_ack,
 					           0, cur->send_idx, &cur->send_first_ack, &cur->remote_ack_val,
-					           is_pcap);
+					           is_pcap, cur->window_size);
 					cur->last_activity      = time_as_double();
 				}
 			}
@@ -308,7 +314,7 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
  * onto the passed-in receive ring.
  */
 void handle_data(icmp_echo_packet_t *pkt, int total_len, forward_desc_t *ring[],
-                 int *await_send, int *insert_idx,  uint16_t *next_expected_seq)
+                 int *await_send, int *insert_idx,  uint16_t *next_expected_seq, void *cur, uint16_t window_size)
 {
 	ping_tunnel_pkt_t *pt_pkt      = (ping_tunnel_pkt_t*)pkt->data;
 	int               expected_len = sizeof(ip_packet_t) + sizeof(icmp_echo_packet_t) +
@@ -337,6 +343,35 @@ void handle_data(icmp_echo_packet_t *pkt, int total_len, forward_desc_t *ring[],
 		 */
 		exit(0);
 	}
+	if (cur) {
+		uint16_t *extended_options = (uint16_t *)pt_pkt->data;
+		if (pt_pkt->data_len >= 2) {
+			extended_options[0] = ntohs(extended_options[0]);
+			if (extended_options[0] > 0) {
+				((proxy_desc_t *)cur)->window_size = extended_options[0];
+				free(((proxy_desc_t *)cur)->send_ring);
+				free(((proxy_desc_t *)cur)->recv_ring);
+				((proxy_desc_t *)cur)->send_ring = calloc(((proxy_desc_t *)cur)->window_size, sizeof(icmp_desc_t));
+				((proxy_desc_t *)cur)->recv_ring = calloc(((proxy_desc_t *)cur)->window_size, sizeof(forward_desc_t *));
+				pt_log(kLog_verbose, "Received extended option for window size %d \n", ((proxy_desc_t *)cur)->window_size);
+			}
+		}
+		if (pt_pkt->data_len >= 4) {
+			extended_options[1] = ntohs(extended_options[1]);
+			if (extended_options[1] > 0) {
+				((proxy_desc_t *)cur)->ack_interval = extended_options[1] / 1000.0;
+				pt_log(kLog_verbose, "Received extended option for ack interval %f \n", ((proxy_desc_t *)cur)->ack_interval);
+			}
+		}
+		if (pt_pkt->data_len >= 6) {
+			extended_options[2] = ntohs(extended_options[2]);
+			if (extended_options[2] > 0) {
+				((proxy_desc_t *)cur)->resend_interval = extended_options[2] / 1000.0;
+				pt_log(kLog_verbose, "Received extended option for resend interval %f \n", ((proxy_desc_t *)cur)->resend_interval);
+			}
+		}
+		return;
+	}
 	if (pt_pkt->seq_no == *next_expected_seq) {
 		/* hmm, what happens if this test is true? */
 		if (!ring[*insert_idx]) { /* && pt_pkt->state == kProto_data */
@@ -349,14 +384,14 @@ void handle_data(icmp_echo_packet_t *pkt, int total_len, forward_desc_t *ring[],
 			pt_log(kLog_debug, "Dup packet?\n");
 
 		(*next_expected_seq)++;
-		if (*insert_idx >= kPing_window_size)
+		if (*insert_idx >= window_size)
 			*insert_idx	= 0;
 		/* Check if we have already received some of the next packets */
 		while (ring[*insert_idx]) {
 			if (ring[*insert_idx]->seq_no == *next_expected_seq) {
 				(*next_expected_seq)++;
 				(*insert_idx)++;
-				if (*insert_idx >= kPing_window_size)
+				if (*insert_idx >= window_size)
 					*insert_idx	= 0;
 			}
 			else
@@ -371,13 +406,13 @@ void handle_data(icmp_echo_packet_t *pkt, int total_len, forward_desc_t *ring[],
 		d   = s - r;
 		if (d < 0) { /* This packet _may_ be old, or seq_no may have wrapped around */
 			d = (s+0xFFFF) - r;
-			if (d < kPing_window_size) {
+			if (d < window_size) {
 				/* Counter has wrapped, so we should add this packet to the recv ring */
-				pos	= ((*insert_idx)+d) % kPing_window_size;
+				pos	= ((*insert_idx)+d) % window_size;
 			}
 		}
-		else if (d < kPing_window_size)
-			pos	= ((*insert_idx)+d) % kPing_window_size;
+		else if (d < window_size)
+			pos	= ((*insert_idx)+d) % window_size;
 
 		if (pos != -1) {
 			if (!ring[pos]) {
@@ -396,14 +431,14 @@ void handle_data(icmp_echo_packet_t *pkt, int total_len, forward_desc_t *ring[],
 
 void handle_ack(uint16_t seq_no, icmp_desc_t ring[], int *packets_awaiting_ack,
                 int one_ack_only, int insert_idx, int *first_ack,
-                uint16_t *remote_ack, int is_pcap)
+                uint16_t *remote_ack, int is_pcap, uint16_t window_size)
 {
 	int i, j, k;
 	ping_tunnel_pkt_t *pt_pkt;
 
 	if (*packets_awaiting_ack > 0) {
 		if (one_ack_only) {
-			for (i = 0; i < kPing_window_size; i++) {
+			for (i = 0; i < window_size; i++) {
 				if (ring[i].pkt && ring[i].seq_no == seq_no && !is_pcap) {
 					pt_log(kLog_debug, "Received ack for only seq %d\n", seq_no);
 					pt_pkt	= (ping_tunnel_pkt_t*)ring[i].pkt->data;
@@ -413,8 +448,8 @@ void handle_ack(uint16_t seq_no, icmp_desc_t ring[], int *packets_awaiting_ack,
 					ring[i].pkt	= 0;
 					(*packets_awaiting_ack)--;
 					if (i == *first_ack) {
-						for (j=1;j<kPing_window_size;j++) {
-							k	= (i+j)%kPing_window_size;
+						for (j=1;j<window_size;j++) {
+							k	= (i+j)%window_size;
 							if (ring[k].pkt) {
 								*first_ack = k;
 								break;
@@ -433,10 +468,10 @@ void handle_ack(uint16_t seq_no, icmp_desc_t ring[], int *packets_awaiting_ack,
 			int	i, can_ack = 0, count = 0;
 			i	= insert_idx-1;
 			if (i < 0)
-				i	= kPing_window_size - 1;
+				i	= window_size - 1;
 
 			pt_log(kLog_debug, "Received ack-series starting at seq %d\n", seq_no);
-			while (count < kPing_window_size) {
+			while (count < window_size) {
 				if (!ring[i].pkt)
 					break;
 
@@ -452,7 +487,7 @@ void handle_ack(uint16_t seq_no, icmp_desc_t ring[], int *packets_awaiting_ack,
 				}
 				i--;
 				if (i < 0)
-					i	= kPing_window_size - 1;
+					i	= window_size - 1;
 				count++;
 			}
 		}

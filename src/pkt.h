@@ -138,10 +138,10 @@ typedef struct icmp_desc_t icmp_desc_t;
 void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *addr, int icmp_sock);
 
 void handle_data(icmp_echo_packet_t *pkt, int total_len, forward_desc_t **ring,
-                 int *await_send, int *insert_idx,  uint16_t *next_expected_seq);
+                 int *await_send, int *insert_idx,  uint16_t *next_expected_seq, void *cur, uint16_t window_size);
 
 void handle_ack(uint16_t seq_no, icmp_desc_t *ring, int *packets_awaiting_ack,
                 int one_ack_only, int insert_idx, int *first_ack,
-                uint16_t *remote_ack, int is_pcap);
+                uint16_t *remote_ack, int is_pcap, uint16_t window_size);
 
 #endif
