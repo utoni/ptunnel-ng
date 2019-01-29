@@ -629,6 +629,7 @@ void* pt_proxy(void *args) {
 			if (cur->send_ring[idx].pkt && cur->send_ring[idx].last_resend+kResend_interval < now) {
 				pt_log(kLog_debug, "Resending packet with seq-no %d.\n", cur->send_ring[idx].seq_no);
 				cur->send_ring[idx].last_resend   = now;
+				cur->send_ring[idx].pkt->identifier = htons(cur->icmp_id);
 				cur->send_ring[idx].pkt->seq      = htons(cur->ping_seq);
 				cur->ping_seq++;
 				cur->send_ring[idx].pkt->checksum = 0;
