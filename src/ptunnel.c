@@ -34,7 +34,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  * Contacting the author:
- * You can get in touch with me, Daniel Stødle (that's the Norwegian letter oe,
+ * You can get in touch with me, Daniel Stoedle (that's the Norwegian letter oe,
  * in case your text editor didn't realize), here: <daniels@cs.uit.no>
  *
  * The official ptunnel website is here:
@@ -98,7 +98,7 @@ char pcap_filter_program[]     = "icmp";
 
 /** The chain of client/proxy connections */
 proxy_desc_t *chain = 0;
-const char *state_name[kNum_proto_types] = { "start", "ack", "data",
+const char *state_name[kNum_proto_types] = { "start", "ack  ", "data ",
                                              "close", "authenticate" };
 
 /* Let the fun begin! */

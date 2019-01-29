@@ -32,7 +32,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  * Contacting the author:
- * You can get in touch with me, Daniel Stødle (that's the Norwegian letter oe,
+ * You can get in touch with me, Daniel Stoedle (that's the Norwegian letter oe,
  * in case your text editor didn't realize), here: <daniels@cs.uit.no>
  *
  * The official ptunnel website is here:
