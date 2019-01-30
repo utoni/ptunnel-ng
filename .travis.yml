@@ -1,21 +1,37 @@
 language: c
 before_install:
 - sudo apt-get -qq update
-- sudo apt-get install -y git debhelper fakeroot
-- sudo apt-get install -y libpcap-dev libselinux1-dev libbsd-dev
-- sudo apt-get install -y binutils-mingw-w64-i686 gcc-mingw-w64 mingw-w64-i686-dev clang
-  mingw-w64-common
+- sudo apt-get install -y git debhelper dpkg-dev build-essential fakeroot flawfinder wget unzip realpath
+- sudo apt-get install -y libpcap-dev libselinux1-dev
+- sudo apt-get install -y binutils-mingw-w64-i686 gcc-mingw-w64 mingw-w64-i686-dev mingw-w64-common clang
 - sudo apt-get install -y autoconf automake dh-autoreconf
 after_failure:
 - cat config.log
 script:
-- ./autogen.sh
-- git clean -df . && dpkg-buildpackage -b -us -uc
-- git clean -df . && export CC=i686-w64-mingw32-gcc && autoreconf -fi &&
-  ./configure --host=i686-w64-mingw32 --build=$(gcc -dumpmachine) && make
-  CFLAGS='-Werror'
-- git clean -df . && export CC=clang && autoreconf -fi && ./configure && make
-  CFLAGS='-Werror -Wno-error=for-loop-analysis' V=s
+- mkdir -p ./deploy
+# default gcc build
+- autoreconf -fi
+- ./configure --prefix=/
+- make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy)" V=s
+- make clean
+# debian build
+- dpkg-buildpackage -b -us -uc
+- make clean
+# mingw-w64 build
+- CC=i686-w64-mingw32-gcc ./configure --prefix=/ --host=i686-w64-mingw32
+- make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy)" V=s
+- make clean
+# clang build
+- CC=clang ./configure --prefix=/
+- make install CFLAGS='-Werror -Wno-error=for-loop-analysis' DESTDIR="$(realpath ./deploy)" V=s
+- make clean
+# android build
+- mkdir -p vendor && cd vendor
+- test -r 'android-ndk-r19-linux-x86_64.zip' || wget --progress=dot:mega 'https://dl.google.com/android/repository/android-ndk-r19-linux-x86_64.zip'
+- test -d 'android-ndk-r19' || unzip -q 'android-ndk-r19-linux-x86_64.zip'
+- cd ..
+- CC=aarch64-linux-android28-clang PATH="${PATH}:$(realpath ./vendor/android-ndk-r19/toolchains/llvm/prebuilt/linux-x86_64/bin)" ./configure --host=aarch64-linux-android
+- PATH="${PATH}:$(realpath ./vendor/android-ndk-r19/toolchains/llvm/prebuilt/linux-x86_64/bin)" make install CFLAGS='-Werror -Wno-error=for-loop-analysis' DESTDIR="$(realpath ./deploy)" V=s
 env:
   global:
   - secure: DqyBATbSy6uoCpJ9MsedJID1SBWnHM0FMXJS2E4FbMwEaoOLWw/7EiLZUrIxcuAGyaztd4xuve3den07xt7uOL6RBebVjh8ZbNxR92ndxsDcsvLFEUTeTvDOsu7vYmocLw95x5GFPWygOP1PGe/QpQKHo6MMT5Px0if7LFiFi8bGj5lpuiL5C7l2IsWhmaLB3oIMK7z/JXPQSkXjYjzahS7dDRr7LnkQpEtywmSHGn5xD3QCZIUysDQV3lsy6zWUC6YLXMeu7JLgh/T6BAO2Zqj4uNlIrhGkh9OOx6OopjvklP0GFqJkSN1i2iPEDuuLx0+eLMUiGREAmWldt7aKwyCVH7r8zcTRSMk2E0jJ4wdd5hHbMUzG3LohmRfxlbcwL0MiOBeCR2MTQBsPXmjXJs4Qf82blQrp2Hxm0sE3KyswDEDQUBTKbRzVFPjYLTRASzIZrDG7j+CjkLRSESyXU3u8IIiE0wr75lhNWL58ZrVzjyZIxCgo8oOeK/yF+6F3hyCSnh/bFkCjvcHMsYInyVZCLgYkYeLHujbvgbiIPOAk50ikTz8AvKMCgK313O6/LjNaJu2GgezN0j2/mKGyvucBJM2QTys7AYp8QfUWy5bOaKcyHq0guu8/lrB8gp2bvIe5xL1HVrmBBvOKzuvwylLCO71Mb4P0zTxeMFwQyVs=

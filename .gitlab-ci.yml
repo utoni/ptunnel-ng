@@ -63,7 +63,7 @@ build-android:
   script:
     - mkdir -p vendor && cd vendor
     - test -r 'android-ndk-r19-linux-x86_64.zip' || wget --progress=dot:mega 'https://dl.google.com/android/repository/android-ndk-r19-linux-x86_64.zip'
-    - test -d 'android-ndk-r19' || unzip 'android-ndk-r19-linux-x86_64.zip'
+    - test -d 'android-ndk-r19' || unzip -q 'android-ndk-r19-linux-x86_64.zip'
     - cd ..
     - autoreconf -fi
     - CC=aarch64-linux-android28-clang PATH="${PATH}:$(realpath ./vendor/android-ndk-r19/toolchains/llvm/prebuilt/linux-x86_64/bin)" ./configure --host=aarch64-linux-android
