@@ -181,6 +181,9 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 						}
 						if (pt_pkt->data_len > 0) {
 							handle_data(pkt, bytes, 0, 0, 0, 0, cur, 0);
+							if (!opts.password) {
+								handle_extended_options(cur);
+							}
 						}
 						if (init_state == kProto_authenticate) {
 							pt_log(kLog_debug, "Sending authentication challenge..\n");
@@ -250,6 +253,7 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 						                       cur->authenticated)
 						{
 							pt_log(kLog_verbose, "Remote end authenticated successfully.\n");
+							handle_extended_options(cur);
 							/* Authentication has succeeded, so now we can proceed
 							 * to handle incoming   TCP data.
 							 */
@@ -314,7 +318,7 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
  * onto the passed-in receive ring.
  */
 void handle_data(icmp_echo_packet_t *pkt, int total_len, forward_desc_t *ring[],
-                 int *await_send, int *insert_idx,  uint16_t *next_expected_seq, void *cur, uint16_t window_size)
+                 int *await_send, int *insert_idx,  uint16_t *next_expected_seq, void *vcur, uint16_t window_size)
 {
 	ping_tunnel_pkt_t *pt_pkt      = (ping_tunnel_pkt_t*)pkt->data;
 	int               expected_len = sizeof(ip_packet_t) + sizeof(icmp_echo_packet_t) +
@@ -343,32 +347,17 @@ void handle_data(icmp_echo_packet_t *pkt, int total_len, forward_desc_t *ring[],
 		 */
 		exit(0);
 	}
-	if (cur) {
+	if (vcur) {
+		proxy_desc_t *cur = (proxy_desc_t *)vcur;
 		uint16_t *extended_options = (uint16_t *)pt_pkt->data;
 		if (pt_pkt->data_len >= 2) {
-			extended_options[0] = ntohs(extended_options[0]);
-			if (extended_options[0] > 0) {
-				((proxy_desc_t *)cur)->window_size = extended_options[0];
-				free(((proxy_desc_t *)cur)->send_ring);
-				free(((proxy_desc_t *)cur)->recv_ring);
-				((proxy_desc_t *)cur)->send_ring = calloc(((proxy_desc_t *)cur)->window_size, sizeof(icmp_desc_t));
-				((proxy_desc_t *)cur)->recv_ring = calloc(((proxy_desc_t *)cur)->window_size, sizeof(forward_desc_t *));
-				pt_log(kLog_verbose, "Received extended option for window size %d \n", ((proxy_desc_t *)cur)->window_size);
-			}
+			cur->extended_options[0] = ntohs(extended_options[0]);
 		}
 		if (pt_pkt->data_len >= 4) {
-			extended_options[1] = ntohs(extended_options[1]);
-			if (extended_options[1] > 0) {
-				((proxy_desc_t *)cur)->ack_interval = extended_options[1] / 1000.0;
-				pt_log(kLog_verbose, "Received extended option for ack interval %f \n", ((proxy_desc_t *)cur)->ack_interval);
-			}
+			cur->extended_options[1] = ntohs(extended_options[1]);
 		}
 		if (pt_pkt->data_len >= 6) {
-			extended_options[2] = ntohs(extended_options[2]);
-			if (extended_options[2] > 0) {
-				((proxy_desc_t *)cur)->resend_interval = extended_options[2] / 1000.0;
-				pt_log(kLog_verbose, "Received extended option for resend interval %f \n", ((proxy_desc_t *)cur)->resend_interval);
-			}
+			cur->extended_options[2] = ntohs(extended_options[2]);
 		}
 		return;
 	}
@@ -426,6 +415,27 @@ void handle_data(icmp_echo_packet_t *pkt, int total_len, forward_desc_t *ring[],
 		/* else
 		 * pt_log(kLog_debug, "Packet discarded - outside receive window.\n");
 		 */
+	}
+}
+
+void handle_extended_options(void *vcur)
+{
+	proxy_desc_t *cur = (proxy_desc_t *)vcur;
+	if (cur->extended_options[0] > 0) {
+		cur->window_size = cur->extended_options[0];
+		free(cur->send_ring);
+		free(cur->recv_ring);
+		cur->send_ring = calloc(cur->window_size, sizeof(icmp_desc_t));
+		cur->recv_ring = calloc(cur->window_size, sizeof(forward_desc_t *));
+		pt_log(kLog_verbose, "Received extended option for window size %d \n", cur->window_size);
+	}
+	if (cur->extended_options[1] > 0) {
+		cur->ack_interval = cur->extended_options[1] / 1000.0;
+		pt_log(kLog_verbose, "Received extended option for ack interval %f \n", cur->ack_interval);
+	}
+	if (cur->extended_options[2] > 0) {
+		cur->resend_interval = cur->extended_options[2] / 1000.0;
+		pt_log(kLog_verbose, "Received extended option for resend interval %f \n", cur->resend_interval);
 	}
 }
 
