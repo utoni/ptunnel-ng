@@ -380,7 +380,7 @@ int parse_options(int argc, char **argv) {
 
 	/* parse command line arguments */
 	while (1) {
-		c = getopt_long(argc, argv, "m:p:l:r::R::c:v:L::o::sP:d::Su::g::C::e::h", &long_options[0], &oidx);
+		c = getopt_long(argc, argv, "m:p:l:r::R::c:v:L::o::sP:d::Su::g::C::e::w:a:t:h", &long_options[0], &oidx);
 		if (c == -1) break;
 
 		switch (c) {
@@ -529,6 +529,21 @@ int parse_options(int argc, char **argv) {
 				pt_log(kLog_error, "SeLinux: %s\n", "feature not supported");
 				exit(1);
 #endif
+			case 'w':
+				if (!optarg)
+					break;
+				opts.window_size = atoi(optarg);
+				break;
+			case 'a':
+				if (!optarg)
+					break;
+				opts.ack_interval = atoi(optarg);
+				break;
+			case 't':
+				if (!optarg)
+					break;
+				opts.resend_interval = atoi(optarg);
+				break;
 			case 'h':
 				print_usage(argv[0]);
 				exit(EXIT_SUCCESS);

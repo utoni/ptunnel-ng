@@ -111,9 +111,9 @@ proxy_desc_t *create_and_insert_proxy_desc(uint16_t id_no, uint16_t icmp_id,
 	pthread_mutex_unlock(&chain_lock);
 	cur->xfer.bytes_in      = 0.0;
 	cur->xfer.bytes_out     = 0.0;
-	cur->window_size	= 64;
-	cur->ack_interval	= 1.0;
-	cur->resend_interval	= 1.5;
+	cur->window_size	= opts.window_size ? opts.window_size : 64;
+	cur->ack_interval	= opts.ack_interval ? opts.ack_interval / 1000.0 : 1.0;
+	cur->resend_interval	= opts.resend_interval ? opts.resend_interval / 1000.0 : 1.5;
 	memset(cur->extended_options, 0, sizeof(cur->extended_options));
 	cur->send_ring		= calloc(cur->window_size, sizeof(icmp_desc_t));
 	cur->recv_ring		= calloc(cur->window_size, sizeof(forward_desc_t *));
