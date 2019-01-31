@@ -1,0 +1,20 @@
+[Unit]
+Description=PingTunnel NG Proxy/Server
+After=syslog.target
+
+[Service]
+Type=fork
+EnvironmentFile=/etc/conf.d/ptunnel-ng
+Environment="PT_CHROOT=${PT_CHROOT:/var/lib/ptunnel}"
+Environment="PT_USER=${PT_USER:nobody}"
+Environment="PT_GROUP=${PT_GROUP:nobody}"
+ExecStartPre=mkdir -p ${PT_CHROOT}
+ExecStartPre=chown ${PT_USER}:${PT_GROUP} ${PT_CHROOT}
+ExecStart=/usr/bin/ptunnel-ng \
+	--syslog \
+	--chroot=${PT_CHROOT} --user=${PT_USER} --group=${PT_GROUP} \
+	$PT_PASSWD $PT_MAGIC $PT_DESTIP $PT_DESTPORT
+Restart=on-abort
+
+[Install]
+WantedBy=multi-user.target
