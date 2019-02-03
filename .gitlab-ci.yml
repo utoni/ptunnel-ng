@@ -3,29 +3,74 @@ image: debian:stable-slim
 stages:
   - build
 
+before_script:
+  - apt-get -qq update
+  - apt-get install -y git debhelper dpkg-dev build-essential fakeroot flawfinder wget unzip
+  - apt-get install -y libpcap-dev libselinux1-dev
+  - apt-get install -y binutils-mingw-w64-i686 gcc-mingw-w64 mingw-w64-i686-dev mingw-w64-common clang
+  - apt-get install -y autoconf automake dh-autoreconf
+
 build:
   script:
-    - apt-get -qq update
-    - apt-get install -y git debhelper fakeroot
-    - apt-get install -y libpcap-dev libselinux1-dev
-    - apt-get install -y binutils-mingw-w64-i686 gcc-mingw-w64 mingw-w64-i686-dev mingw-w64-common clang
-    - apt-get install -y autoconf automake dh-autoreconf
-    - mkdir -p ../bin
-    - ./autogen.sh
-    - cp ./src/ptunnel-ng ../bin/
-    - git clean -df . && dpkg-buildpackage -b -us -uc
-    - git clean -df . && export CC=i686-w64-mingw32-gcc && autoreconf -fi &&
-      ./configure --host=i686-w64-mingw32 --build=$(gcc -dumpmachine) &&
-      make CFLAGS='-Werror'
-    - cp ./src/ptunnel-ng.exe ../bin/
-    - mkdir -p ./bin
-    - cp -v ../*.deb ../bin/* ./bin/
-    - cp -v ./bin/ptunnel-ng ./bin/ptunnel-ng-dbgsym && strip -s ./bin/ptunnel-ng
-    - cp -v ./bin/ptunnel-ng.exe ./bin/ptunnel-ng-dbgsym.exe && i686-w64-mingw32-strip -s ./bin/ptunnel-ng.exe
-    - export CC=clang && ./configure && make clean && make CFLAGS='-Werror -Wno-error=for-loop-analysis' V=s
+    - autoreconf -fi
+    - ./configure --prefix=/
+    - make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy)" V=s
+  stage: build
   artifacts:
     paths:
-      - bin/
+      - deploy/
+      - config.log
+    when: always
+
+build-debian:
+  script:
+    - dpkg-buildpackage -b -us -uc
   stage: build
-  only:
-    - master
+  artifacts:
+    paths:
+      - config.log
+    when: always
+
+build-mingw:
+  script:
+    - autoreconf -fi
+    - ./configure --prefix=/ --host=i686-w64-mingw32
+    - make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy)" V=s
+  stage: build
+  artifacts:
+    paths:
+     - deploy/
+     - config.log
+    when: always
+
+build-clang:
+  script:
+    - autoreconf -fi
+    - CC=clang ./configure --prefix=/
+    - make install CFLAGS='-Werror -Wno-error=for-loop-analysis' DESTDIR="$(realpath ./deploy)" V=s
+  stage: build
+  artifacts:
+    paths:
+      - deploy/
+      - config.log
+    when: always
+
+build-android:
+  cache:
+    key: toolchain-cache
+    paths:
+      - vendor/
+  script:
+    - mkdir -p vendor && cd vendor
+    - test -r 'android-ndk-r19-linux-x86_64.zip' || wget --progress=dot:mega 'https://dl.google.com/android/repository/android-ndk-r19-linux-x86_64.zip'
+    - test -d 'android-ndk-r19' || unzip -q 'android-ndk-r19-linux-x86_64.zip'
+    - cd ..
+    - autoreconf -fi
+    - CC=aarch64-linux-android28-clang PATH="${PATH}:$(realpath ./vendor/android-ndk-r19/toolchains/llvm/prebuilt/linux-x86_64/bin)" ./configure --host=aarch64-linux-android
+    - PATH="${PATH}:$(realpath ./vendor/android-ndk-r19/toolchains/llvm/prebuilt/linux-x86_64/bin)" make install CFLAGS='-Werror -Wno-error=for-loop-analysis' DESTDIR="$(realpath ./deploy)" V=s
+  stage: build
+  artifacts:
+    paths:
+      - deploy/
+      - config.log
+    when: always

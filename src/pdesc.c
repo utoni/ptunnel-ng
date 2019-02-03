@@ -216,12 +216,18 @@ int queue_packet(int icmp_sock, uint8_t type, char *buf, int num_bytes,
 	pkt->checksum     = htons(calc_icmp_checksum((uint16_t*)pkt, pkt_len));
 
 	/* Send it! */
-	pt_log(kLog_sendrecv, "Send: %d [%d] bytes [seq = %d] "
-	                      "[type = %s] [ack = %d] [icmp = %d] [user = %s]\n",
-	                      pkt_len, num_bytes, *seq, state_name[state & (~kFlag_mask)],
-	                      ack_val, type, ((state & kUser_flag) == kUser_flag ? "yes" : "no"));
-	err               = sendto(icmp_sock, (const void*)pkt, pkt_len, 0,
-	                           (struct sockaddr*)dest_addr, sizeof(struct sockaddr));
+	pt_log(kLog_sendrecv, "Send: %4d [%4d] bytes "
+	                      "[id = 0x%04X] [seq = %d] "
+	                      "[seq_no = %d] [type = %s] "
+	                      "[ack = %d] [icmp = %d] "
+	                      "[user = %s]\n",
+	                      pkt_len, num_bytes,
+	                      icmp_id, *ping_seq,
+	                      *seq, state_name[state & (~kFlag_mask)],
+	                      ack_val, type,
+	                      ((state & kUser_flag) == kUser_flag ? "yes" : "no"));
+	err  = sendto(icmp_sock, (const void*)pkt, pkt_len, 0,
+	              (struct sockaddr*)dest_addr, sizeof(struct sockaddr));
 	if (err < 0) {
 		pt_log(kLog_error, "Failed to send ICMP packet: %s\n", strerror(errno));
 		free(pkt);

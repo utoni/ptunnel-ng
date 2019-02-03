@@ -34,7 +34,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  * Contacting the author:
- * You can get in touch with me, Daniel Stødle (that's the Norwegian letter oe,
+ * You can get in touch with me, Daniel Stoedle (that's the Norwegian letter oe,
  * in case your text editor didn't realize), here: <daniels@cs.uit.no>
  *
  * The official ptunnel website is here:
@@ -98,7 +98,7 @@ char pcap_filter_program[]     = "icmp";
 
 /** The chain of client/proxy connections */
 proxy_desc_t *chain = 0;
-const char *state_name[kNum_proto_types] = { "start", "ack", "data",
+const char *state_name[kNum_proto_types] = { "start", "ack  ", "data ",
                                              "close", "authenticate" };
 
 /* Let the fun begin! */
@@ -641,6 +641,7 @@ void* pt_proxy(void *args) {
 			if (cur->send_ring[idx].pkt && cur->send_ring[idx].last_resend+cur->resend_interval < now) {
 				pt_log(kLog_debug, "Resending packet with seq-no %d.\n", cur->send_ring[idx].seq_no);
 				cur->send_ring[idx].last_resend   = now;
+				cur->send_ring[idx].pkt->identifier = htons(cur->icmp_id);
 				cur->send_ring[idx].pkt->seq      = htons(cur->ping_seq);
 				cur->ping_seq++;
 				cur->send_ring[idx].pkt->checksum = 0;

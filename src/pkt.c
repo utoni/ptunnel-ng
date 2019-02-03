@@ -128,11 +128,13 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 				pt_log(kLog_error, "Dropping packet with invalid state.\n");
 				return;
 			}
-			pt_log(kLog_sendrecv, "Recv: %d [%d] bytes "
-			                      "[seq = %d] [type = %s] "
+			pt_log(kLog_sendrecv, "Recv: %4d [%4d] bytes "
+			                      "[id = 0x%04X] [seq = %d] "
+			                      "[seq_no = %d] [type = %s] "
 			                      "[ack = %d] [icmp = %d] "
-                                  "[user = %s] [pcap = %d]\n",
-                                  bytes, ntohl(pt_pkt->data_len),
+			                      "[user = %s] [pcap = %d]\n",
+			                      bytes, ntohl(pt_pkt->data_len),
+			                      pkt->identifier, ntohs(pkt->seq),
 			                      pt_pkt->seq_no, state_name[pt_pkt->state & (~kFlag_mask)],
 			                      ntohl(pt_pkt->ack), pkt->type,
 			                      (pkt_flag == kUser_flag ? "yes" : "no"), is_pcap);
