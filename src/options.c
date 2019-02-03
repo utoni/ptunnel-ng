@@ -87,7 +87,7 @@ static const struct option_usage usage[] = {
 	{"port",         0, OPT_DEC32,  {.unum = 2222},
 		"Set TCP listening port (only used when operating in forward mode)\n"
 	},
-	/** --remote-adr */
+	/** --remote-addr */
 	{"address",      1, OPT_STR,    {.str = "127.0.0.1"},
 		"Set remote proxy destination address if client\n"
 		"Restrict to only this destination address if server\n"
@@ -188,7 +188,7 @@ static struct option long_options[] = {
 	{"magic",       required_argument, 0, 'm'},
 	{"proxy",       required_argument, 0, 'p'},
 	{"listen",      required_argument, 0, 'l'},
-	{"remote-adr",  optional_argument, 0, 'r'},
+	{"remote-addr", optional_argument, 0, 'r'},
 	{"remote-port", optional_argument, 0, 'R'},
 	{"connections", required_argument, 0, 'c'},
 	{"verbosity",   required_argument, 0, 'v'},
@@ -231,7 +231,7 @@ static void set_options_defaults(void) {
 	opts.magic           = *(uint32_t *)  get_default_optval(OPT_HEX32, "magic");
 	opts.mode            = kMode_proxy;
 	opts.tcp_listen_port = *(uint32_t *)  get_default_optval(OPT_DEC32, "listen");
-	opts.given_dst_hostname = strdup(*(char **) get_default_optval(OPT_STR, "remote-adr"));
+	opts.given_dst_hostname = strdup(*(char **) get_default_optval(OPT_STR, "remote-addr"));
 	opts.given_dst_port  = *(uint32_t *)  get_default_optval(OPT_DEC32, "remote-port");
 	opts.max_tunnels     = *(uint32_t *)  get_default_optval(OPT_DEC32, "connections");
 	opts.log_level       = *(int *)       get_default_optval(OPT_DEC32, "verbosity");
@@ -380,6 +380,10 @@ int parse_options(int argc, char **argv) {
 
 	/* parse command line arguments */
 	while (1) {
+        /* FIXME: We are using '::' (optional argument values). This is not optimal
+         *        since you have to pass long options as '--option=value'. Commonly used
+         *        '--option value' is *NOT* allowed for some libc implementations.
+         */
 		c = getopt_long(argc, argv, "m:p:l:r::R::c:v:L::o::sP:d::Su::g::C::e::h", &long_options[0], &oidx);
 		if (c == -1) break;
 
@@ -539,7 +543,7 @@ int parse_options(int argc, char **argv) {
 	}
 
 	if (optind != argc) {
-		pt_log(kLog_error, "Unknown argument: %s\n", argv[optind]);
+		pt_log(kLog_error, "Unknown argument: '%s'\n", argv[optind]);
 		exit(1);
 	}
 
