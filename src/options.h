@@ -91,6 +91,7 @@ struct options {
 	uint16_t window_size;
 	uint16_t ack_interval;
 	uint16_t resend_interval;
+	uint16_t payload_size;
 
 #ifndef WIN32
 	/** run as daemon if non zero value */

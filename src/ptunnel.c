@@ -88,7 +88,6 @@ uint32_t num_tunnels = 0;
 uint32_t *seq_expiry_tbl = NULL;
 
 /* Some buffer constants */
-const int tcp_receive_buf_len  = kDefault_buf_size;
 const int icmp_receive_buf_len = kDefault_buf_size + kIP_header_size +
                                  kICMP_header_size + sizeof(ping_tunnel_pkt_t);
 const int pcap_buf_size        = (kDefault_buf_size + kIP_header_size +
@@ -560,12 +559,13 @@ void* pt_proxy(void *args) {
 				cur->last_ack = time_as_double();
 				uint16_t *extended_options = 0;
 				size_t extended_options_size = 0;
-				if (opts.window_size || opts.ack_interval || opts.resend_interval) {
-					extended_options = calloc(3, sizeof(uint16_t));
-					extended_options_size = 3*sizeof(uint16_t);
+				if (opts.window_size || opts.ack_interval || opts.resend_interval || opts.payload_size) {
+					extended_options = calloc(4, sizeof(uint16_t));
+					extended_options_size = 4*sizeof(uint16_t);
 					extended_options[0] = htons(opts.window_size);
 					extended_options[1] = htons(opts.ack_interval);
 					extended_options[2] = htons(opts.resend_interval);
+					extended_options[3] = htons(opts.payload_size);
 				}
 				queue_packet(fwd_sock, cur->pkt_type, (char *)extended_options, extended_options_size, cur->id_no, cur->id_no,
 				             &cur->my_seq, cur->send_ring, &cur->send_idx, &cur->send_wait_ack,
@@ -587,7 +587,7 @@ void* pt_proxy(void *args) {
 			}
 			/* Handle TCP traffic */
 			if (FD_ISSET(cur->sock, &set)) {
-				bytes = recv(cur->sock, cur->buf, tcp_receive_buf_len, 0);
+				bytes = recv(cur->sock, cur->buf, cur->payload_size, 0);
 				if (bytes <= 0) {
 					pt_log(kLog_info, "Connection closed or lost.\n");
 					tmp	= cur->next;

@@ -361,6 +361,9 @@ void handle_data(icmp_echo_packet_t *pkt, int total_len, forward_desc_t *ring[],
 		if (pt_pkt->data_len >= 6) {
 			cur->extended_options[2] = ntohs(extended_options[2]);
 		}
+		if (pt_pkt->data_len >= 8) {
+			cur->extended_options[3] = ntohs(extended_options[3]);
+		}
 		return;
 	}
 	if (pt_pkt->seq_no == *next_expected_seq) {
@@ -438,6 +441,10 @@ void handle_extended_options(void *vcur)
 	if (cur->extended_options[2] > 0) {
 		cur->resend_interval = cur->extended_options[2] / 1000.0;
 		pt_log(kLog_verbose, "Received extended option for resend interval %f \n", cur->resend_interval);
+	}
+	if (cur->extended_options[3] > 0) {
+		cur->payload_size = cur->extended_options[3];
+		pt_log(kLog_verbose, "Received extended option for payload size %d \n", cur->payload_size);
 	}
 }
 

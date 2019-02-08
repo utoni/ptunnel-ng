@@ -384,7 +384,7 @@ int parse_options(int argc, char **argv) {
          *        since you have to pass long options as '--option=value'. Commonly used
          *        '--option value' is *NOT* allowed for some libc implementations.
          */
-		c = getopt_long(argc, argv, "m:p:l:r::R::c:v:L::o::sP:d::Su::g::C::e::w:a:t:h", &long_options[0], &oidx);
+		c = getopt_long(argc, argv, "m:p:l:r::R::c:v:L::o::sP:d::Su::g::C::e::w:a:t:y:h", &long_options[0], &oidx);
 		if (c == -1) break;
 
 		switch (c) {
@@ -547,6 +547,11 @@ int parse_options(int argc, char **argv) {
 				if (!optarg)
 					break;
 				opts.resend_interval = atoi(optarg);
+				break;
+			case 'y':
+				if (!optarg)
+					break;
+				opts.payload_size = atoi(optarg);
 				break;
 			case 'h':
 				print_usage(argv[0]);
