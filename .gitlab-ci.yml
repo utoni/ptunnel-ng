@@ -4,11 +4,14 @@ stages:
   - build
 
 before_script:
-  - apt-get -qq update
-  - apt-get install -y git debhelper dpkg-dev build-essential fakeroot flawfinder wget unzip
-  - apt-get install -y libpcap-dev libselinux1-dev
-  - apt-get install -y binutils-mingw-w64-i686 gcc-mingw-w64 mingw-w64-i686-dev mingw-w64-common clang
-  - apt-get install -y autoconf automake dh-autoreconf
+  - test ! -r /etc/debian_version || apt-get -qq update
+  - test ! -r /etc/debian_version || apt-get install -y git debhelper dpkg-dev build-essential fakeroot flawfinder wget unzip
+  - test ! -r /etc/debian_version || apt-get install -y libpcap-dev libselinux1-dev
+  - test ! -r /etc/debian_version || apt-get install -y binutils-mingw-w64-i686 gcc-mingw-w64 mingw-w64-i686-dev mingw-w64-common clang
+  - test ! -r /etc/debian_version || apt-get install -y autoconf automake dh-autoreconf
+  - test ! -r /etc/arch-release || pacman -Sy archlinux-keyring --noconfirm
+  - test ! -r /etc/arch-release || pacman -Syu --noconfirm
+  - test ! -r /etc/arch-release || pacman -S --noconfirm binutils gcc base-devel git
 
 build:
   script:
@@ -30,6 +33,16 @@ build-debian:
     paths:
       - config.log
     when: always
+
+build-archlinux:
+  image: finalduty/archlinux:daily
+  script:
+    - useradd builduser -m
+    - passwd -d builduser
+    - chown -R builduser .
+    - su -m builduser bash -c 'makepkg'
+    - su -m builduser bash -c 'makepkg -p PKGBUILD.dev --skipchecksums'
+  stage: build
 
 build-mingw:
   script:

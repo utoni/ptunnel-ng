@@ -25,6 +25,4 @@ package() {
 	make DESTDIR="${pkgdir}" install
 	find "${pkgdir}" -type d -name .git -exec rm -r '{}' +
 	install -D -m644 COPYING "${pkgdir}/usr/share/licenses/ptunnel-ng/LICENSE"
-	install -D -m644 contrib/ptunnel-ng.conf "${pkgdir}/etc/conf.d/ptunnel-ng"
-	install -D -m644 contrib/ptunnel-ng.service "${pkgdir}/etc/systemd/system/ptunnel-ng.service"
 }
