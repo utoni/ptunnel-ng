@@ -136,6 +136,27 @@ static const struct option_usage usage[] = {
 		"Unprivileged mode will only work on some systems, and is in general less reliable\n"
 		"than running in privileged mode.\n"
 	},
+	/** --window-size */
+	{"packets",      0, OPT_DEC32,  {.unum = 64},
+		"Tune the number of packets that can be in-flight at the same time.\n"
+		"Increasing the window size will improve the maximum potential bandwidth.\n"
+	},
+	/** --ack-interval */
+	{"milliseconds", 0, OPT_DEC32,  {.unum = 1000},
+		"Tune the explicit acknowledgement interval (in milliseconds)\n"
+		"Decreasing the acknowlegement interval can improve NAT stability.\n"
+	},
+	/** --resend-interval */
+	{"milliseconds", 0, OPT_DEC32,  {.unum = 1500},
+		"Tune the lost packet timeout (in milliseconds)\n"
+		"Decreasing the resend interval can compensate for frequent packet loss.\n"
+	},
+	/** --payload-size */
+	{"bytes",        0, OPT_DEC32,  {.unum = 1024},
+		"Tune the amount of data per packet (in bytes)\n"
+		"Decreasing the payload size can avoid corruption of large packets.\n"
+		"Increasing the payload size can compensate for out-of-order delivery.\n"
+	},
 	/** --daemon */
 	{"pidfile",      0, OPT_STR,    {.str = "/run/ptunnel.pid"},
 #ifdef WIN32
@@ -198,6 +219,10 @@ static struct option long_options[] = {
 	{"passwd",      required_argument, 0, 'P'},
 	{"udp",               no_argument, &opts.udp, 1 },
 	{"unprivileged",      no_argument, &opts.unprivileged, 1 },
+	{"window-size", required_argument, 0, 'w'},
+	{"ack-interval", required_argument, 0, 'a'},
+	{"resend-interval", required_argument, 0, 't'},
+	{"payload-size", required_argument, 0, 'y'},
 	{"daemon",      optional_argument, 0, 'd'},
 	{"syslog",            no_argument, 0, 'S'},
 	{"user",        optional_argument, 0, 'u'},
