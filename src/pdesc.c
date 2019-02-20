@@ -125,7 +125,6 @@ proxy_desc_t *create_and_insert_proxy_desc(uint16_t id_no, uint16_t icmp_id,
  * Assumes that we hold the chain_lock.
  */
 void remove_proxy_desc(proxy_desc_t *cur, proxy_desc_t *prev) {
-	int i;
 	struct timeval tt;
 
 	pt_log(kLog_debug, "Removing proxy descriptor.\n");
@@ -137,16 +136,7 @@ void remove_proxy_desc(proxy_desc_t *cur, proxy_desc_t *prev) {
 	if (cur->buf)
 		free(cur->buf);
 	cur->buf    = 0;
-	for (i=0;i<cur->window_size;i++) {
-		if (cur->send_ring[i].pkt)
-			free(cur->send_ring[i].pkt);
-		cur->send_ring[i].pkt   = 0;
-		if (cur->recv_ring[i])
-			free(cur->recv_ring[i]);
-		cur->recv_ring[i]       = 0;
-	}
-	free(cur->send_ring);
-	free(cur->recv_ring);
+	remove_proxy_desc_rings(cur);
 	close(cur->sock);
 	cur->sock   = 0;
 
@@ -159,6 +149,28 @@ void remove_proxy_desc(proxy_desc_t *cur, proxy_desc_t *prev) {
 		free(cur->challenge);
 	free(cur);
 	num_tunnels--;
+}
+
+void remove_proxy_desc_rings(proxy_desc_t *cur) {
+	int i;
+	for (i=0;i<cur->window_size;i++) {
+		if (cur->send_ring[i].pkt)
+			free(cur->send_ring[i].pkt);
+		cur->send_ring[i].pkt   = 0;
+		if (cur->recv_ring[i])
+			free(cur->recv_ring[i]);
+		cur->recv_ring[i]       = 0;
+	}
+	free(cur->send_ring);
+	free(cur->recv_ring);
+
+	cur->recv_idx = 0;
+	cur->recv_xfer_idx = 0;
+	cur->send_idx = 0;
+	cur->send_first_ack = 0;
+	cur->recv_wait_send = 0;
+	cur->send_wait_ack = 0;
+	cur->next_resend_start = 0;
 }
 
 forward_desc_t* create_fwd_desc(uint16_t seq_no, uint32_t data_len, char *data) {

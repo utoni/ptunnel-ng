@@ -427,9 +427,8 @@ void handle_extended_options(void *vcur)
 {
 	proxy_desc_t *cur = (proxy_desc_t *)vcur;
 	if (cur->extended_options[0] > 0) {
+		remove_proxy_desc_rings(cur);
 		cur->window_size = cur->extended_options[0];
-		free(cur->send_ring);
-		free(cur->recv_ring);
 		cur->send_ring = calloc(cur->window_size, sizeof(icmp_desc_t));
 		cur->recv_ring = calloc(cur->window_size, sizeof(forward_desc_t *));
 		pt_log(kLog_verbose, "Received extended option for window size %d \n", cur->window_size);

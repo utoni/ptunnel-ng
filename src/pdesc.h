@@ -175,6 +175,8 @@ proxy_desc_t*   create_and_insert_proxy_desc(uint16_t id_no, uint16_t icmp_id,
 
 void            remove_proxy_desc(proxy_desc_t *cur, proxy_desc_t *prev);
 
+void            remove_proxy_desc_rings(proxy_desc_t *cur);
+
 forward_desc_t* create_fwd_desc(uint16_t seq_no, uint32_t data_len, char *data);
 
 int             queue_packet(int icmp_sock, uint8_t type, char *buf, int num_bytes,
