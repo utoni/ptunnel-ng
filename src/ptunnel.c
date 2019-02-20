@@ -557,23 +557,29 @@ void* pt_proxy(void *args) {
 			if (cur->state == kProxy_start) {
 				pt_log(kLog_verbose, "Sending proxy request.\n");
 				cur->last_ack = time_as_double();
-				uint16_t *extended_options = 0;
+				uint16_t extended_options[4];
 				size_t extended_options_size = 0;
-				if (opts.window_size || opts.ack_interval || opts.resend_interval || opts.payload_size) {
-					extended_options = calloc(4, sizeof(uint16_t));
-					extended_options_size = 4*sizeof(uint16_t);
+				memset(extended_options, 0, sizeof(extended_options));
+				if (opts.window_size) {
+					extended_options_size = sizeof(uint16_t);
 					extended_options[0] = htons(opts.window_size);
+				}
+				if (opts.ack_interval) {
+					extended_options_size = 2*sizeof(uint16_t);
 					extended_options[1] = htons(opts.ack_interval);
+				}
+				if (opts.resend_interval) {
+					extended_options_size = 3*sizeof(uint16_t);
 					extended_options[2] = htons(opts.resend_interval);
+				}
+				if (opts.payload_size) {
+					extended_options_size = 4*sizeof(uint16_t);
 					extended_options[3] = htons(opts.payload_size);
 				}
 				queue_packet(fwd_sock, cur->pkt_type, (char *)extended_options, extended_options_size, cur->id_no, cur->id_no,
 				             &cur->my_seq, cur->send_ring, &cur->send_idx, &cur->send_wait_ack,
 				             cur->dst_ip, cur->dst_port, cur->state | cur->type_flag,
 				             &cur->dest_addr, cur->next_remote_seq, &cur->send_first_ack, &cur->ping_seq, cur->window_size);
-				if (extended_options) {
-					free(extended_options);
-				}
 				cur->xfer.icmp_out++;
 				cur->state = kProto_data;
 			}
