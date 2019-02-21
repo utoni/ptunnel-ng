@@ -111,6 +111,13 @@ proxy_desc_t *create_and_insert_proxy_desc(uint16_t id_no, uint16_t icmp_id,
 	pthread_mutex_unlock(&chain_lock);
 	cur->xfer.bytes_in      = 0.0;
 	cur->xfer.bytes_out     = 0.0;
+	cur->window_size	= opts.window_size ? opts.window_size : 64;
+	cur->ack_interval	= opts.ack_interval ? opts.ack_interval / 1000.0 : 1.0;
+	cur->resend_interval	= opts.resend_interval ? opts.resend_interval / 1000.0 : 1.5;
+	cur->payload_size	= opts.payload_size ? opts.payload_size : 1024;
+	memset(cur->extended_options, 0, sizeof(cur->extended_options));
+	cur->send_ring		= calloc(cur->window_size, sizeof(icmp_desc_t));
+	cur->recv_ring		= calloc(cur->window_size, sizeof(forward_desc_t *));
 	return cur;
 }
 
@@ -118,7 +125,6 @@ proxy_desc_t *create_and_insert_proxy_desc(uint16_t id_no, uint16_t icmp_id,
  * Assumes that we hold the chain_lock.
  */
 void remove_proxy_desc(proxy_desc_t *cur, proxy_desc_t *prev) {
-	int i;
 	struct timeval tt;
 
 	pt_log(kLog_debug, "Removing proxy descriptor.\n");
@@ -130,14 +136,7 @@ void remove_proxy_desc(proxy_desc_t *cur, proxy_desc_t *prev) {
 	if (cur->buf)
 		free(cur->buf);
 	cur->buf    = 0;
-	for (i=0;i<kPing_window_size;i++) {
-		if (cur->send_ring[i].pkt)
-			free(cur->send_ring[i].pkt);
-		cur->send_ring[i].pkt   = 0;
-		if (cur->recv_ring[i])
-			free(cur->recv_ring[i]);
-		cur->recv_ring[i]       = 0;
-	}
+	remove_proxy_desc_rings(cur);
 	close(cur->sock);
 	cur->sock   = 0;
 
@@ -150,6 +149,28 @@ void remove_proxy_desc(proxy_desc_t *cur, proxy_desc_t *prev) {
 		free(cur->challenge);
 	free(cur);
 	num_tunnels--;
+}
+
+void remove_proxy_desc_rings(proxy_desc_t *cur) {
+	int i;
+	for (i=0;i<cur->window_size;i++) {
+		if (cur->send_ring[i].pkt)
+			free(cur->send_ring[i].pkt);
+		cur->send_ring[i].pkt   = 0;
+		if (cur->recv_ring[i])
+			free(cur->recv_ring[i]);
+		cur->recv_ring[i]       = 0;
+	}
+	free(cur->send_ring);
+	free(cur->recv_ring);
+
+	cur->recv_idx = 0;
+	cur->recv_xfer_idx = 0;
+	cur->send_idx = 0;
+	cur->send_first_ack = 0;
+	cur->recv_wait_send = 0;
+	cur->send_wait_ack = 0;
+	cur->next_resend_start = 0;
 }
 
 forward_desc_t* create_fwd_desc(uint16_t seq_no, uint32_t data_len, char *data) {
@@ -171,7 +192,7 @@ int queue_packet(int icmp_sock, uint8_t type, char *buf, int num_bytes,
                  uint16_t id_no, uint16_t icmp_id, uint16_t *seq, icmp_desc_t ring[],
                  int *insert_idx, int *await_send, uint32_t ip, uint32_t port,
                  uint32_t state, struct sockaddr_in *dest_addr, uint16_t next_expected_seq,
-                 int *first_ack, uint16_t *ping_seq)
+                 int *first_ack, uint16_t *ping_seq, uint16_t window_size)
 {
 	int pkt_len         = sizeof(icmp_echo_packet_t) +
 	                      sizeof(ping_tunnel_pkt_t) + num_bytes;
@@ -239,7 +260,7 @@ int queue_packet(int icmp_sock, uint8_t type, char *buf, int num_bytes,
 		*first_ack             = *insert_idx;
 	(*await_send)++;
 	(*insert_idx)++;
-	if (*insert_idx >= kPing_window_size)
+	if (*insert_idx >= window_size)
 		*insert_idx	= 0;
 	return 0;
 }
@@ -247,7 +268,7 @@ int queue_packet(int icmp_sock, uint8_t type, char *buf, int num_bytes,
 /* send_packets:
  * Examines the passed-in ring, and forwards data in it over TCP.
  */
-uint32_t send_packets(forward_desc_t *ring[], int *xfer_idx, int *await_send, int *sock)   {
+uint32_t send_packets(forward_desc_t *ring[], int *xfer_idx, int *await_send, int *sock, uint16_t window_size)   {
 	forward_desc_t *fwd_desc;
 	int            bytes, total = 0;
 
@@ -273,7 +294,7 @@ uint32_t send_packets(forward_desc_t *ring[], int *xfer_idx, int *await_send, in
 			free(fwd_desc);
 			(*xfer_idx)++;
 			(*await_send)--;
-			if (*xfer_idx >= kPing_window_size)
+			if (*xfer_idx >= window_size)
 				*xfer_idx = 0;
 		}
 		else

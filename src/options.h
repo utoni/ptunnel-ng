@@ -88,6 +88,11 @@ struct options {
 	int udp;
 	/** unpriviledged mode */
 	int unprivileged;
+	uint16_t window_size;
+	uint16_t ack_interval;
+	uint16_t resend_interval;
+	uint16_t payload_size;
+	uint16_t empty_pings;
 
 #ifndef WIN32
 	/** run as daemon if non zero value */
