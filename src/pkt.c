@@ -96,6 +96,7 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 		if (ntohl(pt_pkt->magic) == opts.magic) {
 			pt_pkt->state       = ntohl(pt_pkt->state);
 			pkt->identifier     = ntohs(pkt->identifier);
+			pkt->seq            = ntohs(pkt->seq);
 			pt_pkt->id_no       = ntohs(pt_pkt->id_no);
 			pt_pkt->seq_no      = ntohs(pt_pkt->seq_no);
 			/* Find the relevant connection, if it exists */
@@ -114,8 +115,10 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 			 */
 			if (cur) {
 				type_flag           = cur->type_flag;
-				if (type_flag == (uint32_t)kProxy_flag)
+				if (type_flag == (uint32_t)kProxy_flag) {
 					cur->icmp_id    = pkt->identifier;
+					cur->ping_seq   = pkt->seq;
+				}
 				if (!is_pcap)
 					cur->xfer.icmp_in++;
 			}

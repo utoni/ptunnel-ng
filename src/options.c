@@ -144,7 +144,7 @@ static const struct option_usage usage[] = {
 	/** --ack-interval */
 	{"milliseconds", 0, OPT_DEC32,  {.unum = 1000},
 		"Tune the explicit acknowledgement interval (in milliseconds)\n"
-		"Decreasing the acknowlegement interval can improve NAT stability.\n"
+		"Decreasing the acknowledgement interval can improve NAT stability.\n"
 	},
 	/** --resend-interval */
 	{"milliseconds", 0, OPT_DEC32,  {.unum = 1500},
@@ -156,6 +156,11 @@ static const struct option_usage usage[] = {
 		"Tune the amount of data per packet (in bytes)\n"
 		"Decreasing the payload size can avoid corruption of large packets.\n"
 		"Increasing the payload size can compensate for out-of-order delivery.\n"
+	},
+	/** --empty-pings */
+	{"count",        0, OPT_DEC32,  {.unum = 0},
+		"Tune the number of empty pings to send with each explicit acknowledgement.\n"
+		"Empty pings can compensate for ICMP sequence number inspection.\n"
 	},
 	/** --daemon */
 	{"pidfile",      0, OPT_STR,    {.str = "/run/ptunnel.pid"},
@@ -223,6 +228,7 @@ static struct option long_options[] = {
 	{"ack-interval", required_argument, 0, 'a'},
 	{"resend-interval", required_argument, 0, 't'},
 	{"payload-size", required_argument, 0, 'y'},
+	{"empty-pings", required_argument, 0, 'E'},
 	{"daemon",      optional_argument, 0, 'd'},
 	{"syslog",            no_argument, 0, 'S'},
 	{"user",        optional_argument, 0, 'u'},
@@ -409,7 +415,7 @@ int parse_options(int argc, char **argv) {
          *        since you have to pass long options as '--option=value'. Commonly used
          *        '--option value' is *NOT* allowed for some libc implementations.
          */
-		c = getopt_long(argc, argv, "m:p:l:r::R::c:v:L::o::sP:d::Su::g::C::e::w:a:t:y:h", &long_options[0], &oidx);
+		c = getopt_long(argc, argv, "m:p:l:r::R::c:v:L::o::sP:d::Su::g::C::e::w:a:t:y:E:h", &long_options[0], &oidx);
 		if (c == -1) break;
 
 		switch (c) {
@@ -577,6 +583,11 @@ int parse_options(int argc, char **argv) {
 				if (!optarg)
 					break;
 				opts.payload_size = atoi(optarg);
+				break;
+			case 'E':
+				if (!optarg)
+					break;
+				opts.empty_pings = atoi(optarg);
 				break;
 			case 'h':
 				print_usage(argv[0]);

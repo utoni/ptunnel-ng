@@ -661,12 +661,22 @@ void* pt_proxy(void *args) {
 			if (cur->last_ack+cur->ack_interval < now && cur->send_wait_ack < cur->window_size &&
 			    cur->remote_ack_val+1 != cur->next_remote_seq)
 			{
+				idx = cur->send_idx;
 				cur->last_ack = now;
 				queue_packet(fwd_sock, cur->pkt_type, 0, 0, cur->id_no, cur->icmp_id,
 				             &cur->my_seq, cur->send_ring, &cur->send_idx, &cur->send_wait_ack,
 				             cur->dst_ip, cur->dst_port, kProto_ack | cur->type_flag,
 				             &cur->dest_addr, cur->next_remote_seq, &cur->send_first_ack, &cur->ping_seq, cur->window_size);
 				cur->xfer.icmp_ack_out++;
+				if (cur->send_ring[idx].pkt_len > sizeof(icmp_echo_packet_t) && cur->send_ring[idx].pkt->type == 8) {
+					for (uint16_t e = 0; e < opts.empty_pings; e++) {
+						cur->send_ring[idx].pkt->seq      = htons(cur->ping_seq);
+						cur->ping_seq++;
+						cur->send_ring[idx].pkt->checksum = htons(calc_icmp_checksum((uint16_t*)cur->send_ring[idx].pkt, sizeof(icmp_echo_packet_t)));
+						sendto(fwd_sock, (const void*)cur->send_ring[idx].pkt, sizeof(icmp_echo_packet_t),
+						       0, (struct sockaddr*)&cur->dest_addr, sizeof(struct sockaddr));
+					}
+				}
 			}
 		}
 		pthread_mutex_unlock(&chain_lock);
