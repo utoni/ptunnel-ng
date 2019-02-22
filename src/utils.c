@@ -48,6 +48,8 @@
 #endif
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <fcntl.h>
 #include <stdarg.h>
 #include <string.h>
 #include <time.h>
@@ -59,6 +61,7 @@
 #ifndef WIN32
 #include <syslog.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/socket.h>
 #include <netdb.h>
 #include <netinet/in.h>
@@ -166,7 +169,7 @@ int pt_random(void) {
 	if (rng_fd < 0)
 		rng_fd = open("/dev/random", O_RDONLY);
 	assert(rng_fd >= 0);
-	assert( read(rng_fd, &rnd_val, sizeof rnd_val) == sizeof rnd_val ):
+	assert( read(rng_fd, &rnd_val, sizeof rnd_val) == sizeof rnd_val );
 	return rnd_val;
 #else
 	srand(time(0));
