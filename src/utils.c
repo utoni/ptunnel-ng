@@ -161,11 +161,13 @@ int pt_random(void) {
 #ifndef TIME_UTC
 #define TIME_UTC 1
 #endif
-	struct timespec ts;
-
-	assert(timespec_get(&ts, TIME_UTC));
-	srandom(ts.tv_nsec ^ ts.tv_sec);
-	return random();
+	static int rng_fd = -1;
+	int rnd_val;
+	if (rng_fd < 0)
+		rng_fd = open("/dev/random", O_RDONLY);
+	assert(rng_fd >= 0);
+	assert( read(rng_fd, &rnd_val, sizeof rnd_val) == sizeof rnd_val ):
+	return rnd_val;
 #else
 	srand(time(0));
 	return rand();

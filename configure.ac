@@ -149,11 +149,7 @@ dnl Check for more secure randomization functions
 AC_CHECK_HEADERS([bsd/stdlib.h],, [random_enabled=yes])
 AC_SEARCH_LIBS([arc4random], [bsd],,,)
 AC_CHECK_FUNCS([arc4random], [random_enabled=],)
-if test x"${random_enabled}" != x; then
-	AC_CHECK_FUNCS([timespec_get srandom random],
-	               [random_enabled=yes],
-	               [random_enabled=])
-else
+if test x"${random_enabled}" = x; then
 	arc4random_enabled=yes
 fi
 
