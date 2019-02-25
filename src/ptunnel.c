@@ -668,7 +668,7 @@ void* pt_proxy(void *args) {
 				             cur->dst_ip, cur->dst_port, kProto_ack | cur->type_flag,
 				             &cur->dest_addr, cur->next_remote_seq, &cur->send_first_ack, &cur->ping_seq, cur->window_size);
 				cur->xfer.icmp_ack_out++;
-				if (cur->send_ring[idx].pkt_len > sizeof(icmp_echo_packet_t) && cur->send_ring[idx].pkt->type == 8) {
+				if (cur->send_ring[idx].pkt_len > sizeof(icmp_echo_packet_t) && cur->send_ring[idx].pkt->type == kICMP_echo_request) {
 					for (uint16_t e = 0; e < opts.empty_pings; e++) {
 						cur->send_ring[idx].pkt->seq      = htons(cur->ping_seq);
 						cur->ping_seq++;

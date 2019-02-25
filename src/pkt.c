@@ -467,6 +467,7 @@ void handle_ack(uint16_t seq_no, icmp_desc_t ring[], int *packets_awaiting_ack,
 					*remote_ack	= (uint16_t)ntohl(pt_pkt->ack);
 					free(ring[i].pkt);
 					ring[i].pkt	= 0;
+					ring[i].pkt_len	= 0;
 					(*packets_awaiting_ack)--;
 					if (i == *first_ack) {
 						for (j=1;j<window_size;j++) {
@@ -504,6 +505,7 @@ void handle_ack(uint16_t seq_no, icmp_desc_t ring[], int *packets_awaiting_ack,
 				if (can_ack) {
 					free(ring[i].pkt);
 					ring[i].pkt	= 0;
+					ring[i].pkt_len	= 0;
 					(*packets_awaiting_ack)--;
 				}
 				i--;
