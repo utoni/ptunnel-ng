@@ -160,10 +160,7 @@ int pt_random(void) {
 #ifdef HAVE_ARC4RANDOM
 	return arc4random();
 #else
-#ifdef HAVE_RANDOM
-#ifndef TIME_UTC
-#define TIME_UTC 1
-#endif
+#if defined(HAVE_RANDOM) && !defined(_WIN32)
 	static int rng_fd = -1;
 	int rnd_val;
 	if (rng_fd < 0)
