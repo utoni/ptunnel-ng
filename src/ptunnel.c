@@ -178,7 +178,7 @@ int main(int argc, char *argv[]) {
 	}
 	if (opts.chroot) {
 		pt_log(kLog_info, "Restricting file access to %s\n", opts.root_dir);
-		if (-1 == chdir(opts.root_dir) || -1 == chroot(opts.root_dir)) {
+		if (-1 == chdir(opts.root_dir) || -1 == chroot(".") || -1 == chdir("/")) {
 			pt_log(kLog_error, "chdir/chroot `%s': %s\n", opts.root_dir, strerror(errno));
 			exit(1);
 		}
