@@ -242,7 +242,7 @@ static struct option long_options[] = {
 
 static const void *get_default_optval(enum option_type opttype, const char *optname) {
 	for (unsigned i = 0; i < ARRAY_SIZE(long_options); ++i) {
-		if (strncmp(long_options[i].name, optname, strlen(long_options[i].name)) == 0) {
+		if (strncmp(long_options[i].name, optname, BUFSIZ /* not optimal */) == 0) {
 			assert(usage[i].otype == opttype);
 			return &usage[i].str;
 		}
@@ -307,9 +307,9 @@ static void print_multiline(const char *prefix, const char *multiline) {
 	do {
 		if (start) {
 			end = strstr(start, sep);
-			if (end) {
+			if (end && *end != '\0') {
 				printf("%s%.*s\n", prefix, (int)(end-start), start);
-				start = end + strlen(sep);
+				start = end + strnlen(sep, BUFSIZ /* not optimal */);
 			}
 		}
 	} while (start && end);
@@ -495,10 +495,10 @@ int parse_options(int argc, char **argv) {
 				pt_log(kLog_debug, "Password set - unauthenicated connections will be refused.\n");
 				//  Compute the password digest
 				md5_init(&state);
-				md5_append(&state, (md5_byte_t*)optarg, strlen(opts.password));
+				md5_append(&state, (md5_byte_t*)optarg, strnlen(opts.password, BUFSIZ /* not optimal */));
 				md5_finish(&state, &opts.password_digest[0]);
 				//  Hide the password in process listing
-				memset(optarg, '*', strlen(optarg));
+				memset(optarg, '*', strnlen(optarg, BUFSIZ /* not optimal */));
 				break;
 #ifndef WIN32
 			case 'd':
