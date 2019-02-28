@@ -672,6 +672,7 @@ void* pt_proxy(void *args) {
 					for (uint16_t e = 0; e < opts.empty_pings; e++) {
 						cur->send_ring[idx].pkt->seq      = htons(cur->ping_seq);
 						cur->ping_seq++;
+						cur->send_ring[idx].pkt->checksum = 0;
 						cur->send_ring[idx].pkt->checksum = htons(calc_icmp_checksum((uint16_t*)cur->send_ring[idx].pkt, sizeof(icmp_echo_packet_t)));
 						sendto(fwd_sock, (const void*)cur->send_ring[idx].pkt, sizeof(icmp_echo_packet_t),
 						       0, (struct sockaddr*)&cur->dest_addr, sizeof(struct sockaddr));
