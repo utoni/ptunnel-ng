@@ -369,7 +369,7 @@ void handle_data(icmp_echo_packet_t *pkt, int total_len, forward_desc_t *ring[],
 		}
 		return;
 	}
-	if (pt_pkt->seq_no == *next_expected_seq) {
+	if (next_expected_seq && pt_pkt->seq_no == *next_expected_seq) {
 		/* hmm, what happens if this test is true? */
 		if (!ring[*insert_idx]) { /* && pt_pkt->state == kProto_data */
 			/* pt_log(kLog_debug, "Queing data packet: %d\n", pt_pkt->seq_no); */
@@ -403,12 +403,12 @@ void handle_data(icmp_echo_packet_t *pkt, int total_len, forward_desc_t *ring[],
 		d   = s - r;
 		if (d < 0) { /* This packet _may_ be old, or seq_no may have wrapped around */
 			d = (s+0xFFFF) - r;
-			if (d < window_size) {
+			if (window_size && d < window_size) {
 				/* Counter has wrapped, so we should add this packet to the recv ring */
 				pos	= ((*insert_idx)+d) % window_size;
 			}
 		}
-		else if (d < window_size)
+		else if (window_size && d < window_size)
 			pos	= ((*insert_idx)+d) % window_size;
 
 		if (pos != -1) {
