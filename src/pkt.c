@@ -369,7 +369,9 @@ void handle_data(icmp_echo_packet_t *pkt, int total_len, forward_desc_t *ring[],
 		}
 		return;
 	}
-	if (next_expected_seq && pt_pkt->seq_no == *next_expected_seq) {
+	if (!next_expected_seq)
+		return;
+	if (pt_pkt->seq_no == *next_expected_seq) {
 		/* hmm, what happens if this test is true? */
 		if (!ring[*insert_idx]) { /* && pt_pkt->state == kProto_data */
 			/* pt_log(kLog_debug, "Queing data packet: %d\n", pt_pkt->seq_no); */
