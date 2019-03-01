@@ -156,6 +156,7 @@ typedef struct proxy_desc_t {
 	double last_ack;
 	/** Time when a packet was last received. */
 	double last_activity;
+	double last_data_activity;
 	uint16_t window_size;
 	double ack_interval;
 	double resend_interval;

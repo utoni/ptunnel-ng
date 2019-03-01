@@ -297,6 +297,10 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 				}
 
 				if (cur && cur->sock) {
+					double now = time_as_double();
+					if (pt_pkt->state != kProto_ack) {
+						cur->last_data_activity = now;
+					}
 					if (pt_pkt->state == kProto_data || pt_pkt->state == kProxy_start ||
 					    pt_pkt->state   == kProto_ack)
 					{
@@ -309,7 +313,7 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 					handle_ack((uint16_t)pt_pkt->ack, cur->send_ring, &cur->send_wait_ack,
 					           0, cur->send_idx, &cur->send_first_ack, &cur->remote_ack_val,
 					           is_pcap, cur->window_size);
-					cur->last_activity      = time_as_double();
+					cur->last_activity = now;
 				}
 			}
 		}
