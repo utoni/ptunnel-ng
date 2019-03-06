@@ -297,6 +297,10 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 				}
 
 				if (cur && cur->sock) {
+					double now = time_as_double();
+					if (pt_pkt->state != kProto_ack) {
+						cur->last_data_activity = now;
+					}
 					if (pt_pkt->state == kProto_data || pt_pkt->state == kProxy_start ||
 					    pt_pkt->state   == kProto_ack)
 					{
@@ -309,7 +313,7 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 					handle_ack((uint16_t)pt_pkt->ack, cur->send_ring, &cur->send_wait_ack,
 					           0, cur->send_idx, &cur->send_first_ack, &cur->remote_ack_val,
 					           is_pcap, cur->window_size);
-					cur->last_activity      = time_as_double();
+					cur->last_activity = now;
 				}
 			}
 		}
@@ -432,10 +436,14 @@ void handle_extended_options(void *vcur)
 {
 	proxy_desc_t *cur = (proxy_desc_t *)vcur;
 	if (cur->extended_options[0] > 0) {
-		remove_proxy_desc_rings(cur);
+		if (cur->extended_options[0] > cur->window_size) {
+			size_t extend = cur->extended_options[0] - cur->window_size;
+			cur->send_ring = realloc(cur->send_ring, cur->extended_options[0] * sizeof(icmp_desc_t));
+			cur->recv_ring = realloc(cur->recv_ring, cur->extended_options[0] * sizeof(forward_desc_t *));
+			memset(cur->send_ring + cur->window_size, 0, extend * sizeof(icmp_desc_t));
+			memset(cur->recv_ring + cur->window_size, 0, extend * sizeof(forward_desc_t *));
+		}
 		cur->window_size = cur->extended_options[0];
-		cur->send_ring = calloc(cur->window_size, sizeof(icmp_desc_t));
-		cur->recv_ring = calloc(cur->window_size, sizeof(forward_desc_t *));
 		pt_log(kLog_verbose, "Received extended option for window size %d \n", cur->window_size);
 	}
 	if (cur->extended_options[1] > 0) {
