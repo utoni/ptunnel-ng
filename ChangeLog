@@ -1,6 +1,21 @@
 PingTunnel-NG Changelog
 =======================
 
+1.40 - 20. March 2019
+- improved empty ping mode (by Masaq-)
+- fixed NULL pointer derefs and division by zero
+- more secure chroot
+- CWE-126 workaround reported by codacy
+- switched to /dev/random as RNG except for Windows
+- fixed CLang related build errors
+- fixed SEGFAULT when network not reachable (by Masaq-)
+- added extended options for protocol tuning (by Masaq-)
+- Systemd support (also in debian/rules)
+- fixed compilation issues for Android targets
+- fixed 100% CPU consumption when receive window is full but data via select()
+available
+(by Masq-)
+
 1.32 - 24. January 2019
 - improved error logging
 - introduced icmp_filter via setsockopt to filter unwanted icmp messages
