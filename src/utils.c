@@ -164,7 +164,7 @@ int pt_random(void) {
 	static int rng_fd = -1;
 	int rnd_val;
 	if (rng_fd < 0)
-		rng_fd = open("/dev/random", O_RDONLY);
+		rng_fd = open("/dev/urandom", O_RDONLY);
 	assert(rng_fd >= 0);
 	assert( read(rng_fd, &rnd_val, sizeof rnd_val) == sizeof rnd_val );
 	return rnd_val;
