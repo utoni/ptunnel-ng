@@ -20,10 +20,10 @@ endif
 
 if HAVE_ARC4RANDOM
 ptunnel_ng_CFLAGS += -DHAVE_ARC4RANDOM=1
-else
-if HAVE_RANDOM
-ptunnel_ng_CFLAGS += -DHAVE_RANDOM=1
 endif
+
+if USE_CUSTOMRNG
+ptunnel_ng_CFLAGS += -DUSE_CUSTOMRNG=1
 endif
 
 ptunnel_ng_SOURCES = \
