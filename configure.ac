@@ -141,6 +141,7 @@ AC_ARG_WITH([rngdev],
 	[AS_HELP_STRING([--with-rngdev], [Set an alternative random device. (default: /dev/random)])],
 	[use_customrng=yes], [with_rngdev="/dev/random"])
 case ${with_rngdev} in
+	yes) with_rngdev="/dev/random" ;;
 	/dev/random) ;;
 	/dev/urandom) ;;
 	*) AC_MSG_ERROR([Unknown random device \`${with_rngdev}\` for --with-rngdev: Only \`/dev/random\` xor \`/dev/urandom\` allowed. This option is unused on Windows targets.]) ;;
