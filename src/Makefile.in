@@ -93,7 +93,7 @@ bin_PROGRAMS = ptunnel-ng$(EXEEXT)
 @HAVE_SELINUX_TRUE@am__append_2 = -DHAVE_SELINUX=1
 @HAVE_ICMPFILTER_TRUE@am__append_3 = -DHAVE_ICMPFILTER=1
 @HAVE_ARC4RANDOM_TRUE@am__append_4 = -DHAVE_ARC4RANDOM=1
-@HAVE_ARC4RANDOM_FALSE@@HAVE_RANDOM_TRUE@am__append_5 = -DHAVE_RANDOM=1
+@USE_CUSTOMRNG_TRUE@am__append_5 = -DUSE_CUSTOMRNG=1
 @IS_WINDOWS_TRUE@am__append_6 = -I$(abs_srcdir)/win32/includes
 @IS_WINDOWS_TRUE@am__append_7 = $(wpcap_IMP)
 @IS_WINDOWS_TRUE@am__append_8 = $(wpcap_DEF)

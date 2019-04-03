@@ -228,6 +228,9 @@
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
+/* set the path to the random device you want to use for pt_random */
+#undef RNGDEV
+
 /* The size of `char', as computed by sizeof. */
 #undef SIZEOF_CHAR
 
