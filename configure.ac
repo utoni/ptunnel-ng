@@ -1,5 +1,5 @@
 AC_PREREQ(2.69)
-AC_INIT([ptunnel-ng], [1.40], [], [], [])
+AC_INIT([ptunnel-ng], [1.41], [], [], [])
 AC_CONFIG_SRCDIR([src/config.h.in])
 AC_CONFIG_FILES([Makefile src/Makefile])
 
@@ -134,6 +134,22 @@ case ${selinux_enabled} in
 	*) AC_MSG_ERROR([Unknown option \`${selinux_enabled}\` for --disable-selinux]) ;;
 esac
 
+dnl `--with-randomdev`: Default value /dev/random
+use_customrng=no
+AC_MSG_CHECKING([for random device])
+AC_ARG_WITH([rngdev],
+	[AS_HELP_STRING([--with-rngdev], [Set an alternative random device. (default: /dev/random)])],
+	[use_customrng=yes], [with_rngdev="/dev/random"])
+case ${with_rngdev} in
+	yes) with_rngdev="/dev/random" ;;
+	/dev/random) ;;
+	/dev/urandom) ;;
+	*) AC_MSG_ERROR([Unknown random device \`${with_rngdev}\` for --with-rngdev: Only \`/dev/random\` xor \`/dev/urandom\` allowed. This option is unused on Windows targets.]) ;;
+esac
+AC_MSG_RESULT([${with_rngdev}])
+AC_DEFINE_UNQUOTED([RNGDEV], ["${with_rngdev}"],
+	[set the path to the random device you want to use for pt_random])
+
 dnl Check libcap headers/functions.
 if test x"${pcap_enabled}" != x -a \
         x"${use_msw}" != xyes; then
@@ -146,11 +162,10 @@ if test x"${pcap_enabled}" != x -a \
 fi
 
 dnl Check for more secure randomization functions
-AC_CHECK_HEADERS([bsd/stdlib.h],, [random_enabled=yes])
-AC_SEARCH_LIBS([arc4random], [bsd],,,)
-AC_CHECK_FUNCS([arc4random], [random_enabled=],)
-if test x"${random_enabled}" = x; then
-	arc4random_enabled=yes
+if test x"${use_customrng}" != xyes; then
+	AC_CHECK_HEADERS([bsd/stdlib.h],,)
+	AC_SEARCH_LIBS([arc4random], [bsd],,,)
+	AC_CHECK_FUNCS([arc4random], [arc4random_enabled=yes],)
 fi
 
 dnl Check for SELINUX
@@ -187,8 +202,8 @@ AM_CONDITIONAL([HAVE_PCAP], [test x"${pcap_enabled}" = xyes])
 AM_CONDITIONAL([HAVE_SELINUX], [test x"${selinux_enabled}" = xyes])
 AM_CONDITIONAL([IS_WINDOWS], [test x"${use_msw}" = xyes])
 AM_CONDITIONAL([HAVE_ICMPFILTER], [test x"${with_icmp_filter}" = xyes])
-AM_CONDITIONAL([HAVE_RANDOM], [test x"${random_enabled}" = xyes])
 AM_CONDITIONAL([HAVE_ARC4RANDOM], [test x"${arc4random_enabled}" = xyes])
+AM_CONDITIONAL([USE_CUSTOMRNG], [test x"${use_customrng}" = xyes])
 
 dnl output config headers
 AC_CONFIG_HEADERS([src/config.h:src/config.h.in])

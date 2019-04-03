@@ -1,6 +1,10 @@
 PingTunnel-NG Changelog
 =======================
 
+1.41 - 03. April 2019
+- change the RNG device during ./configure (fixes issues on systems without
+  enough entropy avilable from it's random source)
+
 1.40 - 20. March 2019
 - improved empty ping mode (by Masaq-)
 - fixed NULL pointer derefs and division by zero

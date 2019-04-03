@@ -53,12 +53,12 @@
 #include <stdarg.h>
 #include <string.h>
 #include <time.h>
-#include <assert.h>
 #ifdef HAVE_BSD_STDLIB_H
 #include <bsd/stdlib.h>
 #endif
 
 #ifndef WIN32
+#include <errno.h>
 #include <syslog.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -97,7 +97,7 @@ void pt_log(int level, const char *fmt, ...) {
 		}
 		else
 #endif /* !WIN32 */
-			fprintf(opts.log_file, "%s", header[level]), vfprintf(opts.log_file, fmt, args);
+		fprintf(opts.log_file, "%s", header[level]), vfprintf(opts.log_file, fmt, args);
 		va_end(args);
 #ifndef WIN32
 		if (opts.log_file != stdout && !opts.use_syslog)
@@ -160,13 +160,28 @@ int pt_random(void) {
 #ifdef HAVE_ARC4RANDOM
 	return arc4random();
 #else
-#if defined(HAVE_RANDOM) && !defined(_WIN32)
+#if defined(USE_CUSTOMRNG) && !defined(_WIN32)
 	static int rng_fd = -1;
+	ssize_t bytes_read;
 	int rnd_val;
-	if (rng_fd < 0)
-		rng_fd = open("/dev/random", O_RDONLY);
-	assert(rng_fd >= 0);
-	assert( read(rng_fd, &rnd_val, sizeof rnd_val) == sizeof rnd_val );
+	if (rng_fd < 0) {
+		rng_fd = open(RNGDEV, O_RDONLY);
+		if (rng_fd < 0) {
+			pt_log(kLog_error, "FATAL: Could not open random device '%s': %s\n",
+			       RNGDEV, strerror(errno));
+			exit(EXIT_FAILURE);
+		}
+	}
+	bytes_read = read(rng_fd, &rnd_val, sizeof rnd_val);
+	if (bytes_read != sizeof rnd_val) {
+		if (bytes_read < 0)
+			pt_log(kLog_error, "FATAL: Read from random device failed: %s\n",
+			       strerror(errno));
+		else
+			pt_log(kLog_error, "FATAL: Read only %zd bytes (wanted %zd bytes)\n",
+			       bytes_read, sizeof rnd_val);
+		exit(EXIT_FAILURE);
+	}
 	return rnd_val;
 #else
 	srand(time(0));

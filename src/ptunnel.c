@@ -136,6 +136,9 @@ int main(int argc, char *argv[]) {
 	if (parse_options(argc, argv))
 		return -1;
 
+	/* Init ptunnel RNG */
+	pt_random();
+
 #ifdef HAVE_PCAP
 	if (opts.pcap && opts.udp) {
 		pt_log(kLog_error, "Packet capture is not supported (or needed) when using UDP for transport.\n");
