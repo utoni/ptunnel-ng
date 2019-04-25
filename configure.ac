@@ -113,6 +113,10 @@ struct foo {
 dnl Check for std functions.
 AC_CHECK_FUNCS([malloc calloc free memcpy memset printf sprintf vsnprintf strerror strlen strncmp strstr strtol strtoul fopen fprintf gettimeofday close fclose exit getopt_long],,
     [AC_MSG_ERROR([Missing essential std functions.])])
+if test x"${use_msw}" = x; then
+AC_CHECK_FUNCS([inet_ntoa],,
+    [AC_MSG_ERROR([Missing essential std functions.])])
+fi
 
 dnl `--disable-pcap`: Enabled if found.
 AC_ARG_ENABLE([pcap],
@@ -150,14 +154,14 @@ AC_MSG_RESULT([${with_rngdev}])
 AC_DEFINE_UNQUOTED([RNGDEV], ["${with_rngdev}"],
 	[set the path to the random device you want to use for pt_random])
 
-dnl Check libcap headers/functions.
+dnl Check libpcap headers/functions.
 if test x"${pcap_enabled}" != x -a \
         x"${use_msw}" != xyes; then
 	AC_CHECK_HEADERS([pcap.h],,
 	    [pcap_enabled=])
 	AC_SEARCH_LIBS([pcap_lookupnet], [pcap],,
 	    [pcap_enabled=],)
-	AC_CHECK_FUNCS([pcap_compile pcap_close pcap_setfilter pcap_dispatch],,
+	AC_CHECK_FUNCS([pcap_compile pcap_close pcap_setfilter pcap_dispatch pcap_findalldevs pcap_freealldevs],,
 	    [pcap_enabled=])
 fi
 

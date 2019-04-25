@@ -100,6 +100,31 @@ proxy_desc_t *chain = 0;
 const char *state_name[kNum_proto_types] = { "start", "ack  ", "data ",
                                              "close", "authenticate" };
 
+#ifdef HAVE_PCAP
+static void print_pcap_devices(void) {
+	pcap_if_t *devs, *cur_dev;
+	pcap_addr_t *cur_addr;
+	char errbuf[PCAP_ERRBUF_SIZE+1];
+
+	if (pcap_findalldevs(&devs, errbuf)) {
+		pt_log(kLog_error, "List all available pcap devices failed: %s.\n", errbuf);
+	}
+	printf("Available pcap devices:\n");
+	for (cur_dev = devs; cur_dev; cur_dev = cur_dev->next) {
+		if (cur_dev->description)
+			printf("\n\t%s%c '%s'\n", cur_dev->name, (cur_dev->addresses ? ':' : ' '),
+				cur_dev->description);
+		else
+			printf("\n\t%s%c\n", cur_dev->name, (cur_dev->addresses ? ':' : ' '));
+		for (cur_addr = cur_dev->addresses; cur_addr; cur_addr = cur_addr->next) {
+			if (cur_addr->addr->sa_family == AF_INET)
+				printf("\t\t%s\n", inet_ntoa(((struct sockaddr_in*)cur_addr->addr)->sin_addr));
+		}
+	}
+	pcap_freealldevs(devs);
+}
+#endif
+
 /* Let the fun begin! */
 int main(int argc, char *argv[]) {
 #ifndef WIN32
@@ -139,6 +164,11 @@ int main(int argc, char *argv[]) {
 	/* Init ptunnel RNG */
 	pt_random();
 
+	if (opts.list_pcap_devices) {
+		print_pcap_devices();
+		return 0;
+	}
+
 #ifdef HAVE_PCAP
 	if (opts.pcap && opts.udp) {
 		pt_log(kLog_error, "Packet capture is not supported (or needed) when using UDP for transport.\n");
@@ -146,7 +176,10 @@ int main(int argc, char *argv[]) {
 	}
 #ifdef WIN32
 	if (!opts.pcap && !opts.udp) {
-		pt_log(kLog_info, "WARNING: Running ptunnel-ng on Windows in ICMP mode without WinPcap enabled is not supported and may not work!\n");
+		pt_log(kLog_info, "Running ptunnel-ng on Windows in ICMP mode without WinPcap enabled is not supported and may not work!\n");
+        pt_log(kLog_info, "If you encounter problems, install WinPCAP from:\n");
+		pt_log(kLog_info, "https://www.winpcap.org/install/default.htm or for WIN10: https://nmap.org/npcap/windows-10.html\n");
+		pt_log(kLog_info, "After WinPCAP is installed, you can list pcap devices with: --list-pcap-devices\n");
 	}
 #endif
 #endif
