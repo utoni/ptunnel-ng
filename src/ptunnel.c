@@ -165,8 +165,13 @@ int main(int argc, char *argv[]) {
 	pt_random();
 
 	if (opts.list_pcap_devices) {
+#ifdef HAVE_PCAP
 		print_pcap_devices();
 		return 0;
+#else
+		pt_log(kLog_error, "Pcap not available!\n");
+		return 1;
+#endif
 	}
 
 #ifdef HAVE_PCAP
