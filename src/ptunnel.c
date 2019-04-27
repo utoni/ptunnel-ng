@@ -252,8 +252,8 @@ int main(int argc, char *argv[]) {
 	}
 #endif /* !WIN32 */
 
-  	pthread_mutex_init(&chain_lock, 0);
-  	pthread_mutex_init(&num_threads_lock, 0);
+	pthread_mutex_init(&chain_lock, 0);
+	pthread_mutex_init(&num_threads_lock, 0);
 
 	//	Check mode, validate arguments and start either client or proxy.
 	if (opts.mode == kMode_forward) {

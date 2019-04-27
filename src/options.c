@@ -107,7 +107,7 @@ static const struct option_usage usage[] = {
 		"The special level 5 (or higher) includes xfer logging (lots of output)\n"
 	},
 	/** --libpcap */
-	{"interface",    0, OPT_STR,    {.str = "eth0"},
+	{"interface",    0, OPT_STR,    {.str = NULL},
 #ifndef HAVE_PCAP
 		"(Not available on this platform.)\n"
 #endif
@@ -250,8 +250,11 @@ static struct option long_options[] = {
 
 static const void *get_default_optval(enum option_type opttype, const char *optname) {
 	for (unsigned i = 0; i < ARRAY_SIZE(long_options); ++i) {
-		if (strncmp(long_options[i].name, optname, BUFSIZ /* not optimal */) == 0) {
-			assert(usage[i].otype == opttype);
+		if (strncmp(long_options[i].name, optname, BUFSIZ /* not optimal */) == 0 &&
+		    strlen(long_options[i].name) == strlen(optname))
+		{
+			assert(usage[i].otype == opttype &&
+			       (usage[i].otype != OPT_STR || usage[i].str));
 			return &usage[i].str;
 		}
 	}
@@ -274,9 +277,6 @@ static void set_options_defaults(void) {
 	opts.given_dst_port  = *(uint32_t *)  get_default_optval(OPT_DEC32, "remote-port");
 	opts.max_tunnels     = *(uint32_t *)  get_default_optval(OPT_DEC32, "connections");
 	opts.log_level       = *(int *)       get_default_optval(OPT_DEC32, "verbosity");
-#ifdef HAVE_PCAP
-	opts.pcap_device     = strdup(*(char **)get_default_optval(OPT_STR, "libpcap"));
-#endif
 	opts.log_path        = strdup(*(char **)get_default_optval(OPT_STR, "logfile"));
 	opts.log_file        = stdout;
 	opts.print_stats     = *(int *)       get_default_optval(OPT_BOOL,  "statistics");
@@ -421,7 +421,7 @@ int parse_options(int argc, char **argv) {
          *        since you have to pass long options as '--option=value'. Commonly used
          *        '--option value' is *NOT* allowed for some libc implementations.
          */
-		c = getopt_long(argc, argv, "m:p:l:r::R::c:v:L::o::sP:d::Su::g::C::e::w:a:t:y:E:h", &long_options[0], &oidx);
+		c = getopt_long(argc, argv, "m:p:l:r::R::c:v:L:o::sP:d::Su::g::C::e::w:a:t:y:E:h", &long_options[0], &oidx);
 		if (c == -1) break;
 
 		switch (c) {
