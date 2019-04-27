@@ -1,4 +1,5 @@
-[![Build Status](https://travis-ci.org/lnslbrty/ptunnel-ng.svg?branch=master)](https://travis-ci.org/lnslbrty/ptunnel-ng)
+[![Travis Build Status](https://travis-ci.org/lnslbrty/ptunnel-ng.svg?branch=master)](https://travis-ci.org/lnslbrty/ptunnel-ng)
+[![Gitlab Build Status](https://gitlab.com/lnslbrty/ptunnel-ng/badges/master/build.svg)](https://gitlab.com/lnslbrty/ptunnel-ng)
 [![Coverity Status](https://scan.coverity.com/projects/14737/badge.svg?flat=1)](https://scan.coverity.com/projects/14737)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/021aa1d88dd7486db83df3ff96f9eff8)](https://www.codacy.com/app/lnslbrty/ptunnel-ng?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=lnslbrty/ptunnel-ng&amp;utm_campaign=Badge_Grade)
 [![GitHub issues](https://img.shields.io/github/issues/lnslbrty/ptunnel-ng.svg)](https://github.com/lnslbrty/ptunnel-ng/issues)
@@ -135,6 +136,13 @@ and a BSD sockets compatible API. In particular, it has been tested on Linux
 Fedora Core 2 and Mac OS X 10.3.6 and above. As of version 0.7, ptunnel-ng can also
 be compiled on Windows, courtesy of Mike Miller, assuming mingw and WinPcap is
 installed.
+```
+
+## TODOs
+```
+- challenge response: switch from md5 to sha-512
+- packet obfuscation
+- encryption (metadata + payload)
 ```
 
 ## Credits and contributors

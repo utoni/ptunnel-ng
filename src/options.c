@@ -113,6 +113,13 @@ static const struct option_usage usage[] = {
 #endif
 		"Enable libpcap on the given device.\n"
 	},
+	/** --list-libpcap-devices */
+	{NULL,           0, OPT_BOOL,   {.num = 0},
+#ifndef HAVE_PCAP
+		"(Not available on this platform.)\n"
+#endif
+		"List all available pcap devices.\n"
+	},
 	/** --logfile */
 	{"file",         0, OPT_STR,    {.str = "/var/log/ptunnel.log"},
 		"Specify a file to log to, rather than printing to standard out.\n"
@@ -219,11 +226,12 @@ static struct option long_options[] = {
 	{"connections", required_argument, 0, 'c'},
 	{"verbosity",   required_argument, 0, 'v'},
 	{"libpcap",     required_argument, 0, 'L'},
+	{"list-libpcap-devices", no_argument, &opts.list_pcap_devices, 1},
 	{"logfile",     optional_argument, 0, 'o'},
 	{"statistics",        no_argument, 0, 's'},
 	{"passwd",      required_argument, 0, 'P'},
-	{"udp",               no_argument, &opts.udp, 1 },
-	{"unprivileged",      no_argument, &opts.unprivileged, 1 },
+	{"udp",               no_argument, &opts.udp, 1},
+	{"unprivileged",      no_argument, &opts.unprivileged, 1},
 	{"window-size", required_argument, 0, 'w'},
 	{"ack-interval", required_argument, 0, 'a'},
 	{"resend-interval", required_argument, 0, 't'},
@@ -272,8 +280,6 @@ static void set_options_defaults(void) {
 	opts.log_path        = strdup(*(char **)get_default_optval(OPT_STR, "logfile"));
 	opts.log_file        = stdout;
 	opts.print_stats     = *(int *)       get_default_optval(OPT_BOOL,  "statistics");
-	opts.udp             = *(int *)       get_default_optval(OPT_BOOL,  "udp");
-	opts.unprivileged    = *(int *)       get_default_optval(OPT_BOOL,  "unprivileged");
 #ifndef WIN32
 	opts.pid_path        = strdup(*(char **)get_default_optval(OPT_STR, "daemon"));
 

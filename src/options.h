@@ -75,6 +75,8 @@ struct options {
 	/** Device to capture packets from */
 	char *pcap_device;
 #endif
+	/** List all available pcap devices and exit */
+	int list_pcap_devices;
 	/** Usually stdout, but can be altered by the user */
 	char *log_path;
 	FILE *log_file;

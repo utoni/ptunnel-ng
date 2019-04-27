@@ -121,6 +121,13 @@ be compiled on Windows, courtesy of Mike Miller, assuming mingw and WinPcap is
 installed.
 
 
+TODOs
+-----
+- challenge response: switch from md5 to sha-512
+- packet obfuscation
+- encryption (metadata + payload)
+
+
 Credits and contributors
 ------------------------
 Daniel Stoedle et al.

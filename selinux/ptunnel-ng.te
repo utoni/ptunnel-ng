@@ -1,0 +1,60 @@
+
+module ptunnel-ng 1.0;
+
+require {
+	type local_login_t;
+	type file_context_t;
+	type unconfined_t;
+	type lvm_t;
+	type bin_t;
+	type gpmctl_t;
+	type tracefs_t;
+	type dpkg_script_t;
+	type xconsole_device_t;
+	type modules_object_t;
+	type initrc_var_run_t;
+	type var_run_t;
+	type debugfs_t;
+	type udev_var_run_t;
+	type bootloader_t;
+	type tmp_t;
+	type fsadm_run_t;
+	class file { create execmod execute execute_no_trans getattr link open read rename setattr unlink write };
+	class capability sys_module;
+	class dir { add_name getattr remove_name search write };
+	class fifo_file getattr;
+	class sock_file getattr;
+	class system module_load;
+}
+
+#============= bootloader_t ==============
+allow bootloader_t debugfs_t:dir search;
+allow bootloader_t file_context_t:dir search;
+allow bootloader_t file_context_t:file { getattr open read };
+allow bootloader_t fsadm_run_t:dir { add_name getattr remove_name write };
+allow bootloader_t fsadm_run_t:file { create getattr link open read rename setattr unlink write };
+allow bootloader_t gpmctl_t:sock_file getattr;
+allow bootloader_t modules_object_t:system module_load;
+allow bootloader_t self:capability sys_module;
+allow bootloader_t tmp_t:file { execute execute_no_trans getattr open read };
+allow bootloader_t tracefs_t:dir search;
+allow bootloader_t udev_var_run_t:file { getattr open read };
+allow bootloader_t xconsole_device_t:fifo_file getattr;
+
+#============= dpkg_script_t ==============
+
+#!!!! This avc can be allowed using the boolean 'allow_execmod'
+allow dpkg_script_t bin_t:file execmod;
+
+#============= local_login_t ==============
+allow local_login_t initrc_var_run_t:file unlink;
+allow local_login_t var_run_t:dir { add_name remove_name write };
+allow local_login_t var_run_t:file { getattr open read rename unlink };
+
+#============= lvm_t ==============
+allow lvm_t initrc_var_run_t:dir { add_name getattr write };
+
+#============= unconfined_t ==============
+
+#!!!! This avc can be allowed using the boolean 'allow_execmod'
+allow unconfined_t bin_t:file execmod;
