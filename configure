@@ -5816,6 +5816,21 @@ else
 fi
 done
 
+if test x"${use_msw}" = x; then
+for ac_func in inet_ntoa
+do :
+  ac_fn_c_check_func "$LINENO" "inet_ntoa" "ac_cv_func_inet_ntoa"
+if test "x$ac_cv_func_inet_ntoa" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_INET_NTOA 1
+_ACEOF
+
+else
+  as_fn_error $? "Missing essential std functions." "$LINENO" 5
+fi
+done
+
+fi
 
 # Check whether --enable-pcap was given.
 if test "${enable_pcap+set}" = set; then :
@@ -5944,7 +5959,7 @@ else
   pcap_enabled=
 fi
 
-	for ac_func in pcap_compile pcap_close pcap_setfilter pcap_dispatch
+	for ac_func in pcap_compile pcap_close pcap_setfilter pcap_dispatch pcap_findalldevs pcap_freealldevs
 do :
   as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
 ac_fn_c_check_func "$LINENO" "$ac_func" "$as_ac_var"
