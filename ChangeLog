@@ -1,6 +1,12 @@
 PingTunnel-NG Changelog
 =======================
 
+1.42 - 27. April 2019
+- updated SeLinux policy file
+- added SeLinux policy compile script
+- list available pcap devices
+- fixed build errors related to pcap
+
 1.41 - 03. April 2019
 - change the RNG device during ./configure (fixes issues on systems without
   enough entropy avilable from it's random source)
