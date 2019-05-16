@@ -16,7 +16,7 @@ before_script:
 build:
   script:
     - autoreconf -fi
-    - ./configure --prefix=/
+    - ./configure --enable-option-checking=fatal --prefix=/
     - make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy)" V=s
   stage: build
   artifacts:
@@ -47,7 +47,7 @@ build-archlinux:
 build-mingw:
   script:
     - autoreconf -fi
-    - ./configure --prefix=/ --host=i686-w64-mingw32
+    - ./configure --enable-option-checking=fatal --prefix=/ --host=i686-w64-mingw32
     - make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy)" V=s
   stage: build
   artifacts:
@@ -59,7 +59,7 @@ build-mingw:
 build-clang:
   script:
     - autoreconf -fi
-    - CC=clang ./configure --prefix=/
+    - CC=clang ./configure --enable-option-checking=fatal --prefix=/
     - make install CFLAGS='-Werror -Wno-error=for-loop-analysis' DESTDIR="$(realpath ./deploy)" V=s
   stage: build
   artifacts:
@@ -79,7 +79,7 @@ build-android:
     - test -d 'android-ndk-r19' || unzip -q 'android-ndk-r19-linux-x86_64.zip'
     - cd ..
     - autoreconf -fi
-    - CC=aarch64-linux-android28-clang PATH="${PATH}:$(realpath ./vendor/android-ndk-r19/toolchains/llvm/prebuilt/linux-x86_64/bin)" ./configure --host=aarch64-linux-android
+    - CC=aarch64-linux-android28-clang PATH="${PATH}:$(realpath ./vendor/android-ndk-r19/toolchains/llvm/prebuilt/linux-x86_64/bin)" ./configure --enable-option-checking=fatal --host=aarch64-linux-android
     - PATH="${PATH}:$(realpath ./vendor/android-ndk-r19/toolchains/llvm/prebuilt/linux-x86_64/bin)" make install CFLAGS='-Werror -Wno-error=for-loop-analysis' DESTDIR="$(realpath ./deploy)" V=s
   stage: build
   artifacts:
