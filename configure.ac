@@ -128,6 +128,16 @@ case ${pcap_enabled} in
 	*) AC_MSG_ERROR([Unknown option \`${pcap_enabled}\` for --disable-pcap]) ;;
 esac
 
+dnl `--enable-npcap`: Enable npcap interface (Windows only!)
+AC_ARG_ENABLE([npcap],
+    [AS_HELP_STRING([--enable-npcap], [Enable npcap support. (Windows only; default: disabled)])],[npcap_enabled=yes],)
+npcap_enabled=$(echo ${npcap_enabled})
+case ${npcap_enabled} in
+    1|y|yes) pcap_enabled=yes ;;
+    ''|0|n|no) pcap_enabled= ;;
+    *) AC_MSG_ERROR([Unknown option \`${npcap_enabled}\` for --enable-npcap]) ;;
+esac
+
 dnl `--disable-selinux`: Enabled if found.
 AC_ARG_ENABLE([selinux],
     [AS_HELP_STRING([--disable-selinux], [Disable SELINUX support. (default: enabled if found)])],,[selinux_enabled=yes])
@@ -203,6 +213,7 @@ AC_SEARCH_LIBS([__android_log_vprint], [log],,,)
 
 dnl Set automake conf vars
 AM_CONDITIONAL([HAVE_PCAP], [test x"${pcap_enabled}" = xyes])
+AM_CONDITIONAL([HAVE_NPCAP], [test x"${npcap_enabled}" = xyes])
 AM_CONDITIONAL([HAVE_SELINUX], [test x"${selinux_enabled}" = xyes])
 AM_CONDITIONAL([IS_WINDOWS], [test x"${use_msw}" = xyes])
 AM_CONDITIONAL([HAVE_ICMPFILTER], [test x"${with_icmp_filter}" = xyes])
