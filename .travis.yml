@@ -4,6 +4,7 @@ before_install:
 - sudo apt-get install -y git debhelper dpkg-dev build-essential fakeroot flawfinder wget unzip realpath
 - sudo apt-get install -y libpcap-dev libselinux1-dev
 - sudo apt-get install -y binutils-mingw-w64-i686 gcc-mingw-w64 mingw-w64-i686-dev mingw-w64-common clang
+- sudo apt-get install -y binutils-mingw-w64-x86-64 mingw-w64-x86-64-dev
 - sudo apt-get install -y autoconf automake dh-autoreconf
 after_failure:
 - cat config.log
@@ -17,9 +18,25 @@ script:
 # debian build
 - dpkg-buildpackage -b -us -uc
 - make clean
-# mingw-w64 build
+# mingw-w64-i386 build (WinPcap)
 - CC=i686-w64-mingw32-gcc ./configure --enable-option-checking=fatal --prefix=/ --host=i686-w64-mingw32
 - make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy)" V=s
+- mv ./deploy/ptunnel-ng.exe ./deploy/ptunnel-ng_i386_winpcap.exe
+- make clean
+# mingw-w64-i386 build (Npcap)
+- CC=i686-w64-mingw32-gcc ./configure --enable-option-checking=fatal --prefix=/ --host=i686-w64-mingw32 --enable-npcap
+- make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy)" V=s
+- mv ./deploy/ptunnel-ng.exe ./deploy/ptunnel-ng_i386_npcap.exe
+- make clean
+# mingw-w64-x86_64 build (WinPcap)
+- CC=x86_64-w64-mingw32-gcc ./configure --enable-option-checking=fatal --prefix=/ --host=x86_64-w64-mingw32
+- make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy)" V=s
+- mv ./deploy/ptunnel-ng.exe ./deploy/ptunnel-ng_x64_winpcap.exe
+- make clean
+# mingw-w64-x86_64 build (Npcap)
+- CC=x86_64-w64-mingw32-gcc ./configure --enable-option-checking=fatal --prefix=/ --host=x86_64-w64-mingw32 --enable-npcap
+- make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy)" V=s
+- mv ./deploy/ptunnel-ng.exe ./deploy/ptunnel-ng_x64_npcap.exe
 - make clean
 # clang build
 - CC=clang ./configure --enable-option-checking=fatal --prefix=/
