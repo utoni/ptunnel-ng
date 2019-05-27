@@ -9,38 +9,34 @@ before_install:
 after_failure:
 - cat config.log
 script:
-- mkdir -p ./deploy
+- mkdir -p ./deploy ./deploy/gcc ./deploy/mingw-w64-i386-winpcap ./deploy/mingw-w64-i386-npcap ./deploy/mingw-w64-x86_64-winpcap ./deploy/mingw-w64-x86_64-npcap ./deploy/clang ./deploy/android28-clang
 # default gcc build
 - autoreconf -fi
 - ./configure --enable-option-checking=fatal --prefix=/
-- make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy)" V=s
+- make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy/gcc)" V=s
 - make clean
 # debian build
 - dpkg-buildpackage -b -us -uc
 - make clean
 # mingw-w64-i386 build (WinPcap)
 - CC=i686-w64-mingw32-gcc ./configure --enable-option-checking=fatal --prefix=/ --host=i686-w64-mingw32
-- make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy)" V=s
-- mv ./deploy/ptunnel-ng.exe ./deploy/ptunnel-ng_i386_winpcap.exe
+- make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy/mingw-w64-i386-winpcap)" V=s
 - make clean
 # mingw-w64-i386 build (Npcap)
 - CC=i686-w64-mingw32-gcc ./configure --enable-option-checking=fatal --prefix=/ --host=i686-w64-mingw32 --enable-npcap
-- make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy)" V=s
-- mv ./deploy/ptunnel-ng.exe ./deploy/ptunnel-ng_i386_npcap.exe
+- make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy/mingw-w64-i386-npcap)" V=s
 - make clean
 # mingw-w64-x86_64 build (WinPcap)
 - CC=x86_64-w64-mingw32-gcc ./configure --enable-option-checking=fatal --prefix=/ --host=x86_64-w64-mingw32
-- make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy)" V=s
-- mv ./deploy/ptunnel-ng.exe ./deploy/ptunnel-ng_x64_winpcap.exe
+- make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy/mingw-w64-x86_64-winpcap)" V=s
 - make clean
 # mingw-w64-x86_64 build (Npcap)
 - CC=x86_64-w64-mingw32-gcc ./configure --enable-option-checking=fatal --prefix=/ --host=x86_64-w64-mingw32 --enable-npcap
-- make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy)" V=s
-- mv ./deploy/ptunnel-ng.exe ./deploy/ptunnel-ng_x64_npcap.exe
+- make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy/mingw-w64-x86_64-npcap)" V=s
 - make clean
 # clang build
 - CC=clang ./configure --enable-option-checking=fatal --prefix=/
-- make install CFLAGS='-Werror -Wno-error=for-loop-analysis' DESTDIR="$(realpath ./deploy)" V=s
+- make install CFLAGS='-Werror -Wno-error=for-loop-analysis' DESTDIR="$(realpath ./deploy/clang)" V=s
 - make clean
 # android build
 - mkdir -p vendor && cd vendor
@@ -48,7 +44,7 @@ script:
 - test -d 'android-ndk-r19' || unzip -q 'android-ndk-r19-linux-x86_64.zip'
 - cd ..
 - CC=aarch64-linux-android28-clang PATH="${PATH}:$(realpath ./vendor/android-ndk-r19/toolchains/llvm/prebuilt/linux-x86_64/bin)" ./configure --enable-option-checking=fatal --host=aarch64-linux-android
-- PATH="${PATH}:$(realpath ./vendor/android-ndk-r19/toolchains/llvm/prebuilt/linux-x86_64/bin)" make install CFLAGS='-Werror -Wno-error=for-loop-analysis' DESTDIR="$(realpath ./deploy)" V=s
+- PATH="${PATH}:$(realpath ./vendor/android-ndk-r19/toolchains/llvm/prebuilt/linux-x86_64/bin)" make install CFLAGS='-Werror -Wno-error=for-loop-analysis' DESTDIR="$(realpath ./deploy/android28-clang)" V=s
 # archlinux build
 # see: https://wiki.archlinux.org/index.php/Install_from_existing_Linux#Method_A:_Using_the_bootstrap_image_(recommended)
 #- wget --progress=dot:mega 'https://ftp.fau.de/archlinux/iso/2019.02.01/archlinux-bootstrap-2019.02.01-x86_64.tar.gz'
