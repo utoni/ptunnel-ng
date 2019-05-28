@@ -1,5 +1,5 @@
 pkgname="ptunnel-ng"
-pkgver=1.32
+pkgver=1.42
 pkgrel=1
 pkgdesc="A TCP forwarder and proxy used for ICMP/UDP tunneling without creating tun devices. (Ping Tunnel, ICMP Echo Tunnel, UDP Tunnel)"
 arch=('i686' 'x86_64')
