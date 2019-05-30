@@ -8,7 +8,7 @@ license=('BSD-3')
 makedepends=('git')
 provides=("ptunnel-ng=${pkgver}")
 source=("https://github.com/lnslbrty/ptunnel-ng/archive/v${pkgver}.tar.gz")
-md5sums=('cbb9a17ed0ac728170e03f4fa618a617')
+md5sums=('b7741527a7833bc06130ea67502ae21a')
 
 build() {
 	cd "${srcdir}/${pkgname}-${pkgver}"
