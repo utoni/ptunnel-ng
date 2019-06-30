@@ -19,6 +19,8 @@ build:
     - autoreconf -fi
     - ./configure --enable-option-checking=fatal --prefix=/
     - make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy/gcc)" V=s
+    - make dist
+    - cp ptunnel-ng-*.tar.gz ./deploy/
   stage: build
   artifacts:
     paths:
