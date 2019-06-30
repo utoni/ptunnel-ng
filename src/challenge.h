@@ -46,23 +46,50 @@
 #ifndef CHALLENGE_H
 #define CHALLENGE_H 1
 
-#include <stdint.h>
+#include "pconfig.h"
 
-/** challenge_t: This structure contains the pseudo-random challenge used for
- * authentication.
- */
-typedef struct challenge_t {
+#include <stdint.h>
+#ifdef ENABLE_SHA512
+#include <openssl/sha.h>
+#endif
+
+#define HT_MD5    0x1
+#define HT_SHA512 0x2
+
+
+typedef struct challenge_plain_t {
 	/** tv_sec as returned by gettimeofday */
 	uint32_t sec;
 	/** tv_usec as returned by gettimeofday + random value */
 	uint32_t usec_rnd;
 	/** random values */
 	uint32_t random[6];
+} __attribute__ ((packed)) challenge_plain_t;
+
+typedef struct challenge_digest_t {
+	uint8_t hash_type;
+	union {
+		unsigned char md5[kMD5_digest_size];
+		unsigned char sha512[kSHA512_digest_size];
+	};
+} __attribute__ ((packed)) challenge_digest_t;
+
+/** challenge_t: This structure contains the pseudo-random challenge used for
+ * authentication. If OpenSSL is available SHA512 will be used per default.
+ */
+typedef struct challenge_t {
+	challenge_plain_t plain;
+	challenge_digest_t digest;
 } __attribute__ ((packed)) challenge_t;
 
+challenge_t *generate_challenge(void);
 
-challenge_t* generate_challenge(void);
-void generate_response(challenge_t *challenge);
-int validate_challenge(challenge_t *local, challenge_t *remote);
+void generate_response_md5(challenge_plain_t *plain, challenge_digest_t *digest);
+int validate_challenge_md5(challenge_t *local, challenge_digest_t *remote);
+
+#ifdef ENABLE_SHA512
+void generate_response_sha512(challenge_plain_t *plain, challenge_digest_t *digest);
+int validate_challenge_sha512(challenge_t *local, challenge_digest_t *remote);
+#endif
 
 #endif

@@ -41,6 +41,9 @@
 #ifdef WIN32
 #include <ws2tcpip.h>
 #endif
+#ifdef ENABLE_SHA512
+#include <openssl/sha.h>
+#endif
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -169,6 +172,22 @@ static const struct option_usage usage[] = {
 		"Tune the number of empty pings to send with each explicit acknowledgement.\n"
 		"Empty pings can compensate for ICMP sequence number inspection.\n"
 	},
+	/** --force-md5 */
+	{"force-md5",    0, OPT_BOOL,   {.num = 0},
+		"Force MD5 as challenge response checksum generator.\n"
+#ifndef ENABLE_SHA512
+		"This is the default for this configuration.\n"
+#endif
+	},
+	/** --force-sha512 */
+	{"force-sha512", 0, OPT_BOOL,   {.num = 0},
+		"Force SHA512 as challenge response checksum generator.\n"
+#ifdef ENABLE_SHA512
+		"This is the default for this configuration.\n"
+#else
+		"SHA512 is not available for this configuration.\n"
+#endif
+	},
 	/** --daemon */
 	{"pidfile",      0, OPT_STR,    {.str = "/run/ptunnel.pid"},
 #ifdef WIN32
@@ -237,6 +256,8 @@ static struct option long_options[] = {
 	{"resend-interval", required_argument, 0, 't'},
 	{"payload-size", required_argument, 0, 'y'},
 	{"empty-pings", required_argument, 0, 'E'},
+	{"force-md5",         no_argument, &opts.force_md5, 1},
+	{"force-sha512",      no_argument, &opts.force_sha512, 1},
 	{"daemon",      optional_argument, 0, 'd'},
 	{"syslog",            no_argument, 0, 'S'},
 	{"user",        optional_argument, 0, 'u'},
@@ -498,13 +519,17 @@ int parse_options(int argc, char **argv) {
 				if (opts.password)
 					free(opts.password);
 				opts.password = strdup(optarg);
-				pt_log(kLog_debug, "Password set - unauthenicated connections will be refused.\n");
-				//  Compute the password digest
+				pt_log(kLog_debug, "%s\n", "Password set - unauthenicated connections will be refused.");
+				/* Compute the md5 password digest */
 				md5_init(&state);
 				md5_append(&state, (md5_byte_t*)optarg, strnlen(opts.password, BUFSIZ /* not optimal */));
-				md5_finish(&state, &opts.password_digest[0]);
+				md5_finish(&state, &opts.md5_password_digest[0]);
 				//  Hide the password in process listing
 				memset(optarg, '*', strnlen(optarg, BUFSIZ /* not optimal */));
+#ifdef ENABLE_SHA512
+				pt_log(kLog_debug, "%s\n", "Password set - sha512 authentication enabled.");
+				SHA512(optarg, strnlen(opts.password, BUFSIZ /* not optimal */), &opts.sha512_password_digest[0]);
+#endif
 				break;
 #ifndef WIN32
 			case 'd':
@@ -608,6 +633,16 @@ int parse_options(int argc, char **argv) {
 		pt_log(kLog_error, "Unknown argument: '%s'\n", argv[optind]);
 		exit(1);
 	}
+
+#if ENABLE_SHA512
+	if (opts.force_md5) {
+		pt_log(kLog_error, "%s\n", "You are forcing md5 but sha512 is available.");
+	}
+#else
+	if (opts.force_sha512) {
+		pt_log(kLog_error, "%s\n", "You are forcing sha512 but it isn't available.");
+	}
+#endif
 
 	if (opts.given_proxy_hostname) {
 		if ((ret = host_to_addr(opts.given_proxy_hostname, &opts.given_proxy_ip)) != 0) {

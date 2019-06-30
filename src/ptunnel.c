@@ -175,7 +175,8 @@ int main(int argc, char *argv[]) {
 		return -1;
 #endif
 
-	memset(opts.password_digest, 0, kMD5_digest_size);
+	memset(opts.md5_password_digest, 0, kMD5_digest_size);
+	memset(opts.sha512_password_digest, 0, kSHA512_digest_size);
 
 	/* The seq_expiry_tbl is used to prevent the remote ends from prematurely
 	 * re-using a sequence number.

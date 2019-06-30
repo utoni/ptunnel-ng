@@ -63,7 +63,7 @@ build-clang:
   script:
     - autoreconf -fi
     - CC=clang ./configure --enable-option-checking=fatal --prefix=/
-    - make install CFLAGS='-Werror -Wno-error=for-loop-analysis' DESTDIR="$(realpath ./deploy/clang)" V=s
+    - make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy/clang)" V=s
   stage: build
   artifacts:
     paths:
@@ -83,7 +83,7 @@ build-android:
     - cd ..
     - autoreconf -fi
     - CC=aarch64-linux-android28-clang PATH="${PATH}:$(realpath ./vendor/android-ndk-r19/toolchains/llvm/prebuilt/linux-x86_64/bin)" ./configure --enable-option-checking=fatal --host=aarch64-linux-android
-    - PATH="${PATH}:$(realpath ./vendor/android-ndk-r19/toolchains/llvm/prebuilt/linux-x86_64/bin)" make install CFLAGS='-Werror -Wno-error=for-loop-analysis' DESTDIR="$(realpath ./deploy/android28-clang)" V=s
+    - PATH="${PATH}:$(realpath ./vendor/android-ndk-r19/toolchains/llvm/prebuilt/linux-x86_64/bin)" make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy/android28-clang)" V=s
   stage: build
   artifacts:
     paths:

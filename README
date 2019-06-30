@@ -123,7 +123,7 @@ installed.
 
 TODOs
 -----
-- challenge response: switch from md5 to sha-512
+- challenge response: switch from md5 to sha-512 (WiP)
 - packet obfuscation
 - encryption (metadata + payload)
 
