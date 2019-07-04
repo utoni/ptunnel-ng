@@ -176,9 +176,9 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 							init_state  = kProto_data;
 
 						cur = (proxy_desc_t *) create_and_insert_proxy_desc(pt_pkt->id_no, pkt->identifier, 0,
-						                                   addr, pt_pkt->dst_ip,
-						                                   ntohl(pt_pkt->dst_port),
-						                                   init_state, kProxy_flag);
+						                                                    addr, pt_pkt->dst_ip,
+						                                                    ntohl(pt_pkt->dst_port),
+						                                                    init_state, kProxy_flag);
 					       if (!cur) {
 							/* if failed, abort. Logging is done in create_insert_proxy_desc */
 							pt_log(kLog_error, "Failed to create proxy descriptor!\n");
@@ -432,9 +432,8 @@ void handle_data(icmp_echo_packet_t *pkt, int total_len, forward_desc_t *ring[],
 	}
 }
 
-void handle_extended_options(void *vcur)
+void handle_extended_options(proxy_desc_t *cur)
 {
-	proxy_desc_t *cur = (proxy_desc_t *)vcur;
 	if (cur->extended_options[0] > 0) {
 		if (cur->extended_options[0] > cur->window_size) {
 			size_t extend = cur->extended_options[0] - cur->window_size;
