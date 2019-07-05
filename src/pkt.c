@@ -218,8 +218,8 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 					if (pt_pkt->data_len != sizeof(challenge_t)) {
 						pt_log(kLog_error, "Received challenge packet, but data length "
 						                   "is not as expected.\n");
-						pt_log(kLog_debug, "Data length: %d  Expected: %d\n",
-						                   pt_pkt->data_len, sizeof  (challenge_t));
+						pt_log(kLog_debug, "Data length: %u  Expected: %lu\n",
+						                   pt_pkt->data_len, sizeof(challenge_t));
 						cur->should_remove = 1;
 						return;
 					}
