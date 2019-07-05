@@ -76,7 +76,7 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 
 	if (bytes < sizeof(icmp_echo_packet_t)+sizeof(ping_tunnel_pkt_t))
 		pt_log(kLog_verbose, "Skipping this packet - too short. "
-		                     "Expect: %d+%d = %d ; Got: %d\n",
+		                     "Expect: %lu+%lu = %lu ; Got: %u\n",
 		                     sizeof(icmp_echo_packet_t),
 		                     sizeof(ping_tunnel_pkt_t),
 		                     sizeof(icmp_echo_packet_t) +
@@ -176,9 +176,9 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 							init_state  = kProto_data;
 
 						cur = (proxy_desc_t *) create_and_insert_proxy_desc(pt_pkt->id_no, pkt->identifier, 0,
-						                                   addr, pt_pkt->dst_ip,
-						                                   ntohl(pt_pkt->dst_port),
-						                                   init_state, kProxy_flag);
+						                                                    addr, pt_pkt->dst_ip,
+						                                                    ntohl(pt_pkt->dst_port),
+						                                                    init_state, kProxy_flag);
 					       if (!cur) {
 							/* if failed, abort. Logging is done in create_insert_proxy_desc */
 							pt_log(kLog_error, "Failed to create proxy descriptor!\n");
@@ -236,7 +236,7 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 							return;
 						}
 						pt_log(kLog_debug, "Got authentication challenge - sending response\n");
-						generate_response(challenge);
+						generate_response_md5(&challenge->plain, &challenge->digest);
 						queue_packet(icmp_sock, cur->pkt_type, (char*)challenge,
 						             sizeof(challenge_t), cur->id_no, cur->icmp_id,
 						             &cur->my_seq, cur->send_ring, &cur->send_idx,
@@ -254,8 +254,8 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 					/* If proxy: Handle client's response to challenge */
 					else if (type_flag == proxy_flag) {
 						pt_log(kLog_debug, "Received remote challenge response.\n");
-						if (validate_challenge(cur->challenge, challenge) ||
-						                       cur->authenticated)
+						if (validate_challenge_md5(cur->challenge, &challenge->digest) ||
+						                           cur->authenticated)
 						{
 							pt_log(kLog_verbose, "Remote end authenticated successfully.\n");
 							handle_extended_options(cur);
@@ -432,14 +432,13 @@ void handle_data(icmp_echo_packet_t *pkt, int total_len, forward_desc_t *ring[],
 	}
 }
 
-void handle_extended_options(void *vcur)
+void handle_extended_options(proxy_desc_t *cur)
 {
-	proxy_desc_t *cur = (proxy_desc_t *)vcur;
 	if (cur->extended_options[0] > 0) {
 		if (cur->extended_options[0] > cur->window_size) {
 			size_t extend = cur->extended_options[0] - cur->window_size;
-			cur->send_ring = realloc(cur->send_ring, cur->extended_options[0] * sizeof(icmp_desc_t));
-			cur->recv_ring = realloc(cur->recv_ring, cur->extended_options[0] * sizeof(forward_desc_t *));
+			cur->send_ring = (icmp_desc_t *) realloc(cur->send_ring, cur->extended_options[0] * sizeof(icmp_desc_t));
+			cur->recv_ring = (forward_desc_t **) realloc(cur->recv_ring, cur->extended_options[0] * sizeof(forward_desc_t *));
 			memset(cur->send_ring + cur->window_size, 0, extend * sizeof(icmp_desc_t));
 			memset(cur->recv_ring + cur->window_size, 0, extend * sizeof(forward_desc_t *));
 		}
@@ -474,14 +473,14 @@ void handle_ack(uint16_t seq_no, icmp_desc_t ring[], int *packets_awaiting_ack,
 					pt_log(kLog_debug, "Received ack for only seq %d\n", seq_no);
 					pt_pkt	= (ping_tunnel_pkt_t*)ring[i].pkt->data;
 					/* WARNING: We make the dangerous assumption here that packets arrive in order! */
-					*remote_ack	= (uint16_t)ntohl(pt_pkt->ack);
+					*remote_ack	= (uint16_t) ntohl(pt_pkt->ack);
 					free(ring[i].pkt);
 					ring[i].pkt	= 0;
 					ring[i].pkt_len	= 0;
 					(*packets_awaiting_ack)--;
 					if (i == *first_ack) {
-						for (j=1;j<window_size;j++) {
-							k	= (i+j)%window_size;
+						for (j = 1; j < window_size; j += 2) {
+							k	= (i + j) % window_size;
 							if (ring[k].pkt) {
 								*first_ack = k;
 								break;
@@ -489,7 +488,6 @@ void handle_ack(uint16_t seq_no, icmp_desc_t ring[], int *packets_awaiting_ack,
 							/* we have looped through everything */
 							if (k == i)
 								*first_ack = insert_idx;
-							j++;
 						}
 					}
 					return;
@@ -525,7 +523,6 @@ void handle_ack(uint16_t seq_no, icmp_desc_t ring[], int *packets_awaiting_ack,
 			}
 		}
 	}
-/* else
- * 	pt_log(kLog_verbose, "Dropping superfluous acknowledgement (no outstanding packets needing ack.)\n");
- */
+	else
+		pt_log(kLog_verbose, "Dropping superfluous acknowledgement (no outstanding packets needing ack.)\n");
 }

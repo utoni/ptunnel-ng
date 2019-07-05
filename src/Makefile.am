@@ -36,14 +36,17 @@ ptunnel_ng_SOURCES = \
 	ptunnel.c
 
 if IS_WINDOWS
-wpcap_DEF = $(abs_srcdir)/win32/WPCAP.DEF
-wpcap_IMP = $(abs_srcdir)/win32/libwpcap_implib.a
-ptunnel_ng_CFLAGS += -I$(abs_srcdir)/win32/includes
+wpcap_DEF = $(srcdir)/win32/WPCAP.DEF
+wpcap_IMP = $(srcdir)/win32/libwpcap_implib.a
+ptunnel_ng_CFLAGS += -I$(srcdir)/win32/includes -DHAVE_PCAP=1
+if HAVE_NPCAP
+ptunnel_ng_CFLAGS += -DHAVE_NPCAP=1
+endif
 ptunnel_ng_LDADD += $(wpcap_IMP)
 ptunnel_ng_SOURCES += $(wpcap_DEF)
 
 $(wpcap_IMP):
-	@DLLTOOL@ -k -l $(wpcap_IMP) --def $(wpcap_DEF)
+	@DLLTOOL@ -k -y $(wpcap_IMP) --def $(wpcap_DEF)
 
 CLEANFILES += $(wpcap_IMP)
 EXTTRA_DIST += $(wpcap_DEF)

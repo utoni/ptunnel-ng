@@ -75,6 +75,10 @@ struct options {
 	/** Device to capture packets from */
 	char *pcap_device;
 #endif
+	/** Force MD5 based challenge response. */
+	int force_md5;
+	/** Force SHA512 based challenge response. */
+	int force_sha512;
 	/** List all available pcap devices and exit */
 	int list_pcap_devices;
 	/** Usually stdout, but can be altered by the user */
@@ -84,8 +88,10 @@ struct options {
 	int print_stats;
 	/** Password (must be the same on proxy and client for authentica  tion to succeed) */
 	char *password;
-	/** MD5 digest of challenge+password */
-	md5_byte_t password_digest[kMD5_digest_size];
+	/** MD5 digest of password */
+	md5_byte_t md5_password_digest[kMD5_digest_size];
+	/** SHA512 digest of password */
+	unsigned char sha512_password_digest[kSHA512_digest_size];
 	/** use UDP instead of ICMP */
 	int udp;
 	/** unpriviledged mode */

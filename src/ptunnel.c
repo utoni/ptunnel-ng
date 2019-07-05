@@ -54,6 +54,7 @@
 #endif
 
 #ifdef WIN32
+#include <tchar.h>
 #include <winsock2.h>
 /* Map errno (which Winsock doesn't use) to GetLastError; include the code in the strerror */
 #ifdef errno
@@ -74,6 +75,25 @@ static char * print_last_windows_error() {
 }
 #define strerror(x) print_last_windows_error()
 #endif /* WIN32 */
+
+#ifdef HAVE_NPCAP
+static BOOL LoadNpcapDlls()
+{
+	TCHAR npcap_dir[512];
+	UINT len;
+	len = GetSystemDirectory(npcap_dir, 480);
+	if (!len) {
+		pt_log(kLog_error, "Error in GetSystemDirectory: %x", GetLastError());
+		return FALSE;
+	}
+	_tcscat_s(npcap_dir, 512, _T("\\Npcap"));
+	if (SetDllDirectory(npcap_dir) == 0) {
+		pt_log(kLog_error, "Error in SetDllDirectory: %x", GetLastError());
+		return FALSE;
+	}
+	return TRUE;
+}
+#endif
 
 /* globals */
 /** Lock protecting the chain of connections */
@@ -150,7 +170,13 @@ int main(int argc, char *argv[]) {
 	}
 #endif /* WIN32 */
 
-	memset(opts.password_digest, 0, kMD5_digest_size);
+#ifdef HAVE_NPCAP
+	if (!LoadNpcapDlls())
+		return -1;
+#endif
+
+	memset(opts.md5_password_digest, 0, kMD5_digest_size);
+	memset(opts.sha512_password_digest, 0, kSHA512_digest_size);
 
 	/* The seq_expiry_tbl is used to prevent the remote ends from prematurely
 	 * re-using a sequence number.
@@ -181,9 +207,9 @@ int main(int argc, char *argv[]) {
 	}
 #ifdef WIN32
 	if (!opts.pcap && !opts.udp) {
-		pt_log(kLog_info, "Running ptunnel-ng on Windows in ICMP mode without WinPcap enabled is not supported and may not work!\n");
-        pt_log(kLog_info, "If you encounter problems, install WinPCAP from:\n");
-		pt_log(kLog_info, "https://www.winpcap.org/install/default.htm or for WIN10: https://nmap.org/npcap/windows-10.html\n");
+		pt_log(kLog_info, "Running ptunnel-ng on Windows in ICMP mode without WinPcap/Npcap enabled is not supported and may not work!\n");
+        pt_log(kLog_info, "If you encounter problems, install WinPCAP/Npcap from:\n");
+		pt_log(kLog_info, "https://www.winpcap.org/install/default.htm or Npcap for WIN10: https://nmap.org/npcap/windows-10.html\n");
 		pt_log(kLog_info, "After WinPCAP is installed, you can list pcap devices with: --list-pcap-devices\n");
 	}
 #endif
@@ -252,8 +278,8 @@ int main(int argc, char *argv[]) {
 	}
 #endif /* !WIN32 */
 
-  	pthread_mutex_init(&chain_lock, 0);
-  	pthread_mutex_init(&num_threads_lock, 0);
+	pthread_mutex_init(&chain_lock, 0);
+	pthread_mutex_init(&num_threads_lock, 0);
 
 	//	Check mode, validate arguments and start either client or proxy.
 	if (opts.mode == kMode_forward) {
@@ -676,7 +702,7 @@ void* pt_proxy(void *args) {
 		for (cur = chain; cur; cur = cur->next) {
 			in_addr.s_addr = cur->dst_ip;
 			if (cur->last_activity + kAutomatic_close_timeout < now) {
-				pt_log(kLog_info, "Dropping tunnel to %s:%d due to inactivity.\n", inet_ntoa(in_addr), cur->dst_port, cur->id_no);
+				pt_log(kLog_info, "Dropping tunnel %u to %s:%u due to inactivity.\n", cur->id_no, inet_ntoa(in_addr), cur->dst_port);
 				cur->should_remove = 1;
 				continue;
 			}

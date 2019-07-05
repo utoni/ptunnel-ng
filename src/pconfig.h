@@ -88,6 +88,8 @@ enum {
 	kAutomatic_close_timeout = 60,   //  Seconds!
 	/** size of md5 digest in bytes */
 	kMD5_digest_size     = 16,
+	/** size of sha512 digest in bytes */
+	kSHA512_digest_size  = 64,
 	/** These constants are used to indicate the protocol state. The protocol
      * works as follows:
      * - The identifier is used by both the proxy and the forwarder

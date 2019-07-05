@@ -160,7 +160,7 @@ int pt_random(void) {
 #ifdef HAVE_ARC4RANDOM
 	return arc4random();
 #else
-#if defined(USE_CUSTOMRNG) && !defined(_WIN32)
+#if defined(RNGDEV) && !defined(_WIN32)
 	static int rng_fd = -1;
 	ssize_t bytes_read;
 	int rnd_val;

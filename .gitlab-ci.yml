@@ -12,12 +12,15 @@ before_script:
   - test ! -r /etc/arch-release || pacman -Sy archlinux-keyring --noconfirm
   - test ! -r /etc/arch-release || pacman -Syu --noconfirm
   - test ! -r /etc/arch-release || pacman -S --noconfirm binutils gcc base-devel git
+  - mkdir -p ./deploy/gcc ./deploy/i686-w64-mingw32-winpcap ./deploy/i686-w64-mingw32-npcap ./deploy/clang ./deploy/android28-clang
 
 build:
   script:
     - autoreconf -fi
-    - ./configure --prefix=/
-    - make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy)" V=s
+    - ./configure --enable-option-checking=fatal --prefix=/
+    - make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy/gcc)" V=s
+    - make dist
+    - cp ptunnel-ng-*.tar.gz ./deploy/
   stage: build
   artifacts:
     paths:
@@ -47,8 +50,10 @@ build-archlinux:
 build-mingw:
   script:
     - autoreconf -fi
-    - ./configure --prefix=/ --host=i686-w64-mingw32
-    - make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy)" V=s
+    - ./configure --enable-option-checking=fatal --prefix=/ --host=i686-w64-mingw32
+    - make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy/i686-w64-mingw32-winpcap)" V=s
+    - ./configure --enable-option-checking=fatal --prefix=/ --host=i686-w64-mingw32 --enable-npcap
+    - make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy/i686-w64-mingw32-npcap)" V=s
   stage: build
   artifacts:
     paths:
@@ -59,8 +64,8 @@ build-mingw:
 build-clang:
   script:
     - autoreconf -fi
-    - CC=clang ./configure --prefix=/
-    - make install CFLAGS='-Werror -Wno-error=for-loop-analysis' DESTDIR="$(realpath ./deploy)" V=s
+    - CC=clang ./configure --enable-option-checking=fatal --prefix=/
+    - make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy/clang)" V=s
   stage: build
   artifacts:
     paths:
@@ -79,8 +84,8 @@ build-android:
     - test -d 'android-ndk-r19' || unzip -q 'android-ndk-r19-linux-x86_64.zip'
     - cd ..
     - autoreconf -fi
-    - CC=aarch64-linux-android28-clang PATH="${PATH}:$(realpath ./vendor/android-ndk-r19/toolchains/llvm/prebuilt/linux-x86_64/bin)" ./configure --host=aarch64-linux-android
-    - PATH="${PATH}:$(realpath ./vendor/android-ndk-r19/toolchains/llvm/prebuilt/linux-x86_64/bin)" make install CFLAGS='-Werror -Wno-error=for-loop-analysis' DESTDIR="$(realpath ./deploy)" V=s
+    - CC=aarch64-linux-android28-clang PATH="${PATH}:$(realpath ./vendor/android-ndk-r19/toolchains/llvm/prebuilt/linux-x86_64/bin)" ./configure --enable-option-checking=fatal --host=aarch64-linux-android
+    - PATH="${PATH}:$(realpath ./vendor/android-ndk-r19/toolchains/llvm/prebuilt/linux-x86_64/bin)" make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy/android28-clang)" V=s
   stage: build
   artifacts:
     paths:
