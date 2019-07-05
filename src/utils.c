@@ -157,7 +157,7 @@ void print_hexstr(unsigned char *buf, size_t siz) {
 #endif
 
 int pt_random(void) {
-#ifdef HAVE_ARC4RANDOM
+#if defined(HAVE_ARC4RANDOM) || defined(__COVERITY__)
 	return arc4random();
 #else
 #if defined(RNGDEV) && !defined(_WIN32)
