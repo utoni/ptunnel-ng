@@ -76,7 +76,7 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 
 	if (bytes < sizeof(icmp_echo_packet_t)+sizeof(ping_tunnel_pkt_t))
 		pt_log(kLog_verbose, "Skipping this packet - too short. "
-		                     "Expect: %d+%d = %d ; Got: %d\n",
+		                     "Expect: %lu+%lu = %lu ; Got: %u\n",
 		                     sizeof(icmp_echo_packet_t),
 		                     sizeof(ping_tunnel_pkt_t),
 		                     sizeof(icmp_echo_packet_t) +

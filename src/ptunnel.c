@@ -702,7 +702,7 @@ void* pt_proxy(void *args) {
 		for (cur = chain; cur; cur = cur->next) {
 			in_addr.s_addr = cur->dst_ip;
 			if (cur->last_activity + kAutomatic_close_timeout < now) {
-				pt_log(kLog_info, "Dropping tunnel to %s:%d due to inactivity.\n", inet_ntoa(in_addr), cur->dst_port, cur->id_no);
+				pt_log(kLog_info, "Dropping tunnel %u to %s:%u due to inactivity.\n", cur->id_no, inet_ntoa(in_addr), cur->dst_port);
 				cur->should_remove = 1;
 				continue;
 			}
