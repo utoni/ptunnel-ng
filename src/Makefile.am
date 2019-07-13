@@ -10,6 +10,10 @@ if HAVE_PCAP
 ptunnel_ng_CFLAGS += -DHAVE_PCAP=1
 endif
 
+if ENABLE_SHA512
+ptunnel_ng_CFLAGS += -DENABLE_SHA512=1
+endif
+
 if HAVE_SELINUX
 ptunnel_ng_CFLAGS += -DHAVE_SELINUX=1
 endif

@@ -128,6 +128,16 @@ case ${pcap_enabled} in
 	*) AC_MSG_ERROR([Unknown option \`${pcap_enabled}\` for --disable-pcap]) ;;
 esac
 
+dnl `--disable-ssl`: Enabled if found.
+AC_ARG_ENABLE([ssl],
+    [AS_HELP_STRING([--disable-ssl], [Disable ssl support. (default: enabled if found)])],,[ssl_enabled=yes])
+ssl_enabled=$(echo ${ssl_enabled})
+case ${ssl_enabled} in
+    1|y|yes) ssl_enabled=yes ;;
+    ''|0|n|no) ssl_enabled= ;;
+    *) AC_MSG_ERROR([Unknown option \`${ssl_enabled}\' for --disable-ssl]) ;;
+esac
+
 dnl `--enable-npcap`: Enable npcap interface (Windows only!)
 AC_ARG_ENABLE([npcap],
     [AS_HELP_STRING([--enable-npcap], [Enable npcap support. (Windows only; default: disabled)])],[npcap_enabled=yes],)
@@ -175,6 +185,12 @@ if test x"${pcap_enabled}" != x -a \
 	    [pcap_enabled=])
 fi
 
+dnl Check openssl headers/functions.
+if test x"${ssl_enabled}" != x; then
+    AC_CHECK_HEADERS([openssl/sha.h],,[ssl_enabled=])
+    AC_SEARCH_LIBS([CRYPTO_new_ex_data],[crypto],,[ssl_enabled=])
+fi
+
 dnl Check for more secure randomization functions
 if test x"${use_customrng}" != xyes; then
 	AC_CHECK_HEADERS([bsd/stdlib.h],,)
@@ -213,6 +229,7 @@ AC_SEARCH_LIBS([__android_log_vprint], [log],,,)
 
 dnl Set automake conf vars
 AM_CONDITIONAL([HAVE_PCAP], [test x"${pcap_enabled}" = xyes])
+AM_CONDITIONAL([ENABLE_SHA512], [test x"${ssl_enabled}" = xyes])
 AM_CONDITIONAL([HAVE_NPCAP], [test x"${npcap_enabled}" = xyes])
 AM_CONDITIONAL([HAVE_SELINUX], [test x"${selinux_enabled}" = xyes])
 AM_CONDITIONAL([IS_WINDOWS], [test x"${use_msw}" = xyes])

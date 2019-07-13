@@ -75,8 +75,6 @@ struct options {
 	/** Device to capture packets from */
 	char *pcap_device;
 #endif
-	/** Force MD5 based challenge response. */
-	int force_md5;
 	/** Force SHA512 based challenge response. */
 	int force_sha512;
 	/** List all available pcap devices and exit */

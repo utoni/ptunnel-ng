@@ -109,13 +109,27 @@ int validate_challenge_md5(challenge_t *local, challenge_digest_t *remote) {
 }
 
 #ifdef ENABLE_SHA512
-void generate_response_sha512(challenge_t *challenge)
+void generate_response_sha512(challenge_plain_t *plain, challenge_digest_t *digest)
 {
-    /* TODO: Implement me! */
+    unsigned char buf[sizeof(*plain) + kSHA512_digest_size];
+
+    digest->hash_type = HT_SHA512;
+	memcpy(buf, plain, sizeof(*plain));
+	memcpy(&buf[sizeof(*plain)], opts.sha512_password_digest, kSHA512_digest_size);
+	memset(plain, 0, sizeof(*plain));
+
+    SHA512(buf, sizeof(*plain) + kSHA512_digest_size, &digest->sha512[0]);
 }
 
-int validate_challenge_sha512(challenge_t *local, challenge_t *remote)
+int validate_challenge_sha512(challenge_t *local, challenge_digest_t *remote)
 {
-	/* TODO: Implement me! */
+    generate_response_sha512(&local->plain, &local->digest);
+
+    if (remote->hash_type == HT_SHA512 &&
+        memcmp(&local->digest.sha512[0], &remote->sha512[0], sizeof(local->digest.sha512)) == 0)
+    {
+        return 1;
+    }
+    return 0;
 }
 #endif /* ENABLE_SHA512 */

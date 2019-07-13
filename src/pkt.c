@@ -235,8 +235,17 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 							cur->should_remove  = 1;
 							return;
 						}
-						pt_log(kLog_debug, "Got authentication challenge - sending response\n");
-						generate_response_md5(&challenge->plain, &challenge->digest);
+#ifdef ENABLE_SHA512
+						if (opts.force_sha512) {
+							pt_log(kLog_debug, "Got authentication challenge - sending SHA512 response\n");
+							generate_response_sha512(&challenge->plain, &challenge->digest);
+						} else
+#endif
+						{
+							pt_log(kLog_debug, "Got authentication challenge - sending MD5 response\n");
+							generate_response_md5(&challenge->plain, &challenge->digest);
+						}
+
 						queue_packet(icmp_sock, cur->pkt_type, (char*)challenge,
 						             sizeof(challenge_t), cur->id_no, cur->icmp_id,
 						             &cur->my_seq, cur->send_ring, &cur->send_idx,
@@ -253,9 +262,14 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 					}
 					/* If proxy: Handle client's response to challenge */
 					else if (type_flag == proxy_flag) {
-						pt_log(kLog_debug, "Received remote challenge response.\n");
-						if (validate_challenge_md5(cur->challenge, &challenge->digest) ||
-						                           cur->authenticated)
+						pt_log(kLog_debug, "Received remote %s challenge response.\n",
+						                   (challenge->digest.hash_type == HT_SHA512 ?
+						                    "SHA512" : "MD5"));
+						if ((!opts.force_sha512 && challenge->digest.hash_type == HT_MD5 &&
+						     validate_challenge_md5(cur->challenge, &challenge->digest)) ||
+						    (challenge->digest.hash_type == HT_SHA512 &&
+						     validate_challenge_sha512(cur->challenge, &challenge->digest)) ||
+						    cur->authenticated)
 						{
 							pt_log(kLog_verbose, "Remote end authenticated successfully.\n");
 							handle_extended_options(cur);
