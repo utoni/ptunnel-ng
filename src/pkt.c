@@ -267,8 +267,10 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 						                    "SHA512" : "MD5"));
 						if ((!opts.force_sha512 && challenge->digest.hash_type == HT_MD5 &&
 						     validate_challenge_md5(cur->challenge, &challenge->digest)) ||
+#ifdef ENABLE_SHA512
 						    (challenge->digest.hash_type == HT_SHA512 &&
 						     validate_challenge_sha512(cur->challenge, &challenge->digest)) ||
+#endif
 						    cur->authenticated)
 						{
 							pt_log(kLog_verbose, "Remote end authenticated successfully.\n");
