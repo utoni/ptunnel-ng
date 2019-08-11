@@ -160,13 +160,14 @@ esac
 
 dnl `--with-randomdev`: Default value /dev/random
 use_customrng=no
+use_rngfallback=no
 AC_MSG_CHECKING([for random device])
 AC_ARG_WITH([rngdev],
 	[AS_HELP_STRING([--with-rngdev], [Set an alternative random device. (default: /dev/random)])],
 	[use_customrng=yes], [with_rngdev="/dev/random"])
 case ${with_rngdev} in
 	yes) with_rngdev="/dev/random" ;;
-	/dev/random) ;;
+	/dev/random) use_rngfallback=yes ;;
 	/dev/urandom) ;;
 	*) AC_MSG_ERROR([Unknown random device \`${with_rngdev}\` for --with-rngdev: Only \`/dev/random\` xor \`/dev/urandom\` allowed. This option is unused on Windows targets.]) ;;
 esac
@@ -236,6 +237,7 @@ AM_CONDITIONAL([IS_WINDOWS], [test x"${use_msw}" = xyes])
 AM_CONDITIONAL([HAVE_ICMPFILTER], [test x"${with_icmp_filter}" = xyes])
 AM_CONDITIONAL([HAVE_ARC4RANDOM], [test x"${arc4random_enabled}" = xyes])
 AM_CONDITIONAL([USE_CUSTOMRNG], [test x"${use_customrng}" = xyes])
+AM_CONDITIONAL([USE_RNGFALLBACK], [test x"${use_rngfallback}" = xyes])
 
 dnl output config headers
 AC_CONFIG_HEADERS([src/config.h:src/config.h.in])
