@@ -174,32 +174,12 @@ int pt_random(void) {
 	}
 	bytes_read = read(rng_fd, &rnd_val, sizeof rnd_val);
 	if (bytes_read != sizeof rnd_val) {
-		if (bytes_read < 0) {
-			pt_log(kLog_error, "Read from random device failed: %s\n",
+		if (bytes_read < 0)
+			pt_log(kLog_error, "FATAL: Read from random device failed: %s\n",
 			       strerror(errno));
-        } else {
-			pt_log(kLog_info, "Read only %zd random bytes (wanted %zd bytes)\n",
+		else
+			pt_log(kLog_error, "FATAL: Read only %zd bytes (wanted %zd bytes)\n",
 			       bytes_read, sizeof rnd_val);
-		}
-#ifdef USE_RNGFALLBACK
-		/* use /dev/urandom if previous random device failed */
-		static int fallback_rng_fd = -1;
-		if (fallback_rng_fd < 0) {
-			fallback_rng_fd = open("/dev/urandom", O_RDONLY);
-			if (fallback_rng_fd < 0) {
-				pt_log(kLog_error, "FATAL: Could not open fallback random device '%s': %s\n",
-				       "/dev/urandom", strerror(errno));
-				exit(EXIT_FAILURE);
-			}
-		}
-		if (bytes_read < 0) {
-			bytes_read = 0;
-		}
-		if (read(fallback_rng_fd, &rnd_val + bytes_read, sizeof rnd_val - bytes_read) == sizeof rnd_val - bytes_read) {
-			return rnd_val;
-		}
-#endif
-		pt_log(kLog_error, "FATAL: No more RNG sources available\n");
 		exit(EXIT_FAILURE);
 	}
 	return rnd_val;
