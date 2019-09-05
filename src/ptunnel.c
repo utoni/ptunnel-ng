@@ -890,14 +890,15 @@ uint16_t calc_icmp_checksum(uint16_t *data, int bytes) {
  * the tunnel is being closed down.
  */
 void send_termination_msg(proxy_desc_t *cur, int icmp_sock) {
+	size_t i;
+	const size_t max_termination_msgs = 3;
+
 	/* Send packet twice, hoping at least one of them makes it through.. */
-	queue_packet(icmp_sock, cur->pkt_type, 0, 0, cur->id_no, cur->icmp_id, &cur->my_seq,
-	             cur->send_ring, &cur->send_idx, &cur->send_wait_ack, 0, 0,
-	             kProto_close | cur->type_flag, &cur->dest_addr, cur->next_remote_seq,
-	             &cur->send_first_ack, &cur->ping_seq, cur->window_size);
-	queue_packet(icmp_sock, cur->pkt_type, 0, 0, cur->id_no, cur->icmp_id, &cur->my_seq,
-	             cur->send_ring, &cur->send_idx, &cur->send_wait_ack, 0, 0,
-	             kProto_close | cur->type_flag, &cur->dest_addr, cur->next_remote_seq,
-	             &cur->send_first_ack, &cur->ping_seq, cur->window_size);
-	cur->xfer.icmp_out += 2;
+	for (i = 0; i < max_termination_msgs; ++i) {
+		queue_packet(icmp_sock, cur->pkt_type, 0, 0, cur->id_no, cur->icmp_id, &cur->my_seq,
+		             cur->send_ring, &cur->send_idx, &cur->send_wait_ack, 0, 0,
+		             kProto_close | cur->type_flag, &cur->dest_addr, cur->next_remote_seq,
+		             &cur->send_first_ack, &cur->ping_seq, cur->window_size);
+	}
+	cur->xfer.icmp_out += max_termination_msgs;
 }
