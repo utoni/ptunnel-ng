@@ -179,7 +179,7 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 						                                                    addr, pt_pkt->dst_ip,
 						                                                    ntohl(pt_pkt->dst_port),
 						                                                    init_state, kProxy_flag);
-					       if (!cur) {
+						if (!cur) {
 							/* if failed, abort. Logging is done in create_insert_proxy_desc */
 							pt_log(kLog_error, "Failed to create proxy descriptor!\n");
 							return;
@@ -195,13 +195,8 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 							/* Send challenge */
 							cur->challenge  = generate_challenge();
 							memcpy(cur->buf, cur->challenge, sizeof(challenge_t));
-							queue_packet(icmp_sock, cur->pkt_type, cur->buf,
-							             sizeof(challenge_t), cur->id_no,
-							             cur->icmp_id, &cur->my_seq, cur->send_ring,
-							             &cur->send_idx, &cur->send_wait_ack, 0, 0,
-							             kProto_authenticate | cur->type_flag,
-							             &cur->dest_addr, cur->next_remote_seq,
-							             &cur->send_first_ack, &cur->ping_seq, cur->window_size);
+							queue_packet(icmp_sock, cur, cur->buf, sizeof(challenge_t), 0, 0,
+							             kProto_authenticate | cur->type_flag);
 						}
 					}
 					else if (type_flag == kUser_flag) {
@@ -246,12 +241,8 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 							generate_response_md5(&challenge->plain, &challenge->digest);
 						}
 
-						queue_packet(icmp_sock, cur->pkt_type, (char*)challenge,
-						             sizeof(challenge_t), cur->id_no, cur->icmp_id,
-						             &cur->my_seq, cur->send_ring, &cur->send_idx,
-						             &cur->send_wait_ack, 0, 0,
-						             kProto_authenticate | cur->type_flag, &cur->dest_addr,
-						             cur->next_remote_seq, &cur->send_first_ack, &cur->  ping_seq, cur->window_size);
+						queue_packet(icmp_sock, cur, cur->buf, sizeof(challenge_t), 0, 0,
+						             kProto_authenticate | cur->type_flag);
 						/* We have authenticated locally.
 						 * It's up to the proxy now if it accepts our   response or not..
 						 */

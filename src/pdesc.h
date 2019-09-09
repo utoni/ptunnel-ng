@@ -180,11 +180,8 @@ void            remove_proxy_desc_rings(proxy_desc_t *cur);
 
 forward_desc_t* create_fwd_desc(uint16_t seq_no, uint32_t data_len, char *data);
 
-int             queue_packet(int icmp_sock, uint8_t type, char *buf, int num_bytes,
-                             uint16_t id_no, uint16_t icmp_id, uint16_t *seq, icmp_desc_t ring[],
-                             int *insert_idx, int *await_send, uint32_t ip, uint32_t port,
-                             uint32_t state, struct sockaddr_in *dest_addr, uint16_t next_expected_seq,
-                             int *first_ack, uint16_t *ping_seq, uint16_t window_size);
+int             queue_packet(int sock_fd, proxy_desc_t *cur, char *buf, size_t bufsiz,
+                             uint32_t dest_ip, u_int16_t dest_port, uint32_t state);
 
 uint32_t        send_packets(forward_desc_t *ring[], int *xfer_idx, int *await_send, int *sock, uint16_t window_size);
 

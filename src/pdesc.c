@@ -45,6 +45,7 @@
 
 #include <stdlib.h>
 #include <sys/time.h>
+#include <assert.h>
 
 #include "pdesc.h"
 #include "options.h"
@@ -116,8 +117,8 @@ proxy_desc_t *create_and_insert_proxy_desc(uint16_t id_no, uint16_t icmp_id,
 	cur->resend_interval	= opts.resend_interval ? opts.resend_interval / 1000.0 : 1.5;
 	cur->payload_size	= opts.payload_size ? opts.payload_size : 1024;
 	memset(cur->extended_options, 0, sizeof(cur->extended_options));
-	cur->send_ring		= calloc(cur->window_size, sizeof(icmp_desc_t));
-	cur->recv_ring		= calloc(cur->window_size, sizeof(forward_desc_t *));
+	cur->send_ring		= (icmp_desc_t *) calloc(cur->window_size, sizeof(icmp_desc_t));
+	cur->recv_ring		= (forward_desc_t **) calloc(cur->window_size, sizeof(forward_desc_t *));
 	return cur;
 }
 
@@ -188,44 +189,48 @@ forward_desc_t* create_fwd_desc(uint16_t seq_no, uint32_t data_len, char *data) 
  * Creates an ICMP packet descriptor, and sends it. The packet descriptor is added
  * to the given send ring, for potential resends later on.
  */
-int queue_packet(int icmp_sock, uint8_t type, char *buf, int num_bytes,
-                 uint16_t id_no, uint16_t icmp_id, uint16_t *seq, icmp_desc_t ring[],
-                 int *insert_idx, int *await_send, uint32_t ip, uint32_t port,
-                 uint32_t state, struct sockaddr_in *dest_addr, uint16_t next_expected_seq,
-                 int *first_ack, uint16_t *ping_seq, uint16_t window_size)
+int queue_packet(int sock_fd, proxy_desc_t *cur, char *buf, size_t bufsiz,
+                 uint32_t dest_ip, u_int16_t dest_port, uint32_t state)
 {
 	int pkt_len         = sizeof(icmp_echo_packet_t) +
-	                      sizeof(ping_tunnel_pkt_t) + num_bytes;
+	                      sizeof(ping_tunnel_pkt_t) + bufsiz;
 	int err             = 0;
 	icmp_echo_packet_t *pkt   = 0;
 	ping_tunnel_pkt_t *pt_pkt = 0;
-	uint16_t ack_val          = next_expected_seq - 1;
+	uint16_t ack_val;
+
+	assert(sock_fd >= 0);
+	assert(cur);
+	if (sock_fd < 0 || !cur)
+		return -1;
+
+	ack_val = cur->next_remote_seq - 1;
 
 	if (pkt_len % 2)
 		pkt_len++;
 
 	pkt	              = (icmp_echo_packet_t *) calloc(1, pkt_len);
 	/* ICMP Echo request or reply */
-	pkt->type         = type;
+	pkt->type         = cur->pkt_type;
 	/* Must be zero (non-zero requires root) */
 	pkt->code         = 0;
-	pkt->identifier   = htons(icmp_id);
-	pkt->seq          = htons(*ping_seq);
+	pkt->identifier   = htons(cur->icmp_id);
+	pkt->seq          = htons(cur->ping_seq);
 	pkt->checksum     = 0;
-	(*ping_seq)++;
+	cur->ping_seq++;
 	/* Add our information */
 	pt_pkt            = (ping_tunnel_pkt_t*)pkt->data;
 	pt_pkt->magic     = htonl(opts.magic);
-	pt_pkt->dst_ip    = ip;
-	pt_pkt->dst_port  = htonl(port);
+	pt_pkt->dst_ip    = dest_ip;
+	pt_pkt->dst_port  = htonl(dest_port);
 	pt_pkt->ack       = htonl(ack_val);
-	pt_pkt->data_len  = htonl(num_bytes);
+	pt_pkt->data_len  = htonl(bufsiz);
 	pt_pkt->state     = htonl(state);
-	pt_pkt->seq_no    = htons(*seq);
-	pt_pkt->id_no     = htons(id_no);
+	pt_pkt->seq_no    = htons(cur->my_seq);
+	pt_pkt->id_no     = htons(cur->id_no);
 	/* Copy user data */
-	if (buf && num_bytes > 0)
-		memcpy(pt_pkt->data, buf, num_bytes);
+	if (buf && bufsiz > 0)
+		memcpy(pt_pkt->data, buf, bufsiz);
 	pkt->checksum     = htons(calc_icmp_checksum((uint16_t*)pkt, pkt_len));
 
 	/* Send it! */
@@ -234,13 +239,13 @@ int queue_packet(int icmp_sock, uint8_t type, char *buf, int num_bytes,
 	                      "[seq_no = %d] [type = %s] "
 	                      "[ack = %d] [icmp = %d] "
 	                      "[user = %s]\n",
-	                      pkt_len, num_bytes,
-	                      icmp_id, *ping_seq,
-	                      *seq, state_name[state & (~kFlag_mask)],
-	                      ack_val, type,
+	                      pkt_len, bufsiz,
+	                      cur->icmp_id, cur->ping_seq,
+	                      cur->my_seq, state_name[state & (~kFlag_mask)],
+	                      ack_val, cur->pkt_type,
 	                      ((state & kUser_flag) == kUser_flag ? "yes" : "no"));
-	err  = sendto(icmp_sock, (const void*)pkt, pkt_len, 0,
-	              (struct sockaddr*)dest_addr, sizeof(struct sockaddr));
+	err  = sendto(sock_fd, (const void*)pkt, pkt_len, 0,
+	              (struct sockaddr*)&cur->dest_addr, sizeof(struct sockaddr));
 	if (err < 0) {
 		pt_log(kLog_error, "Failed to send ICMP packet: %s\n", strerror(errno));
 		free(pkt);
@@ -250,18 +255,18 @@ int queue_packet(int icmp_sock, uint8_t type, char *buf, int num_bytes,
 		pt_log(kLog_error, "WARNING WARNING, didn't send entire packet\n");
 
 	/* Update sequence no's and so on */
-	ring[*insert_idx].pkt      = pkt;
-	ring[*insert_idx].pkt_len  = pkt_len;
-	ring[*insert_idx].last_resend = time_as_double();
-	ring[*insert_idx].seq_no   = *seq;
-	ring[*insert_idx].icmp_id  = icmp_id;
-	(*seq)++;
-	if (!ring[*first_ack].pkt)
-		*first_ack             = *insert_idx;
-	(*await_send)++;
-	(*insert_idx)++;
-	if (*insert_idx >= window_size)
-		*insert_idx	= 0;
+	cur->send_ring[cur->send_idx].pkt      = pkt;
+	cur->send_ring[cur->send_idx].pkt_len  = pkt_len;
+	cur->send_ring[cur->send_idx].last_resend = time_as_double();
+	cur->send_ring[cur->send_idx].seq_no   = cur->my_seq;
+	cur->send_ring[cur->send_idx].icmp_id  = cur->icmp_id;
+	cur->my_seq++;
+	if (!cur->send_ring[cur->send_first_ack].pkt)
+		cur->send_first_ack = cur->send_idx;
+	cur->send_wait_ack++;
+    cur->send_idx++;
+	if (cur->send_idx >= cur->window_size)
+		cur->send_idx = 0;
 	return 0;
 }
 

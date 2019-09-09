@@ -643,10 +643,8 @@ void* pt_proxy(void *args) {
 					extended_options_size = 4*sizeof(uint16_t);
 					extended_options[3] = htons(opts.payload_size);
 				}
-				queue_packet(fwd_sock, cur->pkt_type, (char *)extended_options, extended_options_size, cur->id_no, cur->id_no,
-				             &cur->my_seq, cur->send_ring, &cur->send_idx, &cur->send_wait_ack,
-				             cur->dst_ip, cur->dst_port, cur->state | cur->type_flag,
-				             &cur->dest_addr, cur->next_remote_seq, &cur->send_first_ack, &cur->ping_seq, cur->window_size);
+				queue_packet(fwd_sock, cur, (char *)extended_options, extended_options_size,
+				             cur->dst_ip, cur->dst_port, cur->state | cur->type_flag);
 				cur->xfer.icmp_out++;
 				cur->state = kProto_data;
 			}
@@ -673,10 +671,7 @@ void* pt_proxy(void *args) {
 				}
 				cur->xfer.bytes_out	+= bytes;
 				cur->xfer.icmp_out++;
-				queue_packet(fwd_sock, cur->pkt_type, cur->buf, bytes, cur->id_no,
-				             cur->icmp_id, &cur->my_seq, cur->send_ring, &cur->send_idx,
-				             &cur->send_wait_ack, 0, 0, cur->state | cur->type_flag,
-				             &cur->dest_addr, cur->next_remote_seq, &cur->send_first_ack, &cur->ping_seq, cur->window_size);
+				queue_packet(fwd_sock, cur, cur->buf, bytes, 0, 0, cur->state | cur->type_flag);
 			}
 			prev = cur;
 			tmp  = cur->next;
@@ -729,10 +724,7 @@ void* pt_proxy(void *args) {
 			    cur->remote_ack_val+1 != cur->next_remote_seq)
 			{
 				idx = cur->send_idx;
-				queue_packet(fwd_sock, cur->pkt_type, 0, 0, cur->id_no, cur->icmp_id,
-				             &cur->my_seq, cur->send_ring, &cur->send_idx, &cur->send_wait_ack,
-				             cur->dst_ip, cur->dst_port, kProto_ack | cur->type_flag,
-				             &cur->dest_addr, cur->next_remote_seq, &cur->send_first_ack, &cur->ping_seq, cur->window_size);
+				queue_packet(fwd_sock, cur, NULL, 0, cur->dst_ip, cur->dst_port, kProto_ack | cur->type_flag);
 				cur->xfer.icmp_ack_out++;
 				if (opts.empty_pings &&
 					cur->last_data_activity > cur->last_ack &&
@@ -895,10 +887,7 @@ void send_termination_msg(proxy_desc_t *cur, int icmp_sock) {
 
 	/* Send packet twice, hoping at least one of them makes it through.. */
 	for (i = 0; i < max_termination_msgs; ++i) {
-		queue_packet(icmp_sock, cur->pkt_type, 0, 0, cur->id_no, cur->icmp_id, &cur->my_seq,
-		             cur->send_ring, &cur->send_idx, &cur->send_wait_ack, 0, 0,
-		             kProto_close | cur->type_flag, &cur->dest_addr, cur->next_remote_seq,
-		             &cur->send_first_ack, &cur->ping_seq, cur->window_size);
+		queue_packet(icmp_sock, cur, NULL, 0, cur->dst_ip, cur->dst_port, kProto_close | cur->type_flag);
 	}
 	cur->xfer.icmp_out += max_termination_msgs;
 }
