@@ -190,7 +190,7 @@ forward_desc_t* create_fwd_desc(uint16_t seq_no, uint32_t data_len, char *data) 
  * to the given send ring, for potential resends later on.
  */
 int queue_packet(int sock_fd, proxy_desc_t *cur, char *buf, size_t bufsiz,
-                 uint32_t dest_ip, u_int16_t dest_port, uint32_t state)
+                 uint32_t dest_ip, uint32_t dest_port, uint32_t state)
 {
 	int pkt_len         = sizeof(icmp_echo_packet_t) +
 	                      sizeof(ping_tunnel_pkt_t) + bufsiz;
