@@ -174,6 +174,16 @@ AC_MSG_RESULT([${with_rngdev}])
 AC_DEFINE_UNQUOTED([RNGDEV], ["${with_rngdev}"],
 	[set the path to the random device you want to use for pt_random])
 
+dnl `--enable-asserts`: Disabled per defult
+AC_ARG_ENABLE([asserts],
+	[AS_HELP_STRING([--enable-asserts], [Enable asserts(). (default: disabled)])],[asserts_enabled=yes],)
+asserts_enabled=$(echo ${asserts_enabled})
+case ${asserts_enabled} in
+	1|y|yes) asserts_enabled=yes ;;
+	''|0|n|no) asserts_enabled=no ;;
+	*) AC_MSG_ERROR([Unknown option \`${asserts_enabled}\` for --enable-asserts]) ;;
+esac
+
 dnl Check libpcap headers/functions.
 if test x"${pcap_enabled}" != x -a \
         x"${use_msw}" != xyes; then
@@ -236,6 +246,7 @@ AM_CONDITIONAL([IS_WINDOWS], [test x"${use_msw}" = xyes])
 AM_CONDITIONAL([HAVE_ICMPFILTER], [test x"${with_icmp_filter}" = xyes])
 AM_CONDITIONAL([HAVE_ARC4RANDOM], [test x"${arc4random_enabled}" = xyes])
 AM_CONDITIONAL([USE_CUSTOMRNG], [test x"${use_customrng}" = xyes])
+AM_CONDITIONAL([DISABLE_ASSERTS], [test x"${asserts_enabled}" != xyes])
 
 dnl output config headers
 AC_CONFIG_HEADERS([src/config.h:src/config.h.in])

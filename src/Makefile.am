@@ -30,6 +30,10 @@ if USE_CUSTOMRNG
 ptunnel_ng_CFLAGS += -DUSE_CUSTOMRNG=1
 endif
 
+if DISABLE_ASSERTS
+ptunnel_ng_CFLAGS += -DNDEBUG=1
+endif
+
 ptunnel_ng_SOURCES = \
 	md5.c \
 	challenge.c \
