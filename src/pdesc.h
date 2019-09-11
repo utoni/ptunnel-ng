@@ -142,7 +142,7 @@ typedef struct proxy_desc_t {
 	int next_resend_start;
 	int authenticated;
 	/** Contains the challenge, if used. */
-    challenge_t *challenge;
+	challenge_t *challenge;
 	/** Protocol state */
 	uint32_t state;
 	/** Either kProxy_flag or kUser_flag */
@@ -151,7 +151,7 @@ typedef struct proxy_desc_t {
 	uint32_t dst_ip;
 	uint32_t dst_port;
 	/** Same as above */
-    struct sockaddr_in dest_addr;
+	struct sockaddr_in dest_addr;
 	/** Time when last ack packet was sent. */
 	double last_ack;
 	/** Time when a packet was last received. */
@@ -162,10 +162,10 @@ typedef struct proxy_desc_t {
 	double resend_interval;
 	uint16_t payload_size;
 	uint16_t extended_options[4];
-    icmp_desc_t *send_ring;
-    forward_desc_t **recv_ring;
-    xfer_stats_t xfer;
-    struct proxy_desc_t *next;
+	icmp_desc_t *send_ring;
+	forward_desc_t **recv_ring;
+	xfer_stats_t xfer;
+	struct proxy_desc_t *next;
 } proxy_desc_t;
 
 
