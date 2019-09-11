@@ -174,7 +174,7 @@ AC_MSG_RESULT([${with_rngdev}])
 AC_DEFINE_UNQUOTED([RNGDEV], ["${with_rngdev}"],
 	[set the path to the random device you want to use for pt_random])
 
-dnl `--enable-asserts`: Disabled per defult
+dnl `--enable-asserts`: Disabled per default
 AC_ARG_ENABLE([asserts],
 	[AS_HELP_STRING([--enable-asserts], [Enable asserts(). (default: disabled)])],[asserts_enabled=yes],)
 asserts_enabled=$(echo ${asserts_enabled})
@@ -182,6 +182,16 @@ case ${asserts_enabled} in
 	1|y|yes) asserts_enabled=yes ;;
 	''|0|n|no) asserts_enabled=no ;;
 	*) AC_MSG_ERROR([Unknown option \`${asserts_enabled}\` for --enable-asserts]) ;;
+esac
+
+dnl `--enable-sanitizer`: Disabled per default
+AC_ARG_ENABLE([sanitizer],
+	[AS_HELP_STRING([--enable-sanitizer], [Enable ASAN, LSAN and UBSAN. (default: disabled)])],[sanitizer_enabled=yes],)
+sanitizer_enabled=$(echo ${sanitizer_enabled})
+case ${sanitizer_enabled} in
+	1|y|yes) sanitizer_enabled=yes ;;
+	''|0|n|no) sanitizer_enabled=no ;;
+	*) AC_MSG_ERROR([Unknown option \`${sanitizer_enabled}\` for --enable-sanitizer]) ;;
 esac
 
 dnl Check libpcap headers/functions.
@@ -247,6 +257,7 @@ AM_CONDITIONAL([HAVE_ICMPFILTER], [test x"${with_icmp_filter}" = xyes])
 AM_CONDITIONAL([HAVE_ARC4RANDOM], [test x"${arc4random_enabled}" = xyes])
 AM_CONDITIONAL([USE_CUSTOMRNG], [test x"${use_customrng}" = xyes])
 AM_CONDITIONAL([DISABLE_ASSERTS], [test x"${asserts_enabled}" != xyes])
+AM_CONDITIONAL([ENABLE_SANITIZER], [test x"${sanitizer_enabled}" = xyes])
 
 dnl output config headers
 AC_CONFIG_HEADERS([src/config.h:src/config.h.in])
