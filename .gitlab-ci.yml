@@ -28,6 +28,18 @@ build:
       - config.log
     when: always
 
+build-sanitizer-asserts:
+  script:
+    - autoreconf -fi
+    - ./configure --enable-option-checking=fatal --prefix=/ --enable-sanitizer --enable-asserts
+    - make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy/gcc-sanitizer-asserts)" V=s
+  stage: build
+  artifacts:
+    paths:
+      - deploy/
+      - config.log
+    when: always
+
 build-debian:
   script:
     - dpkg-buildpackage -b -us -uc

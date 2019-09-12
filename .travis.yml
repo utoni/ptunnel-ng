@@ -15,6 +15,10 @@ script:
 - ./configure --enable-option-checking=fatal --prefix=/
 - make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy/gcc)" V=s
 - make clean
+# default gcc build with sanitizer and assertions
+- ./configure --enable-option-checking=fatal --prefix=/ --enable-sanitizer --enable-asserts
+- make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy/gcc-sanitizer-asserts)" V=s
+- make clean
 # debian build
 - dpkg-buildpackage -b -us -uc
 - make clean
