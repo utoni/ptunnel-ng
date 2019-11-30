@@ -530,6 +530,8 @@ void handle_ack(uint16_t seq_no, icmp_desc_t ring[], int *packets_awaiting_ack,
 			}
 		}
 	}
-	else
-		pt_log(kLog_verbose, "Dropping superfluous acknowledgement (no outstanding packets needing ack.)\n");
+	else {
+		pt_log(kLog_verbose, "Dropping superfluous acknowledgement for seq %d "
+		                     "(no outstanding packets needing ack.)\n", seq_no);
+	}
 }
