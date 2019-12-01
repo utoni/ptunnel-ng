@@ -185,7 +185,7 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 							return;
 						}
 						if (pt_pkt->data_len > 0) {
-							handle_data(pkt, bytes, 0, 0, 0, 0, cur, 0);
+							handle_data(pkt, bytes, cur, 1);
 							if (!opts.password) {
 								handle_extended_options(cur);
 							}
@@ -247,8 +247,7 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 						 * It's up to the proxy now if it accepts our   response or not..
 						 */
 						cur->authenticated  = 1;
-						handle_data(pkt, bytes, cur->recv_ring, &cur->recv_wait_send,
-						            &cur->recv_idx, &cur->next_remote_seq, 0, cur->window_size);
+						handle_data(pkt, bytes, cur, 0);
 						return;
 					}
 					/* If proxy: Handle client's response to challenge */
@@ -274,8 +273,7 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 							/* Insert the packet into the receive ring, to avoid
 							 * confusing the reliab  ility mechanism.
 							 */
-							handle_data(pkt, bytes, cur->recv_ring, &cur->recv_wait_send,
-							            &cur->recv_idx, &cur->next_remote_seq, 0, cur->window_size);
+							handle_data(pkt, bytes, cur, 0);
 						}
 						else {
 							pt_log(kLog_info, "Remote end failed authentication.\n");
@@ -314,8 +312,7 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 						if (pt_pkt->state == kProxy_start) {
 							pt_pkt->data_len = 0;
 						}
-						handle_data(pkt, bytes, cur->recv_ring, &cur->recv_wait_send,
-						            &cur->recv_idx,   &cur->next_remote_seq, 0, cur->window_size);
+						handle_data(pkt, bytes, cur, 0);
 					}
 					handle_ack((uint16_t)pt_pkt->ack, cur->send_ring, &cur->send_wait_ack,
 					           0, cur->send_idx, &cur->send_first_ack, &cur->remote_ack_val,
@@ -333,8 +330,7 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
  * Utility function for handling kProto_data packets, and place the data it contains
  * onto the passed-in receive ring.
  */
-void handle_data(icmp_echo_packet_t *pkt, int total_len, forward_desc_t *ring[],
-                 int *await_send, int *insert_idx,  uint16_t *next_expected_seq, void *vcur, uint16_t window_size)
+void handle_data(icmp_echo_packet_t *pkt, int total_len, proxy_desc_t *cur, int handle_extended_options)
 {
 	ping_tunnel_pkt_t *pt_pkt      = (ping_tunnel_pkt_t*)pkt->data;
 	int               expected_len = sizeof(ip_packet_t) + sizeof(icmp_echo_packet_t) +
@@ -363,8 +359,8 @@ void handle_data(icmp_echo_packet_t *pkt, int total_len, forward_desc_t *ring[],
 		 */
 		exit(0);
 	}
-	if (vcur) {
-		proxy_desc_t *cur = (proxy_desc_t *)vcur;
+
+	if (handle_extended_options) {
 		uint16_t *extended_options = (uint16_t *)pt_pkt->data;
 		if (pt_pkt->data_len >= 2) {
 			cur->extended_options[0] = ntohs(extended_options[0]);
@@ -380,29 +376,28 @@ void handle_data(icmp_echo_packet_t *pkt, int total_len, forward_desc_t *ring[],
 		}
 		return;
 	}
-	if (!next_expected_seq)
-		return;
-	if (pt_pkt->seq_no == *next_expected_seq) {
+
+	if (pt_pkt->seq_no == cur->next_remote_seq) {
 		/* hmm, what happens if this test is true? */
-		if (!ring[*insert_idx]) { /* && pt_pkt->state == kProto_data */
+		if (!cur->recv_ring[cur->recv_idx]) { /* && pt_pkt->state == kProto_data */
 			/* pt_log(kLog_debug, "Queing data packet: %d\n", pt_pkt->seq_no); */
-			ring[*insert_idx] = create_fwd_desc(pt_pkt->seq_no, pt_pkt->data_len, pt_pkt->data);
-			(*await_send)++;
-			(*insert_idx)++;
+			cur->recv_ring[cur->recv_idx] = create_fwd_desc(pt_pkt->seq_no, pt_pkt->data_len, pt_pkt->data);
+			cur->recv_wait_send++;
+			cur->recv_idx++;
 		}
-		else if (ring[*insert_idx])
+		else if (cur->recv_ring[cur->recv_idx])
 			pt_log(kLog_debug, "Dup packet?\n");
 
-		(*next_expected_seq)++;
-		if (*insert_idx >= window_size)
-			*insert_idx	= 0;
+		cur->next_remote_seq++;
+		if (cur->recv_idx >= cur->window_size)
+			cur->recv_idx = 0;
 		/* Check if we have already received some of the next packets */
-		while (ring[*insert_idx]) {
-			if (ring[*insert_idx]->seq_no == *next_expected_seq) {
-				(*next_expected_seq)++;
-				(*insert_idx)++;
-				if (*insert_idx >= window_size)
-					*insert_idx	= 0;
+		while (cur->recv_ring[cur->recv_idx]) {
+			if (cur->recv_ring[cur->recv_idx]->seq_no == cur->next_remote_seq) {
+				cur->next_remote_seq++;
+				cur->recv_idx++;
+				if (cur->recv_idx >= cur->window_size)
+					cur->recv_idx = 0;
 			}
 			else
 				break;
@@ -411,26 +406,26 @@ void handle_data(icmp_echo_packet_t *pkt, int total_len, forward_desc_t *ring[],
 	else {
 		int	r, s, d, pos;
 		pos = -1; /* If pos ends up staying -1, packet is discarded. */
-		r   = *next_expected_seq;
+		r   = cur->next_remote_seq;
 		s   = pt_pkt->seq_no;
 		d   = s - r;
 		if (d < 0) { /* This packet _may_ be old, or seq_no may have wrapped around */
 			d = (s+0xFFFF) - r;
-			if (window_size && d < window_size) {
+			if (cur->window_size && d < cur->window_size) {
 				/* Counter has wrapped, so we should add this packet to the recv ring */
-				pos	= ((*insert_idx)+d) % window_size;
+				pos	= (cur->recv_idx + d) % cur->window_size;
 			}
 		}
-		else if (window_size && d < window_size)
-			pos	= ((*insert_idx)+d) % window_size;
+		else if (cur->window_size && d < cur->window_size)
+			pos	= (cur->recv_idx + d) % cur->window_size;
 
 		if (pos != -1) {
-			if (!ring[pos]) {
+			if (!cur->recv_ring[pos]) {
 				pt_log(kLog_verbose, "Out of order. Expected: %d  Got: %d  Inserted: %d "
-				                     "(cur = %d)\n", *next_expected_seq, pt_pkt->seq_no, pos,
-				                     (*insert_idx));
-				ring[pos] = create_fwd_desc(pt_pkt->seq_no, pt_pkt->data_len, pt_pkt->data);
-				(*await_send)++;
+				                     "(cur = %d)\n", cur->next_remote_seq, pt_pkt->seq_no, pos,
+				                     cur->recv_idx);
+				cur->recv_ring[pos] = create_fwd_desc(pt_pkt->seq_no, pt_pkt->data_len, pt_pkt->data);
+				cur->recv_wait_send++;
 			}
 		}
 		/* else
