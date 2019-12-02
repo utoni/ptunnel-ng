@@ -385,8 +385,9 @@ void handle_data(icmp_echo_packet_t *pkt, int total_len, proxy_desc_t *cur, int 
 			cur->recv_wait_send++;
 			cur->recv_idx++;
 		}
-		else if (cur->recv_ring[cur->recv_idx])
+		else {
 			pt_log(kLog_debug, "Dup packet?\n");
+		}
 
 		cur->next_remote_seq++;
 		if (cur->recv_idx >= cur->window_size)
