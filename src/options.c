@@ -323,6 +323,7 @@ static void print_multiline(const char *prefix, const char *multiline) {
 	const char *start, *end;
 
 	start = multiline;
+	end = NULL;
 	do {
 		if (start) {
 			end = strstr(start, sep);
