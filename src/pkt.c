@@ -241,6 +241,7 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 							generate_response_md5(&challenge->plain, &challenge->digest);
 						}
 
+						memcpy(cur->buf, challenge, sizeof(challenge_t));
 						queue_packet(icmp_sock, cur, cur->buf, sizeof(challenge_t), 0, 0,
 						             kProto_authenticate | cur->type_flag);
 						/* We have authenticated locally.
