@@ -142,8 +142,6 @@ void handle_data(icmp_echo_packet_t *pkt, int total_len, proxy_desc_t *cur, int 
 
 void handle_extended_options(proxy_desc_t *cur);
 
-void handle_ack(uint16_t seq_no, icmp_desc_t *ring, int *packets_awaiting_ack,
-                int one_ack_only, int insert_idx, int *first_ack,
-                uint16_t *remote_ack, int is_pcap, uint16_t window_size);
+void handle_ack(uint16_t seq_no, proxy_desc_t *cur);
 
 #endif
