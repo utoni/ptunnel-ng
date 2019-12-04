@@ -416,8 +416,9 @@ void handle_data(icmp_echo_packet_t *pkt, int total_len, proxy_desc_t *cur, int 
 				pos	= (cur->recv_idx + d) % cur->window_size;
 			}
 		}
-		else if (cur->window_size && d < cur->window_size)
+		else if (cur->window_size && d < cur->window_size) {
 			pos	= (cur->recv_idx + d) % cur->window_size;
+		}
 
 		if (pos != -1) {
 			if (!cur->recv_ring[pos]) {
@@ -428,9 +429,9 @@ void handle_data(icmp_echo_packet_t *pkt, int total_len, proxy_desc_t *cur, int 
 				cur->recv_wait_send++;
 			}
 		}
-		/* else
-		 * pt_log(kLog_debug, "Packet discarded - outside receive window.\n");
-		 */
+		else {
+			pt_log(kLog_info, "Packet discarded - outside receive window.\n");
+		}
 	}
 }
 
