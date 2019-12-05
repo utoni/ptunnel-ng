@@ -142,6 +142,6 @@ void handle_data(icmp_echo_packet_t *pkt, int total_len, proxy_desc_t *cur, int 
 
 void handle_extended_options(proxy_desc_t *cur);
 
-void handle_ack(uint16_t seq_no, proxy_desc_t *cur);
+void handle_ack(uint32_t seq_no, proxy_desc_t *cur);
 
 #endif

@@ -122,8 +122,9 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 				if (!is_pcap)
 					cur->xfer.icmp_in++;
 			}
-			else
+			else {
 				type_flag           = kProxy_flag;
+			}
   
 			pkt_flag        = pt_pkt->state & kFlag_mask;
 			pt_pkt->state   &= ~kFlag_mask;
@@ -315,7 +316,7 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 						}
 						handle_data(pkt, bytes, cur, 0);
 					}
-					handle_ack((uint16_t)pt_pkt->ack, cur);
+					handle_ack(pt_pkt->ack, cur);
 					cur->last_activity = now;
 				}
 			}
@@ -462,7 +463,7 @@ void handle_extended_options(proxy_desc_t *cur)
 	}
 }
 
-void handle_ack(uint16_t seq_no, proxy_desc_t *cur)
+void handle_ack(uint32_t seq_no, proxy_desc_t *cur)
 {
 	if (cur->send_wait_ack > 0) {
 		int	i, can_ack = 0, count = 0;
