@@ -50,7 +50,7 @@ build-debian:
     when: always
 
 build-archlinux:
-  image: finalduty/archlinux:daily
+  image: archlinux/base:latest
   script:
     - useradd builduser -m
     - passwd -d builduser
