@@ -122,8 +122,9 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 				if (!is_pcap)
 					cur->xfer.icmp_in++;
 			}
-			else
+			else {
 				type_flag           = kProxy_flag;
+			}
   
 			pkt_flag        = pt_pkt->state & kFlag_mask;
 			pt_pkt->state   &= ~kFlag_mask;
@@ -241,6 +242,7 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 							generate_response_md5(&challenge->plain, &challenge->digest);
 						}
 
+						memcpy(cur->buf, challenge, sizeof(challenge_t));
 						queue_packet(icmp_sock, cur, cur->buf, sizeof(challenge_t), 0, 0,
 						             kProto_authenticate | cur->type_flag);
 						/* We have authenticated locally.
@@ -314,9 +316,7 @@ void handle_packet(char *buf, unsigned bytes, int is_pcap, struct sockaddr_in *a
 						}
 						handle_data(pkt, bytes, cur, 0);
 					}
-					handle_ack((uint16_t)pt_pkt->ack, cur->send_ring, &cur->send_wait_ack,
-					           0, cur->send_idx, &cur->send_first_ack, &cur->remote_ack_val,
-					           is_pcap, cur->window_size);
+					handle_ack(pt_pkt->ack, cur);
 					cur->last_activity = now;
 				}
 			}
@@ -385,8 +385,9 @@ void handle_data(icmp_echo_packet_t *pkt, int total_len, proxy_desc_t *cur, int 
 			cur->recv_wait_send++;
 			cur->recv_idx++;
 		}
-		else if (cur->recv_ring[cur->recv_idx])
+		else {
 			pt_log(kLog_debug, "Dup packet?\n");
+		}
 
 		cur->next_remote_seq++;
 		if (cur->recv_idx >= cur->window_size)
@@ -416,8 +417,9 @@ void handle_data(icmp_echo_packet_t *pkt, int total_len, proxy_desc_t *cur, int 
 				pos	= (cur->recv_idx + d) % cur->window_size;
 			}
 		}
-		else if (cur->window_size && d < cur->window_size)
+		else if (cur->window_size && d < cur->window_size) {
 			pos	= (cur->recv_idx + d) % cur->window_size;
+		}
 
 		if (pos != -1) {
 			if (!cur->recv_ring[pos]) {
@@ -428,9 +430,9 @@ void handle_data(icmp_echo_packet_t *pkt, int total_len, proxy_desc_t *cur, int 
 				cur->recv_wait_send++;
 			}
 		}
-		/* else
-		 * pt_log(kLog_debug, "Packet discarded - outside receive window.\n");
-		 */
+		else {
+			pt_log(kLog_info, "Packet discarded - outside receive window.\n");
+		}
 	}
 }
 
@@ -461,68 +463,32 @@ void handle_extended_options(proxy_desc_t *cur)
 	}
 }
 
-void handle_ack(uint16_t seq_no, icmp_desc_t ring[], int *packets_awaiting_ack,
-                int one_ack_only, int insert_idx, int *first_ack,
-                uint16_t *remote_ack, int is_pcap, uint16_t window_size)
+void handle_ack(uint32_t seq_no, proxy_desc_t *cur)
 {
-	int i, j, k;
-	ping_tunnel_pkt_t *pt_pkt;
+	if (cur->send_wait_ack > 0) {
+		int	i, can_ack = 0, count = 0;
+		i	= cur->send_idx - 1;
+		if (i < 0)
+			i	= cur->window_size - 1;
 
-	if (*packets_awaiting_ack > 0) {
-		if (one_ack_only) {
-			for (i = 0; i < window_size; i++) {
-				if (ring[i].pkt && ring[i].seq_no == seq_no && !is_pcap) {
-					pt_log(kLog_debug, "Received ack for only seq %d\n", seq_no);
-					pt_pkt	= (ping_tunnel_pkt_t*)ring[i].pkt->data;
-					/* WARNING: We make the dangerous assumption here that packets arrive in order! */
-					*remote_ack	= (uint16_t) ntohl(pt_pkt->ack);
-					free(ring[i].pkt);
-					ring[i].pkt	= 0;
-					ring[i].pkt_len	= 0;
-					(*packets_awaiting_ack)--;
-					if (i == *first_ack) {
-						for (j = 1; j < window_size; j += 2) {
-							k	= (i + j) % window_size;
-							if (ring[k].pkt) {
-								*first_ack = k;
-								break;
-							}
-							/* we have looped through everything */
-							if (k == i)
-								*first_ack = insert_idx;
-						}
-					}
-					return;
-				}
+		pt_log(kLog_debug, "Received ack-series starting at seq %d\n", seq_no);
+		while (count < cur->window_size) {
+			if (!cur->send_ring[i].pkt)
+				break;
+			if (cur->send_ring[i].seq_no == seq_no)
+				can_ack	= 1;
+			else if (!can_ack)
+				cur->send_first_ack = i;
+			if (can_ack) {
+				free(cur->send_ring[i].pkt);
+				cur->send_ring[i].pkt	= 0;
+				cur->send_ring[i].pkt_len	= 0;
+				cur->send_wait_ack--;
 			}
-		}
-		else {
-			int	i, can_ack = 0, count = 0;
-			i	= insert_idx-1;
+			i--;
 			if (i < 0)
-				i	= window_size - 1;
-
-			pt_log(kLog_debug, "Received ack-series starting at seq %d\n", seq_no);
-			while (count < window_size) {
-				if (!ring[i].pkt)
-					break;
-
-				if (ring[i].seq_no == seq_no)
-					can_ack	= 1;
-				else if (!can_ack)
-					*first_ack	= i;
-
-				if (can_ack) {
-					free(ring[i].pkt);
-					ring[i].pkt	= 0;
-					ring[i].pkt_len	= 0;
-					(*packets_awaiting_ack)--;
-				}
-				i--;
-				if (i < 0)
-					i	= window_size - 1;
-				count++;
-			}
+				i = cur->window_size - 1;
+			count++;
 		}
 	}
 	else {
