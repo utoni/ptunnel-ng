@@ -2,15 +2,18 @@ image: debian:stable-slim
 
 stages:
   - build
+  - test
 
 before_script:
   - test ! -r /etc/debian_version || apt-get -qq update
   - test ! -r /etc/debian_version || apt-get install -y git debhelper dpkg-dev build-essential fakeroot flawfinder wget unzip
   - test ! -r /etc/debian_version || apt-get install -y libpcap-dev libselinux1-dev
   - test ! -r /etc/debian_version || apt-get install -y binutils-mingw-w64-i686 gcc-mingw-w64 mingw-w64-i686-dev mingw-w64-common clang
+  - test ! -r /etc/debian_version || apt-get install -y valgrind sudo
   - test ! -r /etc/debian_version || apt-get install -y autoconf automake dh-autoreconf
   - test ! -r /etc/arch-release || pacman -Syu --noconfirm
   - test ! -r /etc/arch-release || pacman -S --noconfirm binutils gcc base-devel git
+  - test ! -r /etc/arch-release || pacman -S --noconfirm valgrind sudo
   - mkdir -p ./deploy/gcc ./deploy/i686-w64-mingw32-winpcap ./deploy/i686-w64-mingw32-npcap ./deploy/clang ./deploy/android28-clang
 
 build:
@@ -103,3 +106,13 @@ build-android:
       - deploy/
       - config.log
     when: always
+
+test-debian:
+  script:
+    - /bin/true
+  stage: test
+
+test-archlinux:
+  script:
+    - /bin/true
+  stage: test
