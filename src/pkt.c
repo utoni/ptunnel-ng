@@ -56,6 +56,71 @@
 #include "options.h"
 #include "utils.h"
 
+
+static proxy_desc_t *
+handle_incoming_tunnel_request(unsigned bytes, struct sockaddr_in *addr, int icmp_sock,
+                               icmp_echo_packet_t * const pkt, ping_tunnel_pkt_t * const pt_pkt)
+{
+    struct timeval tt;
+    struct in_addr in_addr;
+    uint32_t init_state;
+    proxy_desc_t *cur;
+
+    pt_log(kLog_info, "Incoming tunnel request from %s.\n",
+           inet_ntoa(*(struct in_addr *)&addr->sin_addr));
+
+    gettimeofday(&tt, 0);
+    if (tt.tv_sec < seq_expiry_tbl[pt_pkt->id_no]) {
+        pt_log(kLog_verbose, "Dropping request: ID was recently in use.\n");
+        return NULL;
+    }
+
+    in_addr.s_addr = pt_pkt->dst_ip;
+    pt_log(kLog_info, "Starting new session to %s:%d with ID %d\n",
+           inet_ntoa(in_addr), ntohl(pt_pkt->dst_port), pt_pkt->id_no);
+
+    if ((opts.restrict_dst_ip && opts.given_dst_ip &&
+         opts.given_dst_ip != pt_pkt->dst_ip) ||
+        (opts.restrict_dst_port && (uint32_t)-1 != opts.given_dst_port &&
+         opts.given_dst_port != ntohl(pt_pkt->dst_port)))
+    {
+        pt_log(kLog_info, "Destination administratively prohibited!\n");
+        return NULL;
+    }
+
+    if (opts.password) {
+        init_state  = kProto_authenticate;
+    } else {
+        init_state  = kProto_data;
+    }
+
+    cur = (proxy_desc_t *) create_and_insert_proxy_desc(pt_pkt->id_no, pkt->identifier, 0,
+                                                        addr, pt_pkt->dst_ip,
+                                                        ntohl(pt_pkt->dst_port),
+                                                        init_state, kProxy_flag);
+    if (!cur) {
+        /* if failed, abort. Logging is done in create_insert_proxy_desc */
+        pt_log(kLog_error, "Failed to create proxy descriptor!\n");
+        return NULL;
+    }
+    if (pt_pkt->data_len > 0) {
+        handle_data(pkt, bytes, cur, 1);
+        if (!opts.password) {
+            handle_extended_options(cur);
+        }
+    }
+    if (init_state == kProto_authenticate) {
+        pt_log(kLog_debug, "Sending authentication challenge..\n");
+        /* Send challenge */
+        cur->challenge  = generate_challenge();
+        memcpy(cur->buf, cur->challenge, sizeof(challenge_t));
+        queue_packet(icmp_sock, cur, cur->buf, sizeof(challenge_t), 0, 0,
+        kProto_authenticate | cur->type_flag);
+    }
+
+    return cur;
+}
+
 /* handle_proxy_packet:
  * Processes incoming ICMP packets for the proxy. The packet can come either from the
  * packet capture lib, or from the actual socket or both.
@@ -68,10 +133,8 @@ void handle_packet(char * buf, unsigned bytes, int is_pcap, struct sockaddr_in *
     icmp_echo_packet_t * pkt;
     ping_tunnel_pkt_t * pt_pkt;
     proxy_desc_t * cur;
-    uint32_t type_flag, pkt_flag, init_state, proxy_flag;
+    uint32_t type_flag, pkt_flag, proxy_flag;
     challenge_t * challenge;
-    struct timeval tt;
-    struct in_addr in_addr;
 
     proxy_flag = kProxy_flag;
 
@@ -156,63 +219,9 @@ void handle_packet(char * buf, unsigned bytes, int is_pcap, struct sockaddr_in *
                 pt_pkt->ack = ntohl(pt_pkt->ack);
                 if (pt_pkt->state == kProxy_start) {
                     if (!cur && type_flag == proxy_flag) {
-                        pt_log(kLog_info,
-                               "Incoming tunnel request from %s.\n",
-                               inet_ntoa(*(struct in_addr *)&addr->sin_addr));
-                        gettimeofday(&tt, 0);
-                        if (tt.tv_sec < seq_expiry_tbl[pt_pkt->id_no]) {
-                            pt_log(kLog_verbose, "Dropping request: ID was recently in use.\n");
-                            return;
-                        }
-                        in_addr.s_addr = pt_pkt->dst_ip;
-                        pt_log(kLog_info,
-                               "Starting new session to %s:%d with ID %d\n",
-                               inet_ntoa(in_addr),
-                               ntohl(pt_pkt->dst_port),
-                               pt_pkt->id_no);
-                        if ((opts.restrict_dst_ip && opts.given_dst_ip && opts.given_dst_ip != pt_pkt->dst_ip) ||
-                            (opts.restrict_dst_port && (uint32_t)-1 != opts.given_dst_port &&
-                             opts.given_dst_port != ntohl(pt_pkt->dst_port))) {
-                            pt_log(kLog_info, "Destination administratively prohibited!\n");
-                            return;
-                        }
-
-                        if (opts.password)
-                            init_state = kProto_authenticate;
-                        else
-                            init_state = kProto_data;
-
-                        cur = (proxy_desc_t *)create_and_insert_proxy_desc(pt_pkt->id_no,
-                                                                           pkt->identifier,
-                                                                           0,
-                                                                           addr,
-                                                                           pt_pkt->dst_ip,
-                                                                           ntohl(pt_pkt->dst_port),
-                                                                           init_state,
-                                                                           kProxy_flag);
+                        cur = handle_incoming_tunnel_request(bytes, addr, icmp_sock, pkt, pt_pkt);
                         if (!cur) {
-                            /* if failed, abort. Logging is done in create_insert_proxy_desc */
-                            pt_log(kLog_error, "Failed to create proxy descriptor!\n");
                             return;
-                        }
-                        if (pt_pkt->data_len > 0) {
-                            handle_data(pkt, bytes, cur, 1);
-                            if (!opts.password) {
-                                handle_extended_options(cur);
-                            }
-                        }
-                        if (init_state == kProto_authenticate) {
-                            pt_log(kLog_debug, "Sending authentication challenge..\n");
-                            /* Send challenge */
-                            cur->challenge = generate_challenge();
-                            memcpy(cur->buf, cur->challenge, sizeof(challenge_t));
-                            queue_packet(icmp_sock,
-                                         cur,
-                                         cur->buf,
-                                         sizeof(challenge_t),
-                                         0,
-                                         0,
-                                         kProto_authenticate | cur->type_flag);
                         }
                     } else if (type_flag == kUser_flag) {
                         pt_log(kLog_error, "Dropping proxy session request - we are not a proxy!\n");
