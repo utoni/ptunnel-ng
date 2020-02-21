@@ -9,7 +9,7 @@ before_script:
   - test ! -r /etc/debian_version || apt-get install -y git debhelper dpkg-dev build-essential fakeroot flawfinder wget unzip
   - test ! -r /etc/debian_version || apt-get install -y libpcap-dev libselinux1-dev
   - test ! -r /etc/debian_version || apt-get install -y binutils-mingw-w64-i686 gcc-mingw-w64 mingw-w64-i686-dev mingw-w64-common clang
-  - test ! -r /etc/debian_version || apt-get install -y valgrind sudo
+  - test ! -r /etc/debian_version || apt-get install -y valgrind sudo netcat-openbsd
   - test ! -r /etc/debian_version || apt-get install -y autoconf automake dh-autoreconf
   - test ! -r /etc/arch-release || pacman -Syu --noconfirm
   - test ! -r /etc/arch-release || pacman -S --noconfirm binutils gcc base-devel git
@@ -20,6 +20,7 @@ build:
   script:
     - autoreconf -fi
     - ./configure --enable-option-checking=fatal --prefix=/
+    - mv config.log deploy/config-default.log
     - make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy/gcc)" V=s
     - make dist
     - cp ptunnel-ng-*.tar.gz ./deploy/
@@ -27,28 +28,31 @@ build:
   artifacts:
     paths:
       - deploy/
-      - config.log
     when: always
 
 build-sanitizer-asserts:
   script:
     - autoreconf -fi
     - ./configure --enable-option-checking=fatal --prefix=/ --enable-sanitizer --enable-asserts
+    - mv config.log deploy/config-sanitizer-assert.log
     - make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy/gcc-sanitizer-asserts)" V=s
   stage: build
   artifacts:
     paths:
       - deploy/
-      - config.log
     when: always
 
 build-debian:
   script:
     - dpkg-buildpackage -b -us -uc
+    - mv config.log deploy/config-debian.log
+    - ls -alh ..
+    - mkdir -p deploy/debian
+    - mv -v ../ptunnel-ng-dbgsym_* ../ptunnel-ng_* deploy/debian/
   stage: build
   artifacts:
     paths:
-      - config.log
+      - deploy/
     when: always
 
 build-archlinux:
@@ -59,32 +63,40 @@ build-archlinux:
     - chown -R builduser .
     - su -m builduser bash -c 'makepkg'
     - su -m builduser bash -c 'makepkg -p PKGBUILD.dev --skipchecksums'
+    - ls -alh .
+    - mkdir deploy/archlinux
+    - mv -v ptunnel-ng-*.tar.xz deploy/archlinux/
   stage: build
+  artifacts:
+    paths:
+      - deploy/
+    when: always
 
 build-mingw:
   script:
     - autoreconf -fi
     - ./configure --enable-option-checking=fatal --prefix=/ --host=i686-w64-mingw32
+    - mv config.log deploy/config-mingw-i686.log
     - make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy/i686-w64-mingw32-winpcap)" V=s
     - ./configure --enable-option-checking=fatal --prefix=/ --host=i686-w64-mingw32 --enable-npcap
+    - mv config.log deploy/config-mingw-i686-npcap.log
     - make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy/i686-w64-mingw32-npcap)" V=s
   stage: build
   artifacts:
     paths:
      - deploy/
-     - config.log
     when: always
 
 build-clang:
   script:
     - autoreconf -fi
     - CC=clang ./configure --enable-option-checking=fatal --prefix=/
+    - mv config.log deploy/config-clang.log
     - make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy/clang)" V=s
   stage: build
   artifacts:
     paths:
       - deploy/
-      - config.log
     when: always
 
 build-android:
@@ -99,20 +111,45 @@ build-android:
     - cd ..
     - autoreconf -fi
     - CC=aarch64-linux-android28-clang PATH="${PATH}:$(realpath ./vendor/android-ndk-r19/toolchains/llvm/prebuilt/linux-x86_64/bin)" ./configure --enable-option-checking=fatal --host=aarch64-linux-android
+    - mv config.log deploy/config-aarch64-linux-android28-clang.log
     - PATH="${PATH}:$(realpath ./vendor/android-ndk-r19/toolchains/llvm/prebuilt/linux-x86_64/bin)" make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy/android28-clang)" V=s
   stage: build
   artifacts:
     paths:
       - deploy/
-      - config.log
     when: always
 
-test-debian:
+test-valgrind:
   script:
-    - /bin/true
+    - ls -alhR .
+    - deploy/gcc/bin/ptunnel-ng --help
+    - deploy/gcc-sanitizer-asserts/bin/ptunnel-ng --help
+    - PTUNNEL_BIN="deploy/gcc/bin/ptunnel-ng" test/integration_test.sh
+    - mv /tmp/ptunnel-client.log ptunnel-client-valgrind.log
+    - mv /tmp/ptunnel-server.log ptunnel-server-valgrind.log
   stage: test
+  artifacts:
+    paths:
+      - deploy/
+      - ptunnel-client-valgrind.log 
+      - ptunnel-server-valgrind.log
+    when: always
 
-test-archlinux:
+test-asan:
   script:
-    - /bin/true
+    - ls -alhR .
+    - export DISABLE_VALGRIND=y && export PTUNNEL_BIN="deploy/gcc-sanitizer-asserts/bin/ptunnel-ng" && test/integration_test.sh
+    - mv /tmp/ptunnel-client.log ptunnel-client-sanitizer.log
+    - mv /tmp/ptunnel-server.log ptunnel-server-sanitizer.log
+    - export DISABLE_VALGRIND=y && export PTUNNEL_BIN="deploy/gcc-sanitizer-asserts/bin/ptunnel-ng" && export PTUNNEL_ARGS="--passwd=ci" && test/integration_test.sh
+    - mv /tmp/ptunnel-client.log ptunnel-client-sanitizer-passwd.log
+    - mv /tmp/ptunnel-server.log ptunnel-server-sanitizer-passwd.log
   stage: test
+  artifacts:
+    paths:
+      - deploy/
+      - ptunnel-client-sanitizer.log
+      - ptunnel-server-sanitizer.log
+      - ptunnel-client-sanitizer-passwd.log
+      - ptunnel-server-sanitizer-passwd.log
+    when: always
