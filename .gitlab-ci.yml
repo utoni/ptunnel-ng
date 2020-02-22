@@ -123,7 +123,6 @@ test-valgrind:
   script:
     - ls -alhR .
     - deploy/gcc/bin/ptunnel-ng --help
-    - deploy/gcc-sanitizer-asserts/bin/ptunnel-ng --help
     - PTUNNEL_BIN="deploy/gcc/bin/ptunnel-ng" test/integration_test.sh
     - mv /tmp/ptunnel-client.log ptunnel-client-valgrind.log
     - mv /tmp/ptunnel-server.log ptunnel-server-valgrind.log
@@ -138,6 +137,7 @@ test-valgrind:
 test-asan:
   script:
     - ls -alhR .
+    - deploy/gcc-sanitizer-asserts/bin/ptunnel-ng --help
     - export DISABLE_VALGRIND=y && export PTUNNEL_BIN="deploy/gcc-sanitizer-asserts/bin/ptunnel-ng" && test/integration_test.sh
     - mv /tmp/ptunnel-client.log ptunnel-client-sanitizer.log
     - mv /tmp/ptunnel-server.log ptunnel-server-sanitizer.log

@@ -226,12 +226,13 @@ void handle_packet(char * buf, unsigned bytes, int is_pcap, struct sockaddr_in *
                     } else if (type_flag == kUser_flag) {
                         pt_log(kLog_error, "Dropping proxy session request - we are not a proxy!\n");
                         return;
-                    } else
+                    } else {
                         pt_log(kLog_error,
                                "Dropping duplicate proxy session request "
                                "with ID %d and seq %d.\n",
                                pt_pkt->id_no,
                                pt_pkt->seq_no);
+                    }
                 } else if (cur && pt_pkt->state == kProto_authenticate) {
                     /* Sanity check packet length, and make sure it matches what we expect */
                     if (pt_pkt->data_len != sizeof(challenge_t)) {
