@@ -56,7 +56,7 @@ build-debian:
     when: always
 
 build-archlinux:
-  image: archlinux:latest
+  image: archlinux/base:latest
   script:
     - useradd builduser -m
     - passwd -d builduser
