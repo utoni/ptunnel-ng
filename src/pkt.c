@@ -121,6 +121,73 @@ handle_incoming_tunnel_request(unsigned bytes, struct sockaddr_in *addr, int icm
     return cur;
 }
 
+static void handle_auth_request(unsigned bytes, int icmp_sock,
+                                icmp_echo_packet_t *const pkt,
+                                proxy_desc_t *const cur,
+                                challenge_t *const challenge)
+{
+    if (!opts.password) {
+        pt_log(kLog_error, "This proxy requires a password! "
+                           "Please supply one usin  g the -x switch.\n");
+        send_termination_msg(cur, icmp_sock);
+        cur->should_remove = 1;
+        return;
+    }
+#ifdef ENABLE_SHA512
+    if (opts.force_sha512) {
+        pt_log(kLog_debug,
+               "Got authentication challenge - sending SHA512 response\n");
+        generate_response_sha512(&challenge->plain, &challenge->digest);
+    } else
+#endif
+    {
+        pt_log(kLog_debug, "Got authentication challenge - sending MD5 response\n");
+        generate_response_md5(&challenge->plain, &challenge->digest);
+    }
+
+    memcpy(cur->buf, challenge, sizeof(challenge_t));
+    queue_packet(icmp_sock, cur, cur->buf, sizeof(challenge_t), 0, 0,
+                 kProto_authenticate | cur->type_flag);
+    /* We have authenticated locally.
+     * It's up to the proxy now if it accepts our   response or not..
+     */
+    cur->authenticated = 1;
+    handle_data(pkt, bytes, cur, 0);
+}
+
+static void handle_auth_response(unsigned bytes, int icmp_sock,
+                                 icmp_echo_packet_t *const pkt,
+                                 proxy_desc_t *const cur,
+                                 challenge_t *const challenge)
+{
+    pt_log(kLog_debug, "Received remote %s challenge response.\n",
+           (challenge->digest.hash_type == HT_SHA512 ? "SHA512" : "MD5"));
+    if ((!opts.force_sha512 && challenge->digest.hash_type == HT_MD5 &&
+         validate_challenge_md5(cur->challenge, &challenge->digest)) ||
+#ifdef ENABLE_SHA512
+        (challenge->digest.hash_type == HT_SHA512 &&
+         validate_challenge_sha512(cur->challenge, &challenge->digest)) ||
+#endif
+        cur->authenticated)
+    {
+        pt_log(kLog_verbose, "Remote end authenticated successfully.\n");
+        handle_extended_options(cur);
+        /* Authentication has succeeded, so now we can proceed
+         * to handle incoming   TCP data.
+         */
+        cur->authenticated = 1;
+        cur->state = kProto_data;
+        /* Insert the packet into the receive ring, to avoid
+         * confusing the reliab  ility mechanism.
+         */
+        handle_data(pkt, bytes, cur, 0);
+    } else {
+        pt_log(kLog_info, "Remote end failed authentication.\n");
+        send_termination_msg(cur, icmp_sock);
+        cur->should_remove = 1;
+    }
+}
+
 /* handle_proxy_packet:
  * Processes incoming ICMP packets for the proxy. The packet can come either from the
  * packet capture lib, or from the actual socket or both.
@@ -248,63 +315,12 @@ void handle_packet(char * buf, unsigned bytes, int is_pcap, struct sockaddr_in *
                     challenge = (challenge_t *)pt_pkt->data;
                     /* If client: Compute response to challenge */
                     if (type_flag == kUser_flag) {
-                        if (!opts.password) {
-                            pt_log(kLog_error,
-                                   "This proxy requires a password! "
-                                   "Please supply one usin  g the -x switch.\n");
-                            send_termination_msg(cur, icmp_sock);
-                            cur->should_remove = 1;
-                            return;
-                        }
-#ifdef ENABLE_SHA512
-                        if (opts.force_sha512) {
-                            pt_log(kLog_debug, "Got authentication challenge - sending SHA512 response\n");
-                            generate_response_sha512(&challenge->plain, &challenge->digest);
-                        } else
-#endif
-                        {
-                            pt_log(kLog_debug, "Got authentication challenge - sending MD5 response\n");
-                            generate_response_md5(&challenge->plain, &challenge->digest);
-                        }
-
-                        memcpy(cur->buf, challenge, sizeof(challenge_t));
-                        queue_packet(
-                            icmp_sock, cur, cur->buf, sizeof(challenge_t), 0, 0, kProto_authenticate | cur->type_flag);
-                        /* We have authenticated locally.
-                         * It's up to the proxy now if it accepts our   response or not..
-                         */
-                        cur->authenticated = 1;
-                        handle_data(pkt, bytes, cur, 0);
+                        handle_auth_request(bytes, icmp_sock, pkt, cur, challenge);
                         return;
                     }
                     /* If proxy: Handle client's response to challenge */
                     else if (type_flag == proxy_flag) {
-                        pt_log(kLog_debug,
-                               "Received remote %s challenge response.\n",
-                               (challenge->digest.hash_type == HT_SHA512 ? "SHA512" : "MD5"));
-                        if ((!opts.force_sha512 && challenge->digest.hash_type == HT_MD5 &&
-                             validate_challenge_md5(cur->challenge, &challenge->digest)) ||
-#ifdef ENABLE_SHA512
-                            (challenge->digest.hash_type == HT_SHA512 &&
-                             validate_challenge_sha512(cur->challenge, &challenge->digest)) ||
-#endif
-                            cur->authenticated) {
-                            pt_log(kLog_verbose, "Remote end authenticated successfully.\n");
-                            handle_extended_options(cur);
-                            /* Authentication has succeeded, so now we can proceed
-                             * to handle incoming   TCP data.
-                             */
-                            cur->authenticated = 1;
-                            cur->state = kProto_data;
-                            /* Insert the packet into the receive ring, to avoid
-                             * confusing the reliab  ility mechanism.
-                             */
-                            handle_data(pkt, bytes, cur, 0);
-                        } else {
-                            pt_log(kLog_info, "Remote end failed authentication.\n");
-                            send_termination_msg(cur, icmp_sock);
-                            cur->should_remove = 1;
-                        }
+                        handle_auth_response(bytes, icmp_sock, pkt, cur, challenge);
                         return;
                     }
                 }
