@@ -2,6 +2,11 @@
 
 set -x
 
+OLD_WD="$(pwd)"
+NEW_WD="$(dirname ${0})"
+
+cd "${NEW_WD}"
+
 if ! autoreconf -fi; then
     aclocal
     autoheader
@@ -9,4 +14,6 @@ if ! autoreconf -fi; then
     autoconf
 fi
 
-$(dirname $0)/configure $@ && make -j${BUILDJOBS:-4} all
+cd "${OLD_WD}"
+
+"${NEW_WD}/configure" $@ && make clean && make -j${BUILDJOBS:-4} all
