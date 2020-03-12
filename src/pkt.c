@@ -188,6 +188,16 @@ static void handle_auth_response(unsigned bytes, int icmp_sock,
     }
 }
 
+static void header_byteorder_ntoh(icmp_echo_packet_t * const icmp_pkt,
+                                  ping_tunnel_pkt_t * const pt_pkt)
+{
+    pt_pkt->state = ntohl(pt_pkt->state);
+    icmp_pkt->identifier = ntohs(icmp_pkt->identifier);
+    icmp_pkt->seq = ntohs(icmp_pkt->seq);
+    pt_pkt->id_no = ntohs(pt_pkt->id_no);
+    pt_pkt->seq_no = ntohs(pt_pkt->seq_no);
+}
+
 static proxy_desc_t * get_proxy_descriptor(uint16_t id_no)
 {
     proxy_desc_t * cur;
@@ -241,12 +251,7 @@ void handle_packet(char * buf, unsigned bytes, int is_pcap, struct sockaddr_in *
         }
 
         if (ntohl(pt_pkt->magic) == opts.magic) {
-            pt_pkt->state = ntohl(pt_pkt->state);
-            pkt->identifier = ntohs(pkt->identifier);
-            pkt->seq = ntohs(pkt->seq);
-            pt_pkt->id_no = ntohs(pt_pkt->id_no);
-            pt_pkt->seq_no = ntohs(pt_pkt->seq_no);
-
+            header_byteorder_ntoh(pkt, pt_pkt);
             cur = get_proxy_descriptor(pt_pkt->id_no);
 
             /* Handle the packet if it comes from "the other end." This is a bit tricky
