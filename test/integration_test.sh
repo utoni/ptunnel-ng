@@ -5,8 +5,8 @@ set -x
 set -o pipefail
 
 
-SRC_ROOT=$(realpath $(dirname $0)/..)
-PTUNNEL_BIN=${PTUNNEL_BIN:-${SRC_ROOT}/src/ptunnel-ng}
+BIN_ROOT="${BIN_ROOT:-$(realpath $(dirname $0)/..)}"
+PTUNNEL_BIN=${PTUNNEL_BIN:-${BIN_ROOT}/src/ptunnel-ng}
 PTUNNEL_ARGS="${PTUNNEL_ARGS:-}"
 VALGRIND_BIN=${VALGRIND_BIN:-valgrind}
 VALGRIND_ARGS="--error-exitcode=1 --exit-on-first-error=yes"
