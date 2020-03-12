@@ -188,6 +188,22 @@ static void handle_auth_response(unsigned bytes, int icmp_sock,
     }
 }
 
+static proxy_desc_t * get_proxy_descriptor(uint16_t id_no)
+{
+    proxy_desc_t * cur;
+
+    /* Find the relevant connection, if it exists */
+    pthread_mutex_lock(&chain_lock);
+    for (cur = chain; cur; cur = cur->next) {
+        if (cur->id_no == id_no) {
+            break;
+        }
+    }
+    pthread_mutex_unlock(&chain_lock);
+
+    return cur;
+}
+
 /* handle_proxy_packet:
  * Processes incoming ICMP packets for the proxy. The packet can come either from the
  * packet capture lib, or from the actual socket or both.
@@ -230,13 +246,8 @@ void handle_packet(char * buf, unsigned bytes, int is_pcap, struct sockaddr_in *
             pkt->seq = ntohs(pkt->seq);
             pt_pkt->id_no = ntohs(pt_pkt->id_no);
             pt_pkt->seq_no = ntohs(pt_pkt->seq_no);
-            /* Find the relevant connection, if it exists */
-            pthread_mutex_lock(&chain_lock);
-            for (cur = chain; cur; cur = cur->next) {
-                if (cur->id_no == pt_pkt->id_no)
-                    break;
-            }
-            pthread_mutex_unlock(&chain_lock);
+
+            cur = get_proxy_descriptor(pt_pkt->id_no);
 
             /* Handle the packet if it comes from "the other end." This is a bit tricky
              * to get right, since we receive both our own and the other end's packets.
