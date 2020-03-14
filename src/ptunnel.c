@@ -428,6 +428,8 @@ int pt_create_udp_socket(int port) {
 /* pt_proxy: This function does all the client and proxy stuff.
  */
 void* pt_proxy(void *args) {
+	(void) args;
+
 	fd_set             set;
 	struct timeval     timeout;
 	int                bytes;

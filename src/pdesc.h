@@ -73,11 +73,11 @@
  */
 typedef struct forward_desc_t {
 	/** ping_tunnel_pkt_t seq_no */
-	int seq_no;
+	uint16_t seq_no;
 	/** length of data */
-	int length;
+	uint16_t length;
 	/** amount of data not yet transferred */
-	int remaining;
+	size_t remaining;
 	char data[0];
 } forward_desc_t;
 
@@ -89,9 +89,8 @@ typedef struct forward_desc_t {
  */
 typedef struct icmp_desc_t {
 	/** total length of ICMP packet, including ICMP header and ptunnel data. */
-	int pkt_len;
+	uint16_t pkt_len;
 	double  last_resend;
-	int resend_count;
 	uint16_t seq_no;
 	uint16_t icmp_id;
 	icmp_echo_packet_t *pkt;

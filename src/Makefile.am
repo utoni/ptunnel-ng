@@ -1,7 +1,7 @@
 bin_PROGRAMS = ptunnel-ng
 man8_MANS = ptunnel-ng.8
 
-ptunnel_ng_CFLAGS = -Wall
+ptunnel_ng_CFLAGS = -Wall -Wextra
 ptunnel_ng_LDADD =
 CLEANFILES =
 EXTTRA_DIST =

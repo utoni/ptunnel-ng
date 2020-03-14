@@ -262,6 +262,8 @@ static struct option long_options[] = {
 
 
 static const void *get_default_optval(enum option_type opttype, const char *optname) {
+	(void) opttype;
+
 	for (unsigned i = 0; i < ARRAY_SIZE(long_options); ++i) {
 		if (strncmp(long_options[i].name, optname, BUFSIZ /* not optimal */) == 0 &&
 		    strlen(long_options[i].name) == strlen(optname))
