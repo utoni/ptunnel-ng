@@ -142,7 +142,12 @@ typedef struct {
 #endif
 
 /* function Prototypes */
-void*    pt_proxy(void *args);
+#ifndef WIN32
+void * pt_proxy(void *args);
+#else
+unsigned int __stdcall pt_proxy(void *args);
+#endif
+
 #ifdef HAVE_PCAP
 void     pcap_packet_handler(u_char *refcon, const struct pcap_pkthdr *hdr,
                          const u_char* pkt);

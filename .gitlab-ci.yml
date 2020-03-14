@@ -8,7 +8,7 @@ before_script:
   - test ! -r /etc/debian_version || apt-get -qq update
   - test ! -r /etc/debian_version || apt-get install -y git debhelper dpkg-dev build-essential fakeroot flawfinder wget unzip
   - test ! -r /etc/debian_version || apt-get install -y libpcap-dev libselinux1-dev
-  - test ! -r /etc/debian_version || apt-get install -y binutils-mingw-w64-i686 gcc-mingw-w64 mingw-w64-i686-dev mingw-w64-common clang
+  - test ! -r /etc/debian_version || apt-get install -y binutils-mingw-w64-i686 gcc-mingw-w64 mingw-w64-i686-dev binutils-mingw-w64-x86-64 mingw-w64-x86-64-dev mingw-w64-common clang
   - test ! -r /etc/debian_version || apt-get install -y valgrind sudo netcat-openbsd
   - test ! -r /etc/debian_version || apt-get install -y autoconf automake dh-autoreconf
   - test ! -r /etc/arch-release || pacman -Syu --noconfirm
@@ -74,13 +74,31 @@ build-archlinux:
 
 build-mingw:
   script:
+    # print mingw-gcc versions and check if the required define is set
+    - i686-w64-mingw32-gcc --version
+    - i686-w64-mingw32-gcc -dM -E - < /dev/null | grep -E '^#define WIN32 1$'
+    - x86_64-w64-mingw32-gcc --version
+    - x86_64-w64-mingw32-gcc -dM -E - < /dev/null | grep -E '^#define WIN32 1$'
+    # the actual build
     - autoreconf -fi
+    # i686-w64-mingw32
     - ./configure --enable-option-checking=fatal --prefix=/ --host=i686-w64-mingw32
     - mv config.log deploy/config-mingw-i686.log
     - make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy/i686-w64-mingw32-winpcap)" V=s
+    - make clean
     - ./configure --enable-option-checking=fatal --prefix=/ --host=i686-w64-mingw32 --enable-npcap
     - mv config.log deploy/config-mingw-i686-npcap.log
     - make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy/i686-w64-mingw32-npcap)" V=s
+    - make clean
+    # x86-64-w64-mingw32
+    - ./configure --enable-option-checking=fatal --prefix=/ --host=x86_64-w64-mingw32
+    - mv config.log deploy/config-mingw-x86_64.log
+    - make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy/x86_64-w64-mingw32-winpcap)" V=s
+    - make clean
+    - ./configure --enable-option-checking=fatal --prefix=/ --host=x86_64-w64-mingw32 --enable-npcap
+    - mv config.log deploy/config-mingw-x86_64-npcap.log
+    - make install CFLAGS='-Werror' DESTDIR="$(realpath ./deploy/x86_64-w64-mingw32-npcap)" V=s
+    - make clean
   stage: build
   artifacts:
     paths:

@@ -375,7 +375,7 @@ void pt_forwarder(void) {
 #ifndef WIN32
 				if (pthread_create(&pid, 0, pt_proxy, 0) != 0)
 #else
-				if (0 == (pid = _beginthreadex(0, 0, (unsigned int (__stdcall *)(void *))pt_proxy, 0, 0, 0)))
+				if (0 == (pid = _beginthreadex(0, 0, pt_proxy, 0, 0, 0)))
 #endif
 				{
 					pt_log(kLog_error, "Couldn't create thread! Dropping incoming connection.\n");
@@ -427,7 +427,12 @@ int pt_create_udp_socket(int port) {
 
 /* pt_proxy: This function does all the client and proxy stuff.
  */
-void* pt_proxy(void *args) {
+#ifndef WIN32
+void * pt_proxy(void *args)
+#else
+unsigned int __stdcall pt_proxy(void *args)
+#endif
+{
 	(void) args;
 
 	fd_set             set;
