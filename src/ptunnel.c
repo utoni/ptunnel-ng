@@ -105,7 +105,7 @@ int num_threads = 0;
 /** Current tunnel count */
 uint32_t num_tunnels = 0;
 /** Table indicating when a connection ID is allowable (used by proxy) */
-uint32_t *seq_expiry_tbl = NULL;
+time_t *seq_expiry_tbl = NULL;
 
 /* Some buffer constants */
 const int icmp_receive_buf_len = kDefault_buf_size + kIP_header_size +
@@ -181,7 +181,7 @@ int main(int argc, char *argv[]) {
 	/* The seq_expiry_tbl is used to prevent the remote ends from prematurely
 	 * re-using a sequence number.
 	 */
-	seq_expiry_tbl = (uint32_t *) calloc(65536, sizeof(uint32_t));
+	seq_expiry_tbl = (time_t *) calloc(65536, sizeof(time_t));
 
 	/* Parse options */
 	if (parse_options(argc, argv))

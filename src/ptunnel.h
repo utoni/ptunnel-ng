@@ -92,7 +92,7 @@ extern pthread_mutex_t chain_lock;
 extern uint32_t num_tunnels;
 extern const int icmp_receive_buf_len;
 extern proxy_desc_t *chain;
-extern uint32_t *seq_expiry_tbl;
+extern time_t *seq_expiry_tbl;
 extern const char *state_name[kNum_proto_types];
 
 /* pt_thread_info_t: A simple (very simple, in fact) structure that allows us
