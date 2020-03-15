@@ -331,11 +331,14 @@ void handle_packet(char * buf, unsigned bytes, int is_pcap, struct sockaddr_in *
                     challenge = (challenge_t *)pt_pkt->data;
                     /* If client: Compute response to challenge */
                     if (type_flag == kUser_flag) {
+                        /* Required for integration tests w/ passwd set. */
+                        pt_log(kLog_debug, "AUTH-REQUEST: Received ack-series starting at seq %d\n", pt_pkt->seq_no);
                         handle_auth_request(bytes, icmp_sock, pkt, cur, challenge);
                         return;
                     }
                     /* If proxy: Handle client's response to challenge */
                     else if (type_flag == proxy_flag) {
+                        cur->next_remote_seq++;
                         handle_auth_response(bytes, icmp_sock, pkt, cur, challenge);
                         return;
                     }
@@ -430,7 +433,7 @@ void handle_data(icmp_echo_packet_t * pkt, int total_len, proxy_desc_t * cur, in
     }
 
     if (pt_pkt->seq_no == cur->next_remote_seq) {
-        /* hmm, what happens if this test is true? */
+        /* Check if we should add payload data to the queue. */
         if (!cur->recv_ring[cur->recv_idx] && pt_pkt->state == kProto_data) {
             pt_log(kLog_debug, "Queing data packet: %d\n", pt_pkt->seq_no);
             cur->recv_ring[cur->recv_idx] = create_fwd_desc(pt_pkt->seq_no, pt_pkt->data_len, pt_pkt->data);
@@ -443,7 +446,7 @@ void handle_data(icmp_echo_packet_t * pkt, int total_len, proxy_desc_t * cur, in
         cur->next_remote_seq++;
         if (cur->recv_idx >= cur->window_size)
             cur->recv_idx = 0;
-        /* Check if we have already received some of the next packets */
+        /* Check if we have already received some of the next packets. */
         while (cur->recv_ring[cur->recv_idx]) {
             if (cur->recv_ring[cur->recv_idx]->seq_no == cur->next_remote_seq) {
                 cur->next_remote_seq++;
