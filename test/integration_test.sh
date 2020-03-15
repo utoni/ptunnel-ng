@@ -98,4 +98,5 @@ SERVER_SHA=$(cat /tmp/ptunnel-data-recv | sha256sum | cut -d' ' -f1)
 test ${CLIENT_SHA} = ${SERVER_SHA}
 
 
-printf 'done\n'
+set +x
+printf '[+] SUCCESS !!\n'

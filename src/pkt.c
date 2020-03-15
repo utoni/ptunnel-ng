@@ -373,8 +373,9 @@ void handle_packet(char * buf, unsigned bytes, int is_pcap, struct sockaddr_in *
                     cur->last_activity = now;
                 }
             }
-        } else
+        } else {
             pt_log(kLog_verbose, "Ignored incoming packet.\n");
+        }
     }
 }
 
@@ -403,15 +404,12 @@ void handle_data(icmp_echo_packet_t * pkt, int total_len, proxy_desc_t * cur, in
         expected_len -= sizeof(ip_packet_t);
     if (total_len < expected_len) {
         pt_log(kLog_error,
-               "Packet not completely received: %d Should be: %d. "
-               "For some reason, this error is fatal.\n",
+               "Packet not completely received: %d Should be: %d.\n",
                total_len,
                expected_len);
         pt_log(kLog_debug, "Data length: %d Total length: %d\n", pt_pkt->data_len, total_len);
-        /* TODO: This error isn't fatal, so it should definitely be handled in some way.
-         * We could simply discard it.
-         */
-        exit(0);
+        /* just ignore that packet */
+        return;
     }
 
     if (handle_extended_options) {
@@ -433,13 +431,13 @@ void handle_data(icmp_echo_packet_t * pkt, int total_len, proxy_desc_t * cur, in
 
     if (pt_pkt->seq_no == cur->next_remote_seq) {
         /* hmm, what happens if this test is true? */
-        if (!cur->recv_ring[cur->recv_idx]) { /* && pt_pkt->state == kProto_data */
-            /* pt_log(kLog_debug, "Queing data packet: %d\n", pt_pkt->seq_no); */
+        if (!cur->recv_ring[cur->recv_idx] && pt_pkt->state == kProto_data) {
+            pt_log(kLog_debug, "Queing data packet: %d\n", pt_pkt->seq_no);
             cur->recv_ring[cur->recv_idx] = create_fwd_desc(pt_pkt->seq_no, pt_pkt->data_len, pt_pkt->data);
             cur->recv_wait_send++;
             cur->recv_idx++;
         } else {
-            pt_log(kLog_debug, "Dup packet?\n");
+            pt_log(kLog_debug, "Dup packet for %d ?\n", pt_pkt->seq_no);
         }
 
         cur->next_remote_seq++;
@@ -452,8 +450,9 @@ void handle_data(icmp_echo_packet_t * pkt, int total_len, proxy_desc_t * cur, in
                 cur->recv_idx++;
                 if (cur->recv_idx >= cur->window_size)
                     cur->recv_idx = 0;
-            } else
+            } else {
                 break;
+            }
         }
     } else {
         int r, s, d, pos;
