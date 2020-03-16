@@ -7,7 +7,7 @@ before_install:
 - sudo apt-get install -y binutils-mingw-w64-x86-64 mingw-w64-x86-64-dev
 - sudo apt-get install -y autoconf automake dh-autoreconf
 after_failure:
-- cat config.log
+- cat config.log | tail -n 350
 script:
 - mkdir -p ./deploy ./deploy/gcc ./deploy/mingw-w64-i386-winpcap ./deploy/mingw-w64-i386-npcap ./deploy/mingw-w64-x86_64-winpcap ./deploy/mingw-w64-x86_64-npcap ./deploy/clang ./deploy/android28-clang
 # default gcc build
