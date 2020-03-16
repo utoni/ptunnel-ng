@@ -231,7 +231,7 @@ void handle_packet(char * buf, unsigned bytes, int is_pcap, struct sockaddr_in *
 
     proxy_flag = kProxy_flag;
 
-    if (bytes < sizeof(icmp_echo_packet_t) + sizeof(ping_tunnel_pkt_t))
+    if (bytes < sizeof(icmp_echo_packet_t) + sizeof(ping_tunnel_pkt_t)) {
         pt_log(kLog_verbose,
                "Skipping this packet - too short. "
                "Expect: %lu+%lu = %lu ; Got: %u\n",
@@ -239,145 +239,148 @@ void handle_packet(char * buf, unsigned bytes, int is_pcap, struct sockaddr_in *
                sizeof(ping_tunnel_pkt_t),
                sizeof(icmp_echo_packet_t) + sizeof(ping_tunnel_pkt_t),
                bytes);
-    else {
-        if (opts.udp || opts.unprivileged) {
-            ip_pkt = 0;
-            pkt = (icmp_echo_packet_t *)buf;
-            pt_pkt = (ping_tunnel_pkt_t *)pkt->data;
-        } else {
-            ip_pkt = (ip_packet_t *)buf;
-            pkt = (icmp_echo_packet_t *)ip_pkt->data;
-            pt_pkt = (ping_tunnel_pkt_t *)pkt->data;
+        return;
+    }
+
+    if (opts.udp || opts.unprivileged) {
+        ip_pkt = 0;
+        pkt = (icmp_echo_packet_t *)buf;
+        pt_pkt = (ping_tunnel_pkt_t *)pkt->data;
+    } else {
+        ip_pkt = (ip_packet_t *)buf;
+        pkt = (icmp_echo_packet_t *)ip_pkt->data;
+        pt_pkt = (ping_tunnel_pkt_t *)pkt->data;
+    }
+
+    if (ntohl(pt_pkt->magic) != opts.magic) {
+        pt_log(kLog_verbose, "Ignored incoming packet. Magic value 0x%X mismatch.\n", ntohl(pt_pkt->magic));
+        return;
+    }
+
+    header_byteorder_ntoh(pkt, pt_pkt);
+    cur = get_proxy_descriptor(pt_pkt->id_no);
+
+    /* Handle the packet if it comes from "the other end." This is a bit tricky
+     * to get right, since we receive both our own and the other end's packets.
+     * Basically, a proxy will accept any packet from a user, regardless if it
+     * has a valid connection or not. A user will only accept the packet if there
+     * exists a connection to handle it.
+     */
+    if (cur) {
+        type_flag = cur->type_flag;
+        if (type_flag == (uint32_t)kProxy_flag) {
+            cur->icmp_id = pkt->identifier;
+            cur->ping_seq = pkt->seq;
         }
+        if (!is_pcap)
+            cur->xfer.icmp_in++;
+    } else {
+        type_flag = kProxy_flag;
+    }
 
-        if (ntohl(pt_pkt->magic) == opts.magic) {
-            header_byteorder_ntoh(pkt, pt_pkt);
-            cur = get_proxy_descriptor(pt_pkt->id_no);
+    pkt_flag = pt_pkt->state & kFlag_mask;
+    pt_pkt->state &= ~kFlag_mask;
+    if (pt_pkt->state > (kNum_proto_types - 1)) {
+        pt_log(kLog_error, "Dropping packet with invalid state.\n");
+        return;
+    }
 
-            /* Handle the packet if it comes from "the other end." This is a bit tricky
-             * to get right, since we receive both our own and the other end's packets.
-             * Basically, a proxy will accept any packet from a user, regardless if it
-             * has a valid connection or not. A user will only accept the packet if there
-             * exists a connection to handle it.
-             */
-            if (cur) {
-                type_flag = cur->type_flag;
-                if (type_flag == (uint32_t)kProxy_flag) {
-                    cur->icmp_id = pkt->identifier;
-                    cur->ping_seq = pkt->seq;
+    pt_log(kLog_sendrecv,
+           "Recv: %4d [%4d] bytes "
+           "[id = 0x%04X] [seq = %d] "
+           "[seq_no = %d] [type = %s] "
+           "[ack = %d] [icmp = %d] "
+           "[user = %s] [pcap = %d]\n",
+           bytes,
+           ntohl(pt_pkt->data_len),
+           pkt->identifier,
+           ntohs(pkt->seq),
+           pt_pkt->seq_no,
+           state_name[pt_pkt->state & (~kFlag_mask)],
+           ntohl(pt_pkt->ack),
+           pkt->type,
+           (pkt_flag == kUser_flag ? "yes" : "no"),
+           is_pcap);
+
+    /* This test essentially verifies that the packet comes from someone who isn't us. */
+    if ((pkt_flag == kUser_flag && type_flag == proxy_flag) ||
+        (pkt_flag == proxy_flag && type_flag == kUser_flag)) {
+        pt_pkt->data_len = ntohl(pt_pkt->data_len);
+        pt_pkt->ack = ntohl(pt_pkt->ack);
+        if (pt_pkt->state == kProxy_start) {
+            if (!cur && type_flag == proxy_flag) {
+                cur = handle_incoming_tunnel_request(bytes, addr, icmp_sock, pkt, pt_pkt);
+                if (!cur) {
+                    return;
                 }
-                if (!is_pcap)
-                    cur->xfer.icmp_in++;
+            } else if (type_flag == kUser_flag) {
+                pt_log(kLog_error, "Dropping proxy session request - we are not a proxy!\n");
+                return;
             } else {
-                type_flag = kProxy_flag;
+                pt_log(kLog_error,
+                       "Dropping duplicate proxy session request "
+                       "with ID %d and seq %d.\n",
+                       pt_pkt->id_no,
+                       pt_pkt->seq_no);
             }
-
-            pkt_flag = pt_pkt->state & kFlag_mask;
-            pt_pkt->state &= ~kFlag_mask;
-            if (pt_pkt->state > (kNum_proto_types - 1)) {
-                pt_log(kLog_error, "Dropping packet with invalid state.\n");
+        } else if (cur && pt_pkt->state == kProto_authenticate) {
+            /* Sanity check packet length, and make sure it matches what we expect */
+            if (pt_pkt->data_len != sizeof(challenge_t)) {
+                pt_log(kLog_error,
+                       "Received challenge packet, but data length "
+                       "is not as expected.\n");
+                pt_log(kLog_debug, "Data length: %u  Expected: %lu\n", pt_pkt->data_len, sizeof(challenge_t));
+                cur->should_remove = 1;
                 return;
             }
-            pt_log(kLog_sendrecv,
-                   "Recv: %4d [%4d] bytes "
-                   "[id = 0x%04X] [seq = %d] "
-                   "[seq_no = %d] [type = %s] "
-                   "[ack = %d] [icmp = %d] "
-                   "[user = %s] [pcap = %d]\n",
-                   bytes,
-                   ntohl(pt_pkt->data_len),
-                   pkt->identifier,
-                   ntohs(pkt->seq),
-                   pt_pkt->seq_no,
-                   state_name[pt_pkt->state & (~kFlag_mask)],
-                   ntohl(pt_pkt->ack),
-                   pkt->type,
-                   (pkt_flag == kUser_flag ? "yes" : "no"),
-                   is_pcap);
-
-            /* This test essentially verifies that the packet comes from someone who isn't us. */
-            if ((pkt_flag == kUser_flag && type_flag == proxy_flag) ||
-                (pkt_flag == proxy_flag && type_flag == kUser_flag)) {
-                pt_pkt->data_len = ntohl(pt_pkt->data_len);
-                pt_pkt->ack = ntohl(pt_pkt->ack);
-                if (pt_pkt->state == kProxy_start) {
-                    if (!cur && type_flag == proxy_flag) {
-                        cur = handle_incoming_tunnel_request(bytes, addr, icmp_sock, pkt, pt_pkt);
-                        if (!cur) {
-                            return;
-                        }
-                    } else if (type_flag == kUser_flag) {
-                        pt_log(kLog_error, "Dropping proxy session request - we are not a proxy!\n");
-                        return;
-                    } else {
-                        pt_log(kLog_error,
-                               "Dropping duplicate proxy session request "
-                               "with ID %d and seq %d.\n",
-                               pt_pkt->id_no,
-                               pt_pkt->seq_no);
-                    }
-                } else if (cur && pt_pkt->state == kProto_authenticate) {
-                    /* Sanity check packet length, and make sure it matches what we expect */
-                    if (pt_pkt->data_len != sizeof(challenge_t)) {
-                        pt_log(kLog_error,
-                               "Received challenge packet, but data length "
-                               "is not as expected.\n");
-                        pt_log(kLog_debug, "Data length: %u  Expected: %lu\n", pt_pkt->data_len, sizeof(challenge_t));
-                        cur->should_remove = 1;
-                        return;
-                    }
-                    /* Prevent packet data from being forwarded over TCP! */
-                    pt_pkt->data_len = 0;
-                    challenge = (challenge_t *)pt_pkt->data;
-                    /* If client: Compute response to challenge */
-                    if (type_flag == kUser_flag) {
-                        /* Required for integration tests w/ passwd set. */
-                        pt_log(kLog_debug, "AUTH-REQUEST: Received ack-series starting at seq %d\n", pt_pkt->seq_no);
-                        handle_auth_request(bytes, icmp_sock, pkt, cur, challenge);
-                        return;
-                    }
-                    /* If proxy: Handle client's response to challenge */
-                    else if (type_flag == proxy_flag) {
-                        cur->next_remote_seq++;
-                        handle_auth_response(bytes, icmp_sock, pkt, cur, challenge);
-                        return;
-                    }
-                }
-                /* Handle close-messages for connections we know about */
-                if (cur && pt_pkt->state == kProto_close) {
-                    pt_log(kLog_info, "Received session close from remote peer.\n");
-                    cur->should_remove = 1;
-                    return;
-                }
-                /* The proxy will ignore any other packets from the client
-                 * until it has been authenticated. The packet resend mechanism
-                 * insures that this isn't problematic.
-                 */
-                if (type_flag == proxy_flag && opts.password && cur && !cur->authenticated) {
-                    pt_log(kLog_debug,
-                           "Ignoring packet with seq-no %d "
-                           "- not authenticated yet.\n",
-                           pt_pkt->seq_no);
-                    return;
-                }
-
-                if (cur && cur->sock) {
-                    double now = time_as_double();
-                    if (pt_pkt->state != kProto_ack) {
-                        cur->last_data_activity = now;
-                    }
-                    if (pt_pkt->state == kProto_data || pt_pkt->state == kProxy_start || pt_pkt->state == kProto_ack) {
-                        if (pt_pkt->state == kProxy_start) {
-                            pt_pkt->data_len = 0;
-                        }
-                        handle_data(pkt, bytes, cur, 0);
-                    }
-                    handle_ack(pt_pkt->ack, cur);
-                    cur->last_activity = now;
-                }
+            /* Prevent packet data from being forwarded over TCP! */
+            pt_pkt->data_len = 0;
+            challenge = (challenge_t *)pt_pkt->data;
+            /* If client: Compute response to challenge */
+            if (type_flag == kUser_flag) {
+                /* Required for integration tests w/ passwd set. */
+                pt_log(kLog_debug, "AUTH-REQUEST: Received ack-series starting at seq %d\n", pt_pkt->seq_no);
+                handle_auth_request(bytes, icmp_sock, pkt, cur, challenge);
+                return;
             }
-        } else {
-            pt_log(kLog_verbose, "Ignored incoming packet.\n");
+            /* If proxy: Handle client's response to challenge */
+            else if (type_flag == proxy_flag) {
+                cur->next_remote_seq++;
+                handle_auth_response(bytes, icmp_sock, pkt, cur, challenge);
+                return;
+            }
+        }
+        /* Handle close-messages for connections we know about */
+        if (cur && pt_pkt->state == kProto_close) {
+            pt_log(kLog_info, "Received session close from remote peer.\n");
+            cur->should_remove = 1;
+            return;
+        }
+        /* The proxy will ignore any other packets from the client
+         * until it has been authenticated. The packet resend mechanism
+         * insures that this isn't problematic.
+         */
+        if (type_flag == proxy_flag && opts.password && cur && !cur->authenticated) {
+            pt_log(kLog_debug,
+                   "Ignoring packet with seq-no %d "
+                   "- not authenticated yet.\n",
+                   pt_pkt->seq_no);
+            return;
+        }
+
+        if (cur && cur->sock) {
+            double now = time_as_double();
+            if (pt_pkt->state != kProto_ack) {
+                cur->last_data_activity = now;
+            }
+            if (pt_pkt->state == kProto_data || pt_pkt->state == kProxy_start || pt_pkt->state == kProto_ack) {
+                if (pt_pkt->state == kProxy_start) {
+                    pt_pkt->data_len = 0;
+                }
+                handle_data(pkt, bytes, cur, 0);
+            }
+            handle_ack(pt_pkt->ack, cur);
+            cur->last_activity = now;
         }
     }
 }
