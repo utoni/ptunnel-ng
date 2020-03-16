@@ -385,6 +385,37 @@ void handle_packet(char * buf, unsigned bytes, int is_pcap, struct sockaddr_in *
     }
 }
 
+static void queue_payload_data(ping_tunnel_pkt_t * const pt_pkt, proxy_desc_t * const cur)
+{
+    /* Check if we should add payload data to the queue. */
+    if (!cur->recv_ring[cur->recv_idx] && pt_pkt->state == kProto_data) {
+        pt_log(kLog_debug, "Queing data packet: %d\n", pt_pkt->seq_no);
+        cur->recv_ring[cur->recv_idx] = create_fwd_desc(pt_pkt->seq_no, pt_pkt->data_len, pt_pkt->data);
+        cur->recv_wait_send++;
+        cur->recv_idx++;
+    } else {
+        pt_log(kLog_debug, "Dup packet for %d ?\n", pt_pkt->seq_no);
+    }
+
+    cur->next_remote_seq++;
+    if (cur->recv_idx >= cur->window_size) {
+        cur->recv_idx = 0;
+    }
+
+    /* Check if we have already received some of the next packets. */
+    while (cur->recv_ring[cur->recv_idx]) {
+        if (cur->recv_ring[cur->recv_idx]->seq_no == cur->next_remote_seq) {
+            cur->next_remote_seq++;
+            cur->recv_idx++;
+            if (cur->recv_idx >= cur->window_size) {
+                cur->recv_idx = 0;
+            }
+        } else {
+            break;
+        }
+    }
+}
+
 /* handle_data:
  * Utility function for handling kProto_data packets, and place the data it contains
  * onto the passed-in receive ring.
@@ -436,30 +467,7 @@ void handle_data(icmp_echo_packet_t * pkt, int total_len, proxy_desc_t * cur, in
     }
 
     if (pt_pkt->seq_no == cur->next_remote_seq) {
-        /* Check if we should add payload data to the queue. */
-        if (!cur->recv_ring[cur->recv_idx] && pt_pkt->state == kProto_data) {
-            pt_log(kLog_debug, "Queing data packet: %d\n", pt_pkt->seq_no);
-            cur->recv_ring[cur->recv_idx] = create_fwd_desc(pt_pkt->seq_no, pt_pkt->data_len, pt_pkt->data);
-            cur->recv_wait_send++;
-            cur->recv_idx++;
-        } else {
-            pt_log(kLog_debug, "Dup packet for %d ?\n", pt_pkt->seq_no);
-        }
-
-        cur->next_remote_seq++;
-        if (cur->recv_idx >= cur->window_size)
-            cur->recv_idx = 0;
-        /* Check if we have already received some of the next packets. */
-        while (cur->recv_ring[cur->recv_idx]) {
-            if (cur->recv_ring[cur->recv_idx]->seq_no == cur->next_remote_seq) {
-                cur->next_remote_seq++;
-                cur->recv_idx++;
-                if (cur->recv_idx >= cur->window_size)
-                    cur->recv_idx = 0;
-            } else {
-                break;
-            }
-        }
+        queue_payload_data(pt_pkt, cur);
     } else {
         int r, s, d, pos;
         pos = -1; /* If pos ends up staying -1, packet is discarded. */
