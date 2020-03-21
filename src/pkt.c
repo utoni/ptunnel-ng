@@ -437,8 +437,9 @@ void handle_data(icmp_echo_packet_t * pkt, int total_len, proxy_desc_t * cur, in
      */
     expected_len += pt_pkt->data_len;
     expected_len += expected_len % 2;
-    if (opts.udp || opts.unprivileged)
+    if (opts.udp || opts.unprivileged) {
         expected_len -= sizeof(ip_packet_t);
+    }
     if (total_len < expected_len) {
         pt_log(kLog_error,
                "Packet not completely received: %d Should be: %d.\n",
@@ -535,17 +536,20 @@ void handle_ack(uint32_t seq_no, proxy_desc_t * cur)
     if (cur->send_wait_ack > 0) {
         int i, can_ack = 0, count = 0;
         i = cur->send_idx - 1;
-        if (i < 0)
+        if (i < 0) {
             i = cur->window_size - 1;
+        }
 
         pt_log(kLog_debug, "Received ack-series starting at seq %d\n", seq_no);
         while (count < cur->window_size) {
-            if (!cur->send_ring[i].pkt)
+            if (!cur->send_ring[i].pkt) {
                 break;
-            if (cur->send_ring[i].seq_no == seq_no)
+            }
+            if (cur->send_ring[i].seq_no == seq_no) {
                 can_ack = 1;
-            else if (!can_ack)
+            } else if (!can_ack) {
                 cur->send_first_ack = i;
+            }
             if (can_ack) {
                 free(cur->send_ring[i].pkt);
                 cur->send_ring[i].pkt = 0;
@@ -553,8 +557,9 @@ void handle_ack(uint32_t seq_no, proxy_desc_t * cur)
                 cur->send_wait_ack--;
             }
             i--;
-            if (i < 0)
+            if (i < 0) {
                 i = cur->window_size - 1;
+            }
             count++;
         }
     } else {
