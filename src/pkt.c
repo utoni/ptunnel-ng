@@ -416,6 +416,40 @@ static void queue_payload_data(ping_tunnel_pkt_t * const pt_pkt, proxy_desc_t * 
     }
 }
 
+static void queue_payload_data_out_of_order(ping_tunnel_pkt_t * const pt_pkt, proxy_desc_t * const cur)
+{
+    int r, s, d, pos;
+    pos = -1; /* If pos ends up staying -1, packet is discarded. */
+    r = cur->next_remote_seq;
+    s = pt_pkt->seq_no;
+    d = s - r;
+    if (d < 0) { /* This packet _may_ be old, or seq_no may have wrapped around */
+        d = (s + 0xFFFF) - r;
+        if (cur->window_size && d < cur->window_size) {
+            /* Counter has wrapped, so we should add this packet to the recv ring */
+            pos = (cur->recv_idx + d) % cur->window_size;
+        }
+    } else if (cur->window_size && d < cur->window_size) {
+        pos = (cur->recv_idx + d) % cur->window_size;
+    }
+
+    if (pos != -1) {
+        if (!cur->recv_ring[pos]) {
+            pt_log(kLog_verbose,
+                   "Out of order. Expected: %d  Got: %d  Inserted: %d "
+                   "(cur = %d)\n",
+                   cur->next_remote_seq,
+                   pt_pkt->seq_no,
+                   pos,
+                   cur->recv_idx);
+            cur->recv_ring[pos] = create_fwd_desc(pt_pkt->seq_no, pt_pkt->data_len, pt_pkt->data);
+            cur->recv_wait_send++;
+        }
+    } else {
+        pt_log(kLog_info, "Packet discarded - outside receive window.\n");
+    }
+}
+
 /* handle_data:
  * Utility function for handling kProto_data packets, and place the data it contains
  * onto the passed-in receive ring.
@@ -470,36 +504,7 @@ void handle_data(icmp_echo_packet_t * pkt, int total_len, proxy_desc_t * cur, in
     if (pt_pkt->seq_no == cur->next_remote_seq) {
         queue_payload_data(pt_pkt, cur);
     } else {
-        int r, s, d, pos;
-        pos = -1; /* If pos ends up staying -1, packet is discarded. */
-        r = cur->next_remote_seq;
-        s = pt_pkt->seq_no;
-        d = s - r;
-        if (d < 0) { /* This packet _may_ be old, or seq_no may have wrapped around */
-            d = (s + 0xFFFF) - r;
-            if (cur->window_size && d < cur->window_size) {
-                /* Counter has wrapped, so we should add this packet to the recv ring */
-                pos = (cur->recv_idx + d) % cur->window_size;
-            }
-        } else if (cur->window_size && d < cur->window_size) {
-            pos = (cur->recv_idx + d) % cur->window_size;
-        }
-
-        if (pos != -1) {
-            if (!cur->recv_ring[pos]) {
-                pt_log(kLog_verbose,
-                       "Out of order. Expected: %d  Got: %d  Inserted: %d "
-                       "(cur = %d)\n",
-                       cur->next_remote_seq,
-                       pt_pkt->seq_no,
-                       pos,
-                       cur->recv_idx);
-                cur->recv_ring[pos] = create_fwd_desc(pt_pkt->seq_no, pt_pkt->data_len, pt_pkt->data);
-                cur->recv_wait_send++;
-            }
-        } else {
-            pt_log(kLog_info, "Packet discarded - outside receive window.\n");
-        }
+        queue_payload_data_out_of_order(pt_pkt, cur);
     }
 }
 
