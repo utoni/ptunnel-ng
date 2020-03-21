@@ -93,15 +93,16 @@ proxy_desc_t *create_and_insert_proxy_desc(uint16_t id_no, uint16_t icmp_id,
 		{
 			pt_log(kLog_error, "Connect to %s:%d failed: %s\n", inet_ntoa(*(struct in_addr*)&addr->sin_addr.s_addr)  , ntohs(addr->sin_port), strerror(errno));
 		}
-	}
-	else
+	} else {
 		cur->sock           = sock;
+	}
 	cur->state              = init_state;
 	cur->type_flag          = type;
-	if (cur->type_flag == kUser_flag)
+	if (cur->type_flag == kUser_flag) {
 		cur->pkt_type       = kICMP_echo_request;
-	else
+	} else {
 		cur->pkt_type       = (opts.unprivileged ? kICMP_echo_request : kICMP_echo_reply);
+	}
 	cur->buf                = (char *) malloc(icmp_receive_buf_len);
 	cur->last_activity      = time_as_double();
 	cur->authenticated      = 0;
@@ -112,13 +113,11 @@ proxy_desc_t *create_and_insert_proxy_desc(uint16_t id_no, uint16_t icmp_id,
 	pthread_mutex_unlock(&chain_lock);
 	cur->xfer.bytes_in      = 0.0;
 	cur->xfer.bytes_out     = 0.0;
-	cur->window_size	= opts.window_size ? opts.window_size : 64;
-	cur->ack_interval	= opts.ack_interval ? opts.ack_interval / 1000.0 : 1.0;
-	cur->resend_interval	= opts.resend_interval ? opts.resend_interval / 1000.0 : 1.5;
-	cur->payload_size	= opts.payload_size ? opts.payload_size : 1024;
-	memset(cur->extended_options, 0, sizeof(cur->extended_options));
-	cur->send_ring		= (icmp_desc_t *) calloc(cur->window_size, sizeof(icmp_desc_t));
-	cur->recv_ring		= (forward_desc_t **) calloc(cur->window_size, sizeof(forward_desc_t *));
+	cur->window_size        = kPing_window_size;
+	cur->ack_interval       = 1.0;
+	cur->resend_interval    = 1.5;
+	cur->send_ring          = (icmp_desc_t *) calloc(cur->window_size, sizeof(icmp_desc_t));
+	cur->recv_ring          = (forward_desc_t **) calloc(cur->window_size, sizeof(forward_desc_t *));
 	return cur;
 }
 

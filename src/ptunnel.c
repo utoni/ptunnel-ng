@@ -108,6 +108,7 @@ uint32_t num_tunnels = 0;
 time_t *seq_expiry_tbl = NULL;
 
 /* Some buffer constants */
+const int tcp_receive_buf_len  = kDefault_buf_size;
 const int icmp_receive_buf_len = kDefault_buf_size + kIP_header_size +
                                  kICMP_header_size + sizeof(ping_tunnel_pkt_t);
 const int pcap_buf_size        = (kDefault_buf_size + kIP_header_size +
@@ -631,27 +632,7 @@ unsigned int __stdcall pt_proxy(void *args)
 			if (cur->state == kProxy_start) {
 				pt_log(kLog_verbose, "Sending proxy request.\n");
 				cur->last_ack = time_as_double();
-				uint16_t extended_options[4];
-				size_t extended_options_size = 0;
-				memset(extended_options, 0, sizeof(extended_options));
-				if (opts.window_size) {
-					extended_options_size = sizeof(uint16_t);
-					extended_options[0] = htons(opts.window_size);
-				}
-				if (opts.ack_interval) {
-					extended_options_size = 2*sizeof(uint16_t);
-					extended_options[1] = htons(opts.ack_interval);
-				}
-				if (opts.resend_interval) {
-					extended_options_size = 3*sizeof(uint16_t);
-					extended_options[2] = htons(opts.resend_interval);
-				}
-				if (opts.payload_size) {
-					extended_options_size = 4*sizeof(uint16_t);
-					extended_options[3] = htons(opts.payload_size);
-				}
-				queue_packet(fwd_sock, cur, (char *)extended_options, extended_options_size,
-				             cur->dst_ip, cur->dst_port, cur->state | cur->type_flag);
+				queue_packet(fwd_sock, cur, NULL, 0, cur->dst_ip, cur->dst_port, cur->state | cur->type_flag);
 				cur->xfer.icmp_out++;
 				cur->state = kProto_data;
 			}
@@ -665,7 +646,7 @@ unsigned int __stdcall pt_proxy(void *args)
 			}
 			/* Handle TCP traffic */
 			if (FD_ISSET(cur->sock, &set)) {
-				bytes = recv(cur->sock, cur->buf, cur->payload_size, 0);
+				bytes = recv(cur->sock, cur->buf, tcp_receive_buf_len, 0);
 				if (bytes <= 0) {
 					pt_log(kLog_info, "Connection closed or lost.\n");
 					tmp	= cur->next;
@@ -730,23 +711,9 @@ unsigned int __stdcall pt_proxy(void *args)
 			if (cur->last_ack+cur->ack_interval < now && cur->send_wait_ack < cur->window_size &&
 			    cur->remote_ack_val+1 != cur->next_remote_seq)
 			{
-				idx = cur->send_idx;
 				queue_packet(fwd_sock, cur, NULL, 0, cur->dst_ip, cur->dst_port, kProto_ack | cur->type_flag);
-				cur->xfer.icmp_ack_out++;
-				if (opts.empty_pings &&
-					cur->last_data_activity > cur->last_ack &&
-					cur->send_ring[idx].pkt_len > sizeof(icmp_echo_packet_t) &&
-					cur->send_ring[idx].pkt->type == kICMP_echo_request) {
-					for (uint16_t e = 0; e < opts.empty_pings; e++) {
-						cur->send_ring[idx].pkt->seq      = htons(cur->ping_seq);
-						cur->ping_seq++;
-						cur->send_ring[idx].pkt->checksum = 0;
-						cur->send_ring[idx].pkt->checksum = htons(calc_icmp_checksum((uint16_t*)cur->send_ring[idx].pkt, sizeof(icmp_echo_packet_t)));
-						sendto(fwd_sock, (const void*)cur->send_ring[idx].pkt, sizeof(icmp_echo_packet_t),
-						       0, (struct sockaddr*)&cur->dest_addr, sizeof(struct sockaddr));
-					}
-				}
 				cur->last_ack = now;
+				cur->xfer.icmp_ack_out++;
 			}
 		}
 		pthread_mutex_unlock(&chain_lock);

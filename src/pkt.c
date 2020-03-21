@@ -104,10 +104,7 @@ handle_incoming_tunnel_request(unsigned bytes, struct sockaddr_in *addr, int icm
         return NULL;
     }
     if (pt_pkt->data_len > 0) {
-        handle_data(pkt, bytes, cur, 1);
-        if (!opts.password) {
-            handle_extended_options(cur);
-        }
+        handle_data(pkt, bytes, cur);
     }
     if (init_state == kProto_authenticate) {
         pt_log(kLog_debug, "Sending authentication challenge..\n");
@@ -152,7 +149,7 @@ static void handle_auth_request(unsigned bytes, int icmp_sock,
      * It's up to the proxy now if it accepts our   response or not..
      */
     cur->authenticated = 1;
-    handle_data(pkt, bytes, cur, 0);
+    handle_data(pkt, bytes, cur);
 }
 
 static void handle_auth_response(unsigned bytes, int icmp_sock,
@@ -171,7 +168,6 @@ static void handle_auth_response(unsigned bytes, int icmp_sock,
         cur->authenticated)
     {
         pt_log(kLog_verbose, "Remote end authenticated successfully.\n");
-        handle_extended_options(cur);
         /* Authentication has succeeded, so now we can proceed
          * to handle incoming   TCP data.
          */
@@ -180,7 +176,7 @@ static void handle_auth_response(unsigned bytes, int icmp_sock,
         /* Insert the packet into the receive ring, to avoid
          * confusing the reliab  ility mechanism.
          */
-        handle_data(pkt, bytes, cur, 0);
+        handle_data(pkt, bytes, cur);
     } else {
         pt_log(kLog_info, "Remote end failed authentication.\n");
         send_termination_msg(cur, icmp_sock);
@@ -377,7 +373,7 @@ void handle_packet(char * buf, unsigned bytes, int is_pcap, struct sockaddr_in *
                 if (pt_pkt->state == kProxy_start) {
                     pt_pkt->data_len = 0;
                 }
-                handle_data(pkt, bytes, cur, 0);
+                handle_data(pkt, bytes, cur);
             }
             handle_ack(pt_pkt->ack, cur);
             cur->last_activity = now;
@@ -454,7 +450,7 @@ static void queue_payload_data_out_of_order(ping_tunnel_pkt_t * const pt_pkt, pr
  * Utility function for handling kProto_data packets, and place the data it contains
  * onto the passed-in receive ring.
  */
-void handle_data(icmp_echo_packet_t * pkt, int total_len, proxy_desc_t * cur, int handle_extended_options)
+void handle_data(icmp_echo_packet_t * pkt, int total_len, proxy_desc_t * cur)
 {
     ping_tunnel_pkt_t * pt_pkt = (ping_tunnel_pkt_t *)pkt->data;
     int expected_len = sizeof(ip_packet_t) + sizeof(icmp_echo_packet_t) + sizeof(ping_tunnel_pkt_t); /* 20+8+28 */
@@ -484,55 +480,10 @@ void handle_data(icmp_echo_packet_t * pkt, int total_len, proxy_desc_t * cur, in
         return;
     }
 
-    if (handle_extended_options) {
-        uint16_t * extended_options = (uint16_t *)pt_pkt->data;
-        if (pt_pkt->data_len >= 2) {
-            cur->extended_options[0] = ntohs(extended_options[0]);
-        }
-        if (pt_pkt->data_len >= 4) {
-            cur->extended_options[1] = ntohs(extended_options[1]);
-        }
-        if (pt_pkt->data_len >= 6) {
-            cur->extended_options[2] = ntohs(extended_options[2]);
-        }
-        if (pt_pkt->data_len >= 8) {
-            cur->extended_options[3] = ntohs(extended_options[3]);
-        }
-        return;
-    }
-
     if (pt_pkt->seq_no == cur->next_remote_seq) {
         queue_payload_data(pt_pkt, cur);
     } else {
         queue_payload_data_out_of_order(pt_pkt, cur);
-    }
-}
-
-void handle_extended_options(proxy_desc_t * cur)
-{
-    if (cur->extended_options[0] > 0) {
-        if (cur->extended_options[0] > cur->window_size) {
-            size_t extend = cur->extended_options[0] - cur->window_size;
-            cur->send_ring = (icmp_desc_t *)realloc(cur->send_ring, cur->extended_options[0] * sizeof(icmp_desc_t));
-            cur->recv_ring =
-                (forward_desc_t **)realloc(cur->recv_ring, cur->extended_options[0] * sizeof(forward_desc_t *));
-            memset(cur->send_ring + cur->window_size, 0, extend * sizeof(icmp_desc_t));
-            memset(cur->recv_ring + cur->window_size, 0, extend * sizeof(forward_desc_t *));
-        }
-        cur->window_size = cur->extended_options[0];
-        pt_log(kLog_verbose, "Received extended option for window size %d \n", cur->window_size);
-    }
-    if (cur->extended_options[1] > 0) {
-        cur->ack_interval = cur->extended_options[1] / 1000.0;
-        pt_log(kLog_verbose, "Received extended option for ack interval %f \n", cur->ack_interval);
-    }
-    if (cur->extended_options[2] > 0) {
-        cur->resend_interval = cur->extended_options[2] / 1000.0;
-        pt_log(kLog_verbose, "Received extended option for resend interval %f \n", cur->resend_interval);
-    }
-    if (cur->extended_options[3] > 0) {
-        cur->payload_size = cur->extended_options[3];
-        pt_log(kLog_verbose, "Received extended option for payload size %d \n", cur->payload_size);
     }
 }
 

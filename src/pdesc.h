@@ -159,8 +159,6 @@ typedef struct proxy_desc_t {
 	uint16_t window_size;
 	double ack_interval;
 	double resend_interval;
-	uint16_t payload_size;
-	uint16_t extended_options[4];
 	icmp_desc_t *send_ring;
 	forward_desc_t **recv_ring;
 	xfer_stats_t xfer;

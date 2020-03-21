@@ -137,9 +137,7 @@ typedef struct proxy_desc_t proxy_desc_t;
 
 void handle_packet(char * buf, unsigned bytes, int is_pcap, struct sockaddr_in * addr, int icmp_sock);
 
-void handle_data(icmp_echo_packet_t * pkt, int total_len, proxy_desc_t * cur, int handle_extended_options);
-
-void handle_extended_options(proxy_desc_t * cur);
+void handle_data(icmp_echo_packet_t * pkt, int total_len, proxy_desc_t * cur);
 
 void handle_ack(uint32_t seq_no, proxy_desc_t * cur);
 

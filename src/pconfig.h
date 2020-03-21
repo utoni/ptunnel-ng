@@ -75,7 +75,7 @@ enum {
 	 * we send. Note that this does not include
 	 * the IP or ICMP headers!
 	 */
-	kDefault_buf_size    = 0xFFFF,
+	kDefault_buf_size    = 1024,
 	/** Type code for echo request and replies */
 	kICMP_echo_request   = 8,
 	kICMP_echo_reply     = 0,
