@@ -11,7 +11,7 @@
 ## What is ptunnel-ng?
 ```
 Ptunnel-NG is a bugfixed and refactored version of Ptunnel with some additional
-features e.g. change the magic value without recompiling (bypass Cisco IPS).
+features e.g. change the magic value without recompiling.
 ```
 
 ## What is ptunnel?
@@ -140,9 +140,8 @@ installed.
 
 ## TODOs
 ```
-- challenge response: switch from md5 to sha-512 (testing)
-- packet obfuscation
-- encryption (metadata + payload)
+- refactoring
+- libsodium integration
 ```
 
 ## Credits and contributors
