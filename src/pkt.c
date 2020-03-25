@@ -56,18 +56,18 @@
 #include "options.h"
 #include "utils.h"
 
-
-static proxy_desc_t *
-handle_incoming_tunnel_request(unsigned bytes, struct sockaddr_in *addr, int icmp_sock,
-                               icmp_echo_packet_t * const pkt, ping_tunnel_pkt_t * const pt_pkt)
+static proxy_desc_t * handle_incoming_tunnel_request(unsigned bytes,
+                                                     struct sockaddr_in * addr,
+                                                     int icmp_sock,
+                                                     icmp_echo_packet_t * const pkt,
+                                                     ping_tunnel_pkt_t * const pt_pkt)
 {
     struct timeval tt;
     struct in_addr in_addr;
     uint32_t init_state;
-    proxy_desc_t *cur;
+    proxy_desc_t * cur;
 
-    pt_log(kLog_info, "Incoming tunnel request from %s.\n",
-           inet_ntoa(*(struct in_addr *)&addr->sin_addr));
+    pt_log(kLog_info, "Incoming tunnel request from %s.\n", inet_ntoa(*(struct in_addr *)&addr->sin_addr));
 
     gettimeofday(&tt, 0);
     if (tt.tv_sec < seq_expiry_tbl[pt_pkt->id_no]) {
@@ -76,28 +76,27 @@ handle_incoming_tunnel_request(unsigned bytes, struct sockaddr_in *addr, int icm
     }
 
     in_addr.s_addr = pt_pkt->dst_ip;
-    pt_log(kLog_info, "Starting new session to %s:%d with ID %d\n",
-           inet_ntoa(in_addr), ntohl(pt_pkt->dst_port), pt_pkt->id_no);
+    pt_log(kLog_info,
+           "Starting new session to %s:%d with ID %d\n",
+           inet_ntoa(in_addr),
+           ntohl(pt_pkt->dst_port),
+           pt_pkt->id_no);
 
-    if ((opts.restrict_dst_ip && opts.given_dst_ip &&
-         opts.given_dst_ip != pt_pkt->dst_ip) ||
+    if ((opts.restrict_dst_ip && opts.given_dst_ip && opts.given_dst_ip != pt_pkt->dst_ip) ||
         (opts.restrict_dst_port && (uint32_t)-1 != opts.given_dst_port &&
-         opts.given_dst_port != ntohl(pt_pkt->dst_port)))
-    {
+         opts.given_dst_port != ntohl(pt_pkt->dst_port))) {
         pt_log(kLog_info, "Destination administratively prohibited!\n");
         return NULL;
     }
 
     if (opts.password) {
-        init_state  = kProto_authenticate;
+        init_state = kProto_authenticate;
     } else {
-        init_state  = kProto_data;
+        init_state = kProto_data;
     }
 
-    cur = (proxy_desc_t *) create_and_insert_proxy_desc(pt_pkt->id_no, pkt->identifier, 0,
-                                                        addr, pt_pkt->dst_ip,
-                                                        ntohl(pt_pkt->dst_port),
-                                                        init_state, kProxy_flag);
+    cur = (proxy_desc_t *)create_and_insert_proxy_desc(
+        pt_pkt->id_no, pkt->identifier, 0, addr, pt_pkt->dst_ip, ntohl(pt_pkt->dst_port), init_state, kProxy_flag);
     if (!cur) {
         /* if failed, abort. Logging is done in create_insert_proxy_desc */
         pt_log(kLog_error, "Failed to create proxy descriptor!\n");
@@ -109,31 +108,31 @@ handle_incoming_tunnel_request(unsigned bytes, struct sockaddr_in *addr, int icm
     if (init_state == kProto_authenticate) {
         pt_log(kLog_debug, "Sending authentication challenge..\n");
         /* Send challenge */
-        cur->challenge  = generate_challenge();
+        cur->challenge = generate_challenge();
         memcpy(cur->buf, cur->challenge, sizeof(challenge_t));
-        queue_packet(icmp_sock, cur, cur->buf, sizeof(challenge_t), 0, 0,
-        kProto_authenticate | cur->type_flag);
+        queue_packet(icmp_sock, cur, cur->buf, sizeof(challenge_t), 0, 0, kProto_authenticate | cur->type_flag);
     }
 
     return cur;
 }
 
-static void handle_auth_request(unsigned bytes, int icmp_sock,
-                                icmp_echo_packet_t *const pkt,
-                                proxy_desc_t *const cur,
-                                challenge_t *const challenge)
+static void handle_auth_request(unsigned bytes,
+                                int icmp_sock,
+                                icmp_echo_packet_t * const pkt,
+                                proxy_desc_t * const cur,
+                                challenge_t * const challenge)
 {
     if (!opts.password) {
-        pt_log(kLog_error, "This proxy requires a password! "
-                           "Please supply one usin  g the -x switch.\n");
+        pt_log(kLog_error,
+               "This proxy requires a password! "
+               "Please supply one usin  g the -x switch.\n");
         send_termination_msg(cur, icmp_sock);
         cur->should_remove = 1;
         return;
     }
 #ifdef ENABLE_SHA512
     if (opts.force_sha512) {
-        pt_log(kLog_debug,
-               "Got authentication challenge - sending SHA512 response\n");
+        pt_log(kLog_debug, "Got authentication challenge - sending SHA512 response\n");
         generate_response_sha512(&challenge->plain, &challenge->digest);
     } else
 #endif
@@ -143,8 +142,7 @@ static void handle_auth_request(unsigned bytes, int icmp_sock,
     }
 
     memcpy(cur->buf, challenge, sizeof(challenge_t));
-    queue_packet(icmp_sock, cur, cur->buf, sizeof(challenge_t), 0, 0,
-                 kProto_authenticate | cur->type_flag);
+    queue_packet(icmp_sock, cur, cur->buf, sizeof(challenge_t), 0, 0, kProto_authenticate | cur->type_flag);
     /* We have authenticated locally.
      * It's up to the proxy now if it accepts our   response or not..
      */
@@ -152,21 +150,21 @@ static void handle_auth_request(unsigned bytes, int icmp_sock,
     handle_data(pkt, bytes, cur);
 }
 
-static void handle_auth_response(unsigned bytes, int icmp_sock,
-                                 icmp_echo_packet_t *const pkt,
-                                 proxy_desc_t *const cur,
-                                 challenge_t *const challenge)
+static void handle_auth_response(unsigned bytes,
+                                 int icmp_sock,
+                                 icmp_echo_packet_t * const pkt,
+                                 proxy_desc_t * const cur,
+                                 challenge_t * const challenge)
 {
-    pt_log(kLog_debug, "Received remote %s challenge response.\n",
+    pt_log(kLog_debug,
+           "Received remote %s challenge response.\n",
            (challenge->digest.hash_type == HT_SHA512 ? "SHA512" : "MD5"));
     if ((!opts.force_sha512 && challenge->digest.hash_type == HT_MD5 &&
          validate_challenge_md5(cur->challenge, &challenge->digest)) ||
 #ifdef ENABLE_SHA512
-        (challenge->digest.hash_type == HT_SHA512 &&
-         validate_challenge_sha512(cur->challenge, &challenge->digest)) ||
+        (challenge->digest.hash_type == HT_SHA512 && validate_challenge_sha512(cur->challenge, &challenge->digest)) ||
 #endif
-        cur->authenticated)
-    {
+        cur->authenticated) {
         pt_log(kLog_verbose, "Remote end authenticated successfully.\n");
         /* Authentication has succeeded, so now we can proceed
          * to handle incoming   TCP data.
@@ -184,8 +182,7 @@ static void handle_auth_response(unsigned bytes, int icmp_sock,
     }
 }
 
-static void header_byteorder_ntoh(icmp_echo_packet_t * const icmp_pkt,
-                                  ping_tunnel_pkt_t * const pt_pkt)
+static void header_byteorder_ntoh(icmp_echo_packet_t * const icmp_pkt, ping_tunnel_pkt_t * const pt_pkt)
 {
     pt_pkt->state = ntohl(pt_pkt->state);
     icmp_pkt->identifier = ntohs(icmp_pkt->identifier);
@@ -299,8 +296,7 @@ void handle_packet(char * buf, unsigned bytes, int is_pcap, struct sockaddr_in *
            is_pcap);
 
     /* This test essentially verifies that the packet comes from someone who isn't us. */
-    if ((pkt_flag == kUser_flag && type_flag == proxy_flag) ||
-        (pkt_flag == proxy_flag && type_flag == kUser_flag)) {
+    if ((pkt_flag == kUser_flag && type_flag == proxy_flag) || (pkt_flag == proxy_flag && type_flag == kUser_flag)) {
         pt_pkt->data_len = ntohl(pt_pkt->data_len);
         pt_pkt->ack = ntohl(pt_pkt->ack);
         if (pt_pkt->state == kProxy_start) {
@@ -471,10 +467,7 @@ void handle_data(icmp_echo_packet_t * pkt, int total_len, proxy_desc_t * cur)
         expected_len -= sizeof(ip_packet_t);
     }
     if (total_len < expected_len) {
-        pt_log(kLog_error,
-               "Packet not completely received: %d Should be: %d.\n",
-               total_len,
-               expected_len);
+        pt_log(kLog_error, "Packet not completely received: %d Should be: %d.\n", total_len, expected_len);
         pt_log(kLog_debug, "Data length: %d Total length: %d\n", pt_pkt->data_len, total_len);
         /* just ignore that packet */
         return;

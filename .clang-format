@@ -1,0 +1,77 @@
+Language:        Cpp
+BasedOnStyle                         : LLVM
+Standard                             : Cpp03
+# BasedOnStyle:  LLVM
+BraceWrapping:
+  AfterClass:      false
+  AfterControlStatement: false
+  AfterEnum:       false
+  AfterFunction:   false
+  AfterNamespace:  false
+  AfterObjCDeclaration: false
+  AfterStruct:     false
+  AfterUnion:      false
+  BeforeCatch:     false
+  BeforeElse:      false
+  IndentBraces:    true
+ConstructorInitializerIndentWidth: 4
+AlignEscapedNewlinesLeft: false
+AlignTrailingComments: true
+AllowShortBlocksOnASingleLine: true
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+AlwaysBreakAfterDefinitionReturnType: false
+AlwaysBreakTemplateDeclarations: true
+AlwaysBreakBeforeMultilineStrings: true
+BreakBeforeTernaryOperators: true
+BreakConstructorInitializersBeforeComma: false
+ColumnLimit:     120
+ConstructorInitializerAllOnOneLineOrOnePerLine: true
+DerivePointerAlignment: false
+ExperimentalAutoDetectBinPacking: false
+IndentCaseLabels: true
+IndentWrappedFunctionNames: false
+IndentFunctionDeclarationAfterType: false
+MaxEmptyLinesToKeep: 1
+KeepEmptyLinesAtTheStartOfBlocks: true
+NamespaceIndentation: None
+ObjCSpaceAfterProperty: false
+ObjCSpaceBeforeProtocolList: false
+
+PenaltyExcessCharacter                    : 500
+PenaltyReturnTypeOnItsOwnLine             : 120
+PenaltyBreakBeforeFirstCallParameter      : 100
+PenaltyBreakString                        : 20
+PenaltyBreakComment                       : 10
+PenaltyBreakFirstLessLess                 : 0
+
+SpacesBeforeTrailingComments: 1
+Cpp11BracedListStyle: true
+IndentWidth:     4
+TabWidth:        4
+UseTab:          Never
+BreakBeforeBraces: Linux
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+SpacesInAngles                            :  false
+SpaceInEmptyParentheses                   : false
+SpacesInCStyleCastParentheses             : false
+SpaceAfterCStyleCast                      : false
+SpacesInContainerLiterals                 : true
+SpaceBeforeAssignmentOperators            : true
+ContinuationIndentWidth                   : 4
+SpaceBeforeParens                         : ControlStatements
+DisableFormat                             : false
+AccessModifierOffset                      : -4
+PointerAlignment                          : Middle
+AlignAfterOpenBracket                     : Align
+AllowAllParametersOfDeclarationOnNextLine : true
+BinPackArguments                          : false
+BinPackParameters                         : false
+AlignOperands                             : true
+AlignConsecutiveAssignments               : false
+AllowShortFunctionsOnASingleLine          : None
+BreakBeforeBinaryOperators                : None
+AlwaysBreakAfterReturnType                : None
+SortIncludes                              : false
