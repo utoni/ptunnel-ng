@@ -14,6 +14,48 @@ to a remote host using ICMP echo request and reply packets, commonly known as
 ping requests and replies.
 
 
+Simple usage
+------------
+Opens a SSH over ICMP tunnel to a remote.
+
+Server:
+sudo ptunnel-ng
+
+Client:
+sudo ptunnel-ng -p[Server-IP/NAME] -l2222
+ssh -p2222 -luser 127.0.0.1
+
+
+Restricted usage
+----------------
+Opens a SSH over ICMP tunnel to a remote but restricts destination IP/Port for tunnel clients.
+10.0.3.1 is the machine your SSH daemon listens on. This can be a virtual machine, container or (.*).
+
+Server:
+sudo ptunnel-ng -r10.0.3.1 -R22
+
+Client:
+sudo ptunnel-ng -p[Server-IP/NAME] -l2222 -r10.0.3.1 -R22
+ssh -p2222 -luser 127.0.0.1
+
+
+Reverse shell usage
+-------------------
+Opens a SSH over ICMP tunnel to a remote and creates a reverse tunnel on same
+but restricts destination IP/Port for tunnel clients.
+10.0.3.1 is the machine your SSH daemon listens on. This can be a virtual machine, container or (.*).
+
+Server:
+sudo ptunnel-ng -r10.0.3.1 -R22
+
+Client:
+sudo ./src/ptunnel-ng -p[Server-IP/NAME] -l2222 -r10.0.3.1 -R22
+ssh -R 127.0.0.1:22222 127.0.0.1 -p2222
+
+Server:
+ssh -p22222 -luser 127.0.0.1
+
+
 Contact details
 ---------------
 The ptunnel-ng fork was done by Toni Uhlig:
