@@ -134,6 +134,7 @@ static const struct option_usage usage[] = {
 	/** --passwd */
 	{"password",     0, OPT_STR,    {.str = NULL},
 		"Set a password (must be same on client and proxy)\n"
+		"DEPRECATED: Will be removed/replaced soon!\n"
 	},
 	/** --udp */
 	{NULL,           0, OPT_BOOL,   {.num = 0},
