@@ -104,6 +104,7 @@ typedef struct {
 	int sock;
 } pt_thread_info_t;
 
+#ifdef HAVE_PCAP
 /* pqueue_elem_t: An queue element in the pqueue structure (below).
  */
 typedef struct pqueue_elem_t {
@@ -123,7 +124,6 @@ typedef struct {
 	int elems;
 } pqueue_t;
 
-#ifdef HAVE_PCAP
 /* pcap_info_t: Structure to hold information related to packet capturing.
  */
 typedef struct {
