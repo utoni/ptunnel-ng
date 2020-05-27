@@ -219,7 +219,7 @@ void handle_packet(char * buf, unsigned bytes, int is_pcap, struct sockaddr_in *
     icmp_echo_packet_t * pkt;
     ping_tunnel_pkt_t * pt_pkt;
     proxy_desc_t * cur;
-    uint32_t type_flag, pkt_flag, proxy_flag;
+    enum pkt_flag type_flag, pkt_flag, proxy_flag;
     challenge_t * challenge;
 
     proxy_flag = kProxy_flag;
@@ -261,7 +261,7 @@ void handle_packet(char * buf, unsigned bytes, int is_pcap, struct sockaddr_in *
      */
     if (cur) {
         type_flag = cur->type_flag;
-        if (type_flag == (uint32_t)kProxy_flag) {
+        if (type_flag == kProxy_flag) {
             cur->icmp_id = pkt->identifier;
             cur->ping_seq = pkt->seq;
         }

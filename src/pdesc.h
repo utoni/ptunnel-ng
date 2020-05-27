@@ -72,13 +72,13 @@
  * proxy with client and vice versa in the list above.
  */
 typedef struct forward_desc_t {
-	/** ping_tunnel_pkt_t seq_no */
-	uint16_t seq_no;
-	/** length of data */
-	uint16_t length;
-	/** amount of data not yet transferred */
-	size_t remaining;
-	char data[0];
+    /** ping_tunnel_pkt_t seq_no */
+    uint16_t seq_no;
+    /** length of data */
+    uint16_t length;
+    /** amount of data not yet transferred */
+    size_t remaining;
+    char data[0];
 } forward_desc_t;
 
 /** icmp_desc_t: This structure is used to track the ICMP packets sent by either
@@ -88,98 +88,101 @@ typedef struct forward_desc_t {
  * ICMP packets.
  */
 typedef struct icmp_desc_t {
-	/** total length of ICMP packet, including ICMP header and ptunnel data. */
-	uint16_t pkt_len;
-	double  last_resend;
-	uint16_t seq_no;
-	uint16_t icmp_id;
-	icmp_echo_packet_t *pkt;
+    /** total length of ICMP packet, including ICMP header and ptunnel data. */
+    uint16_t pkt_len;
+    double last_resend;
+    uint16_t seq_no;
+    uint16_t icmp_id;
+    icmp_echo_packet_t * pkt;
 } icmp_desc_t;
 
 /** xfer_stats_t: Various transfer statistics, such as bytes sent and received,
  * number of ping packets sent/received, etc.
  */
 typedef struct xfer_stats_t {
-	double bytes_in;
-	double bytes_out;
-	uint32_t icmp_in;
-	uint32_t icmp_out;
-	uint32_t icmp_resent;
-	uint32_t icmp_ack_out;
+    double bytes_in;
+    double bytes_out;
+    uint32_t icmp_in;
+    uint32_t icmp_out;
+    uint32_t icmp_resent;
+    uint32_t icmp_ack_out;
 } xfer_stats_t;
 
 /** proxy_desc_t: This massive structure describes a tunnel instance.
  */
 typedef struct proxy_desc_t {
-	/** ICMP or UDP socket */
-	int sock;
-	/** number of bytes in receive buffer */
-	int bytes;
-	/** set to true once this instance should be removed */
-	int should_remove;
-	/** data buffer, used to receive ping and pong packets */
-	char *buf;
-	uint16_t id_no;
-	uint16_t my_seq;
-	uint16_t ping_seq;
-	uint16_t next_remote_seq;
-	uint16_t pkt_type;
-	uint16_t remote_ack_val;
-	uint16_t icmp_id;
-	/** first available slot in recv ring */
-	int recv_idx;
-	/** current slot in recv ring being transferred */
-	int recv_xfer_idx;
-	/** first available slot in send ring */
-	int send_idx;
-	/** first packet in send ring not yet acked */
-	int send_first_ack;
-	/** number of items in recv ring awaiting send */
-	int recv_wait_send;
-	/** number of items in send ring awaiting ack */
-	int send_wait_ack;
-	int next_resend_start;
-	int authenticated;
-	/** Contains the challenge, if used. */
-	challenge_t *challenge;
-	/** Protocol state */
-	uint32_t state;
-	/** Either kProxy_flag or kUser_flag */
-	uint32_t type_flag;
-	/** IP and port to which data should be forwarded. */
-	uint32_t dst_ip;
-	uint32_t dst_port;
-	/** Same as above */
-	struct sockaddr_in dest_addr;
-	/** Time when last ack packet was sent. */
-	double last_ack;
-	/** Time when a packet was last received. */
-	double last_activity;
-	double last_data_activity;
-	uint16_t window_size;
-	double ack_interval;
-	double resend_interval;
-	icmp_desc_t *send_ring;
-	forward_desc_t **recv_ring;
-	xfer_stats_t xfer;
-	struct proxy_desc_t *next;
+    /** ICMP or UDP socket */
+    int sock;
+    /** number of bytes in receive buffer */
+    int bytes;
+    /** set to true once this instance should be removed */
+    int should_remove;
+    /** data buffer, used to receive ping and pong packets */
+    char * buf;
+    uint16_t id_no;
+    uint16_t my_seq;
+    uint16_t ping_seq;
+    uint16_t next_remote_seq;
+    uint16_t pkt_type;
+    uint16_t remote_ack_val;
+    uint16_t icmp_id;
+    /** first available slot in recv ring */
+    int recv_idx;
+    /** current slot in recv ring being transferred */
+    int recv_xfer_idx;
+    /** first available slot in send ring */
+    int send_idx;
+    /** first packet in send ring not yet acked */
+    int send_first_ack;
+    /** number of items in recv ring awaiting send */
+    int recv_wait_send;
+    /** number of items in send ring awaiting ack */
+    int send_wait_ack;
+    int next_resend_start;
+    int authenticated;
+    /** Contains the challenge, if used. */
+    challenge_t * challenge;
+    /** Protocol state */
+    uint32_t state;
+    /** Either kProxy_flag or kUser_flag */
+    enum pkt_flag type_flag;
+    /** IP and port to which data should be forwarded. */
+    uint32_t dst_ip;
+    uint32_t dst_port;
+    /** Same as above */
+    struct sockaddr_in dest_addr;
+    /** Time when last ack packet was sent. */
+    double last_ack;
+    /** Time when a packet was last received. */
+    double last_activity;
+    double last_data_activity;
+    uint16_t window_size;
+    double ack_interval;
+    double resend_interval;
+    icmp_desc_t * send_ring;
+    forward_desc_t ** recv_ring;
+    xfer_stats_t xfer;
+    struct proxy_desc_t * next;
 } proxy_desc_t;
 
+proxy_desc_t * create_and_insert_proxy_desc(uint16_t id_no,
+                                            uint16_t icmp_id,
+                                            int sock,
+                                            struct sockaddr_in * addr,
+                                            uint32_t dst_ip,
+                                            uint32_t dst_port,
+                                            uint32_t init_state,
+                                            uint32_t type);
 
-proxy_desc_t*   create_and_insert_proxy_desc(uint16_t id_no, uint16_t icmp_id,
-                                             int sock, struct sockaddr_in *addr,
-                                             uint32_t dst_ip, uint32_t dst_port,
-                                             uint32_t init_state, uint32_t type);
+void remove_proxy_desc(proxy_desc_t * cur, proxy_desc_t * prev);
 
-void            remove_proxy_desc(proxy_desc_t *cur, proxy_desc_t *prev);
+void remove_proxy_desc_rings(proxy_desc_t * cur);
 
-void            remove_proxy_desc_rings(proxy_desc_t *cur);
+forward_desc_t * create_fwd_desc(uint16_t seq_no, uint32_t data_len, char * data);
 
-forward_desc_t* create_fwd_desc(uint16_t seq_no, uint32_t data_len, char *data);
+int queue_packet(
+    int sock_fd, proxy_desc_t * cur, char * buf, size_t bufsiz, uint32_t dest_ip, uint32_t dest_port, uint32_t state);
 
-int             queue_packet(int sock_fd, proxy_desc_t *cur, char *buf, size_t bufsiz,
-                             uint32_t dest_ip, uint32_t dest_port, uint32_t state);
-
-uint32_t        send_packets(forward_desc_t *ring[], int *xfer_idx, int *await_send, int *sock, uint16_t window_size);
+uint32_t send_packets(forward_desc_t * ring[], int * xfer_idx, int * await_send, int * sock, uint16_t window_size);
 
 #endif

@@ -73,67 +73,63 @@
 #include "utils.h"
 #include "options.h"
 
-void pt_log(int level, const char *fmt, ...) {
-	va_list args;
-	const char *header[] = { "[err]: ",
-	                         "[inf]: ",
-	                         "[evt]: ",
-	                         "[vbs]: ",
-	                         "[dbg]: ",
-	                         "[xfr]: " };
-#ifndef WIN32
-	int syslog_levels[] = {LOG_ERR, LOG_NOTICE, LOG_NOTICE, LOG_INFO, LOG_DEBUG, LOG_DEBUG};
-#endif /* !WIN32 */
-
-	if (level <= opts.log_level) {
-		va_start(args, fmt);
-#ifndef WIN32
-		if (opts.use_syslog) {
-			char log[255];
-			int header_len;
-			header_len = snprintf(log,sizeof(log),"%s",header[level]);
-			vsnprintf(log+header_len,sizeof(log)-header_len,fmt,args);
-			syslog(syslog_levels[level], "%s", log);
-		}
-		else
-#endif /* !WIN32 */
-		fprintf(opts.log_file, "%s", header[level]), vfprintf(opts.log_file, fmt, args);
-		va_end(args);
-#ifndef WIN32
-		if (opts.log_file != stdout && !opts.use_syslog)
-#else
-		if (opts.log_file != stdout)
-#endif
-			fflush(opts.log_file);
-	}
-}
-
-double time_as_double(void) {
-	double          result;
-	struct timeval  tt;
-
-	gettimeofday(&tt, 0);
-	result = (double)tt.tv_sec + ((double)tt.tv_usec / (double)10e5);
-	return result;
-}
-
-int host_to_addr(const char *hostname, uint32_t *result)
+void pt_log(enum log_level level, const char * fmt, ...)
 {
-	int ret;
-	struct addrinfo *addrs = NULL;
-	struct addrinfo hints;
-	struct sockaddr_in *addr;
+    va_list args;
+    const char * header[] = {"[err]: ", "[inf]: ", "[evt]: ", "[vbs]: ", "[dbg]: ", "[xfr]: "};
+#ifndef WIN32
+    int syslog_levels[] = {LOG_ERR, LOG_NOTICE, LOG_NOTICE, LOG_INFO, LOG_DEBUG, LOG_DEBUG};
+#endif /* !WIN32 */
 
-	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = AF_INET;
+    if (level <= opts.log_level) {
+        va_start(args, fmt);
+#ifndef WIN32
+        if (opts.use_syslog) {
+            char log[255];
+            int header_len;
+            header_len = snprintf(log, sizeof(log), "%s", header[level]);
+            vsnprintf(log + header_len, sizeof(log) - header_len, fmt, args);
+            syslog(syslog_levels[level], "%s", log);
+        } else
+#endif /* !WIN32 */
+            fprintf(opts.log_file, "%s", header[level]), vfprintf(opts.log_file, fmt, args);
+        va_end(args);
+#ifndef WIN32
+        if (opts.log_file != stdout && !opts.use_syslog)
+#else
+        if (opts.log_file != stdout)
+#endif
+            fflush(opts.log_file);
+    }
+}
 
-	if ((ret = getaddrinfo(hostname, NULL, &hints, &addrs)) != 0)
-		return ret;
-	addr = (struct sockaddr_in *) addrs->ai_addr;
-	*result = *(uint32_t *) &addr->sin_addr;
-	freeaddrinfo(addrs);
+double time_as_double(void)
+{
+    double result;
+    struct timeval tt;
 
-	return 0;
+    gettimeofday(&tt, 0);
+    result = (double)tt.tv_sec + ((double)tt.tv_usec / (double)10e5);
+    return result;
+}
+
+int host_to_addr(const char * hostname, uint32_t * result)
+{
+    int ret;
+    struct addrinfo * addrs = NULL;
+    struct addrinfo hints;
+    struct sockaddr_in * addr;
+
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;
+
+    if ((ret = getaddrinfo(hostname, NULL, &hints, &addrs)) != 0)
+        return ret;
+    addr = (struct sockaddr_in *)addrs->ai_addr;
+    *result = *(uint32_t *)&addr->sin_addr;
+    freeaddrinfo(addrs);
+
+    return 0;
 }
 
 #if 0
@@ -156,36 +152,34 @@ void print_hexstr(unsigned char *buf, size_t siz) {
 }
 #endif
 
-int pt_random(void) {
+int pt_random(void)
+{
 #if defined(HAVE_ARC4RANDOM) || defined(__COVERITY__)
-	return arc4random();
+    return arc4random();
 #else
 #if defined(RNGDEV) && !defined(_WIN32)
-	static int rng_fd = -1;
-	ssize_t bytes_read;
-	int rnd_val;
-	if (rng_fd < 0) {
-		rng_fd = open(RNGDEV, O_RDONLY);
-		if (rng_fd < 0) {
-			pt_log(kLog_error, "FATAL: Could not open random device '%s': %s\n",
-			       RNGDEV, strerror(errno));
-			exit(EXIT_FAILURE);
-		}
-	}
-	bytes_read = read(rng_fd, &rnd_val, sizeof rnd_val);
-	if (bytes_read != sizeof rnd_val) {
-		if (bytes_read < 0)
-			pt_log(kLog_error, "FATAL: Read from random device failed: %s\n",
-			       strerror(errno));
-		else
-			pt_log(kLog_error, "FATAL: Read only %zd bytes (wanted %zd bytes)\n",
-			       bytes_read, sizeof rnd_val);
-		exit(EXIT_FAILURE);
-	}
-	return rnd_val;
+    static int rng_fd = -1;
+    ssize_t bytes_read;
+    int rnd_val;
+    if (rng_fd < 0) {
+        rng_fd = open(RNGDEV, O_RDONLY);
+        if (rng_fd < 0) {
+            pt_log(kLog_error, "FATAL: Could not open random device '%s': %s\n", RNGDEV, strerror(errno));
+            exit(EXIT_FAILURE);
+        }
+    }
+    bytes_read = read(rng_fd, &rnd_val, sizeof rnd_val);
+    if (bytes_read != sizeof rnd_val) {
+        if (bytes_read < 0)
+            pt_log(kLog_error, "FATAL: Read from random device failed: %s\n", strerror(errno));
+        else
+            pt_log(kLog_error, "FATAL: Read only %zd bytes (wanted %zd bytes)\n", bytes_read, sizeof rnd_val);
+        exit(EXIT_FAILURE);
+    }
+    return rnd_val;
 #else
-	srand(time(0));
-	return rand();
+    srand(time(0));
+    return rand();
 #endif
 #endif
 }
