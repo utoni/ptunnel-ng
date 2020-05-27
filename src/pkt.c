@@ -219,7 +219,8 @@ void handle_packet(char * buf, unsigned bytes, int is_pcap, struct sockaddr_in *
     icmp_echo_packet_t * pkt;
     ping_tunnel_pkt_t * pt_pkt;
     proxy_desc_t * cur;
-    enum pkt_flag type_flag, pkt_flag, proxy_flag;
+    int pkt_flag;
+    enum pkt_flag type_flag, proxy_flag;
     challenge_t * challenge;
 
     proxy_flag = kProxy_flag;
@@ -271,7 +272,7 @@ void handle_packet(char * buf, unsigned bytes, int is_pcap, struct sockaddr_in *
         type_flag = kProxy_flag;
     }
 
-    pkt_flag = pt_pkt->state & kFlag_mask;
+    pkt_flag = (int)pt_pkt->state & kFlag_mask;
     pt_pkt->state &= ~kFlag_mask;
     if (pt_pkt->state > (kNum_proto_types - 1)) {
         pt_log(kLog_error, "Dropping packet with invalid state.\n");
@@ -294,6 +295,12 @@ void handle_packet(char * buf, unsigned bytes, int is_pcap, struct sockaddr_in *
            pkt->type,
            (pkt_flag == kUser_flag ? "yes" : "no"),
            is_pcap);
+    log_sendrecv_hexstr("RECV ICMP", pkt, sizeof(*pkt));
+    log_sendrecv_hexstr("RECV PTNG", pt_pkt, sizeof(*pt_pkt));
+    if (bytes > sizeof(icmp_echo_packet_t) + sizeof(ping_tunnel_pkt_t)) {
+        log_sendrecv_hexstr("RECV PAYL", buf + sizeof(icmp_echo_packet_t) + sizeof(ping_tunnel_pkt_t),
+                                         bytes - sizeof(icmp_echo_packet_t) - sizeof(ping_tunnel_pkt_t));
+    }
 
     /* This test essentially verifies that the packet comes from someone who isn't us. */
     if ((pkt_flag == kUser_flag && type_flag == proxy_flag) || (pkt_flag == proxy_flag && type_flag == kUser_flag)) {

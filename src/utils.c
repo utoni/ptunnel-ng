@@ -132,25 +132,35 @@ int host_to_addr(const char * hostname, uint32_t * result)
     return 0;
 }
 
-#if 0
 static const char hextab[] = "0123456789ABCDEF";
 
-void print_hexstr(unsigned char *buf, size_t siz) {
-	char *out = (char *) calloc(3, siz+1);
-	unsigned char high, low;
+void log_sendrecv_hexstr(const char *prefix, void *buf, size_t siz) {
+    if (opts.log_level != kLog_sendrecv) {
+        return;
+    }
 
-	for (size_t i = 0; i < siz; ++i) {
-		high = (buf[i] & 0xF0) >> 4;
-		low  = buf[i] & 0x0F;
+    const size_t outsiz = siz * 3;
+
+    if (outsiz + 1 > BUFSIZ) {
+        pt_log(kLog_error, "Can not print hex string with size %zu: too big\n", siz);
+        return;
+    }
+
+    char out[outsiz + 1];
+    unsigned char high, low;
+
+    size_t i, j;
+    for (i = 0, j = 0; j < siz && i < outsiz; i += 3, ++j) {
+        high = (((unsigned char *)buf)[j] & 0xF0) >> 4;
+		low  = ((unsigned char *)buf)[j] & 0x0F;
 		out[i  ] = hextab[high];
 		out[i+1] = hextab[low];
 		out[i+2] = ' ';
 	}
+    out[i] = '\0';
 
-	printf("%s\n", out);
-	free(out);
+    pt_log(kLog_sendrecv, "%s[HEX]: %s\n", prefix, out);
 }
-#endif
 
 int pt_random(void)
 {

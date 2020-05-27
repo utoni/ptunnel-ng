@@ -46,6 +46,7 @@
 #ifndef UTILS_H
 #define UTILS_H 1
 
+#include <stdlib.h>
 #include <stdint.h>
 
 #include "pconfig.h"
@@ -58,9 +59,7 @@ double time_as_double(void);
 
 int host_to_addr(const char * hostname, uint32_t * result);
 
-#if 0
-void print_hexstr(unsigned char *buf, size_t siz);
-#endif
+void log_sendrecv_hexstr(const char * prefix, void *buf, size_t siz);
 
 int pt_random(void);
 
