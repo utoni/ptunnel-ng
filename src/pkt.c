@@ -237,7 +237,7 @@ void handle_packet(char * buf, unsigned bytes, int is_pcap, struct sockaddr_in *
     }
 
     if (opts.udp || opts.unprivileged) {
-        ip_pkt = 0;
+        ip_pkt = NULL;
         pkt = (icmp_echo_packet_t *)buf;
         pt_pkt = (ping_tunnel_pkt_t *)pkt->data;
     } else {
@@ -297,9 +297,8 @@ void handle_packet(char * buf, unsigned bytes, int is_pcap, struct sockaddr_in *
            is_pcap);
     log_sendrecv_hexstr("RECV ICMP", pkt, sizeof(*pkt));
     log_sendrecv_hexstr("RECV PTNG", pt_pkt, sizeof(*pt_pkt));
-    if (bytes > sizeof(icmp_echo_packet_t) + sizeof(ping_tunnel_pkt_t)) {
-        log_sendrecv_hexstr("RECV PAYL", buf + sizeof(icmp_echo_packet_t) + sizeof(ping_tunnel_pkt_t),
-                                         bytes - sizeof(icmp_echo_packet_t) - sizeof(ping_tunnel_pkt_t));
+    if (bytes - (pt_pkt->data - buf) > 0) {
+        log_sendrecv_hexstr("RECV PAYL", pt_pkt->data, bytes - (pt_pkt->data - buf));
     }
 
     /* This test essentially verifies that the packet comes from someone who isn't us. */

@@ -60,7 +60,7 @@
 proxy_desc_t *create_and_insert_proxy_desc(uint16_t id_no, uint16_t icmp_id,
                                            int sock, struct sockaddr_in *addr,
 			                               uint32_t dst_ip, uint32_t dst_port,
-                                           uint32_t init_state, uint32_t type) {
+                                           uint32_t init_state, enum pkt_flag type) {
 	proxy_desc_t *cur;
 
 	pthread_mutex_lock(&chain_lock);
@@ -243,6 +243,12 @@ int queue_packet(int sock_fd, proxy_desc_t *cur, char *buf, size_t bufsiz,
 	                      cur->my_seq, state_name[state & (~kFlag_mask)],
 	                      ack_val, cur->pkt_type,
 	                      ((state & kUser_flag) == kUser_flag ? "yes" : "no"));
+    log_sendrecv_hexstr("SEND ICMP", pkt, sizeof(*pkt));
+    log_sendrecv_hexstr("SEND PTNG", pt_pkt, sizeof(*pt_pkt));
+    if (pkt_len - (pt_pkt->data - (char *)pkt) > 0) {
+        log_sendrecv_hexstr("SEND PAYL", pt_pkt->data, pkt_len - (pt_pkt->data - (char *)pkt));
+    }
+
 	err  = sendto(sock_fd, (const void*)pkt, pkt_len, 0,
 	              (struct sockaddr*)&cur->dest_addr, sizeof(struct sockaddr));
 	if (err < 0) {
