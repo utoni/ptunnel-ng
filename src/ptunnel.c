@@ -53,6 +53,10 @@
 #include <selinux/selinux.h>
 #endif
 
+#ifndef PACKAGE_STRING
+#define PACKAGE_STRING "ptunnel-ng"
+#endif
+
 #ifdef WIN32
 #include <tchar.h>
 #include <winsock2.h>
