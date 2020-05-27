@@ -215,7 +215,7 @@ static proxy_desc_t * get_proxy_descriptor(uint16_t id_no)
  */
 void handle_packet(char * buf, unsigned bytes, int is_pcap, struct sockaddr_in * addr, int icmp_sock)
 {
-    ip_packet_t * ip_pkt;
+    ip_packet_t * ip_pkt = NULL;
     icmp_echo_packet_t * pkt;
     ping_tunnel_pkt_t * pt_pkt;
     proxy_desc_t * cur;
@@ -237,7 +237,6 @@ void handle_packet(char * buf, unsigned bytes, int is_pcap, struct sockaddr_in *
     }
 
     if (opts.udp || opts.unprivileged) {
-        ip_pkt = NULL;
         pkt = (icmp_echo_packet_t *)buf;
         pt_pkt = (ping_tunnel_pkt_t *)pkt->data;
     } else {
