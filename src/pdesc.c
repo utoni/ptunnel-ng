@@ -197,6 +197,7 @@ int queue_packet(int sock_fd, proxy_desc_t *cur, char *buf, size_t bufsiz,
 	icmp_echo_packet_t *pkt   = 0;
 	ping_tunnel_pkt_t *pt_pkt = 0;
 	uint16_t ack_val;
+	uint8_t * icmp_chksm_ptr;
 
 	assert(sock_fd >= 0);
 	assert(cur);
@@ -230,7 +231,8 @@ int queue_packet(int sock_fd, proxy_desc_t *cur, char *buf, size_t bufsiz,
 	/* Copy user data */
 	if (buf && bufsiz > 0)
 		memcpy(pt_pkt->data, buf, bufsiz);
-	pkt->checksum     = htons(calc_icmp_checksum((uint16_t*)pkt, pkt_len));
+	icmp_chksm_ptr	  = (uint8_t*)pkt;
+	pkt->checksum     = htons(calc_icmp_checksum((uint16_t*)icmp_chksm_ptr, pkt_len));
 
 	/* Send it! */
 	pt_log(kLog_sendrecv, "Send: %4d [%4d] bytes "
