@@ -65,7 +65,7 @@ build-archlinux:
     - su -m builduser bash -c 'makepkg -p PKGBUILD.dev --skipchecksums'
     - ls -alh .
     - mkdir deploy/archlinux
-    - mv -v ptunnel-ng-*.tar.xz deploy/archlinux/
+    - mv -v ptunnel-ng-*.pkg.tar.zst deploy/archlinux/
   stage: build
   artifacts:
     paths:
