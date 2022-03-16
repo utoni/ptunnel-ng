@@ -39,13 +39,8 @@ ptunnel_ng_CFLAGS += -fsanitize=address -fsanitize=leak -fsanitize=undefined
 endif
 
 ptunnel_ng_SOURCES = \
-	md5.c \
-	challenge.c \
-	options.c \
-	utils.c \
-	pkt.c \
-	pdesc.c \
-	ptunnel.c
+    ptunnel.c \
+    psock.c
 
 if IS_WINDOWS
 wpcap_DEF = $(srcdir)/win32/WPCAP.DEF
