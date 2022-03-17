@@ -118,72 +118,6 @@ AC_CHECK_FUNCS([inet_ntoa],,
     [AC_MSG_ERROR([Missing essential std functions.])])
 fi
 
-dnl `--disable-pcap`: Enabled if found.
-AC_ARG_ENABLE([pcap],
-    [AS_HELP_STRING([--disable-pcap], [Disable pcap support. (default: enabled if found)])],,[pcap_enabled=yes])
-pcap_enabled=$(echo ${pcap_enabled})
-case ${pcap_enabled} in
-	1|y|yes) pcap_enabled=yes ;;
-	''|0|n|no) pcap_enabled= ;;
-	*) AC_MSG_ERROR([Unknown option \`${pcap_enabled}\` for --disable-pcap]) ;;
-esac
-
-dnl `--disable-ssl`: Enabled if found.
-AC_ARG_ENABLE([ssl],
-    [AS_HELP_STRING([--disable-ssl], [Disable ssl support. (default: enabled if found)])],,[ssl_enabled=yes])
-ssl_enabled=$(echo ${ssl_enabled})
-case ${ssl_enabled} in
-    1|y|yes) ssl_enabled=yes ;;
-    ''|0|n|no) ssl_enabled= ;;
-    *) AC_MSG_ERROR([Unknown option \`${ssl_enabled}\' for --disable-ssl]) ;;
-esac
-
-dnl `--enable-npcap`: Enable npcap interface (Windows only!)
-AC_ARG_ENABLE([npcap],
-    [AS_HELP_STRING([--enable-npcap], [Enable npcap support. (Windows only; default: disabled)])],[npcap_enabled=yes],)
-npcap_enabled=$(echo ${npcap_enabled})
-case ${npcap_enabled} in
-    1|y|yes) pcap_enabled=yes ;;
-    ''|0|n|no) pcap_enabled= ;;
-    *) AC_MSG_ERROR([Unknown option \`${npcap_enabled}\` for --enable-npcap]) ;;
-esac
-
-dnl `--disable-selinux`: Enabled if found.
-AC_ARG_ENABLE([selinux],
-    [AS_HELP_STRING([--disable-selinux], [Disable SELINUX support. (default: enabled if found)])],,[selinux_enabled=yes])
-selinux_enabled=$(echo ${selinux_enabled})
-case ${selinux_enabled} in
-	1|y|yes) selinux_enabled=yes ;;
-	''|0|n|no) selinux_enabled= ;;
-	*) AC_MSG_ERROR([Unknown option \`${selinux_enabled}\` for --disable-selinux]) ;;
-esac
-
-dnl `--with-randomdev`: Default value /dev/random
-use_customrng=no
-AC_MSG_CHECKING([for random device])
-AC_ARG_WITH([rngdev],
-	[AS_HELP_STRING([--with-rngdev], [Set an alternative random device. (default: /dev/random)])],
-	[use_customrng=yes], [with_rngdev="/dev/random"])
-case ${with_rngdev} in
-	yes) with_rngdev="/dev/random" ;;
-	/dev/random) ;;
-	/dev/urandom) ;;
-	*) AC_MSG_ERROR([Unknown random device \`${with_rngdev}\` for --with-rngdev: Only \`/dev/random\` xor \`/dev/urandom\` allowed. This option is unused on Windows targets.]) ;;
-esac
-AC_MSG_RESULT([${with_rngdev}])
-AC_DEFINE_UNQUOTED([RNGDEV], ["${with_rngdev}"],
-	[set the path to the random device you want to use for pt_random])
-
-dnl `--enable-asserts`: Disabled per default
-AC_ARG_ENABLE([asserts],
-	[AS_HELP_STRING([--enable-asserts], [Enable asserts(). (default: disabled)])],[asserts_enabled=yes],)
-asserts_enabled=$(echo ${asserts_enabled})
-case ${asserts_enabled} in
-	1|y|yes) asserts_enabled=yes ;;
-	''|0|n|no) asserts_enabled=no ;;
-	*) AC_MSG_ERROR([Unknown option \`${asserts_enabled}\` for --enable-asserts]) ;;
-esac
-
 dnl `--enable-sanitizer`: Disabled per default
 AC_ARG_ENABLE([sanitizer],
 	[AS_HELP_STRING([--enable-sanitizer], [Enable ASAN, LSAN and UBSAN. (default: disabled)])],[sanitizer_enabled=yes],)
@@ -193,56 +127,6 @@ case ${sanitizer_enabled} in
 	''|0|n|no) sanitizer_enabled=no ;;
 	*) AC_MSG_ERROR([Unknown option \`${sanitizer_enabled}\` for --enable-sanitizer]) ;;
 esac
-
-dnl Check libpcap headers/functions.
-if test x"${pcap_enabled}" != x -a \
-        x"${use_msw}" != xyes; then
-	AC_CHECK_HEADERS([pcap.h],,
-	    [pcap_enabled=])
-	AC_SEARCH_LIBS([pcap_lookupnet], [pcap],,
-	    [pcap_enabled=],)
-	AC_CHECK_FUNCS([pcap_compile pcap_close pcap_setfilter pcap_dispatch pcap_findalldevs pcap_freealldevs],,
-	    [pcap_enabled=])
-fi
-
-dnl Check openssl headers/functions.
-if test x"${ssl_enabled}" != x; then
-    AC_CHECK_HEADERS([openssl/sha.h],,[ssl_enabled=])
-    AC_SEARCH_LIBS([CRYPTO_new_ex_data],[crypto],,[ssl_enabled=])
-fi
-
-dnl Check for more secure randomization functions
-if test x"${use_customrng}" != xyes; then
-	AC_CHECK_HEADERS([bsd/stdlib.h],,)
-	AC_SEARCH_LIBS([arc4random], [bsd],,,)
-	AC_CHECK_FUNCS([arc4random], [arc4random_enabled=yes],)
-fi
-
-dnl Check for SELINUX
-if test x"${selinux_enabled}" != x; then
-	AC_CHECK_HEADERS([selinux/selinux.h],,
-	    [selinux_enabled=])
-	AC_SEARCH_LIBS([setcon], [selinux],,[selinux_enabled=],)
-fi
-
-dnl Check for ICMP_FILTER
-AC_MSG_CHECKING([for working ICMP_FILTER])
-AC_COMPILE_IFELSE(
-[AC_LANG_PROGRAM([[
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <linux/icmp.h>
-void foo() {
-    struct icmp_filter filt;
-    int sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
-    filt.data  = ~((1<<ICMP_ECHO) | (1<<ICMP_ECHOREPLY));
-    setsockopt(sockfd, SOL_RAW, ICMP_FILTER, &filt, sizeof filt);
-}
-]], [])]
-,[AC_MSG_RESULT([yes])
-  with_icmp_filter="yes"]
-,[AC_MSG_RESULT([no])
-  with_icmp_filter="no"])
 
 dnl Check for Android liblog.so
 AC_SEARCH_LIBS([__android_log_vprint], [log],,,)

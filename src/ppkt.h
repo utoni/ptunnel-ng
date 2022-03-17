@@ -17,8 +17,8 @@ struct ppkt
 } __attribute__((__packed__));
 
 
-void ppkt_header_prepare(struct psock *);
+void ppkt_process_icmp(struct psock *);
 
-void ppkt_header_process(struct psock *);
+void ppkt_process_body(struct psock *);
 
 #endif

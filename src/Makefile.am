@@ -41,7 +41,8 @@ endif
 ptunnel_ng_SOURCES = \
     ptunnel.c \
     psock.c \
-    pdesc.c
+    pdesc.c \
+    ppkt.c
 
 if IS_WINDOWS
 wpcap_DEF = $(srcdir)/win32/WPCAP.DEF

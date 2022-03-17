@@ -76,6 +76,14 @@ void psock_free(struct psock * psock)
     psock->epoll_fd = -1;
 }
 
+static void psock_process_cmsg(struct msghdr * hdr)
+{
+    for (struct cmsghdr * cmsg = CMSG_FIRSTHDR(hdr); cmsg != NULL; cmsg = CMSG_NXTHDR(hdr, cmsg))
+    {
+        printf("CMSG TYPE/LEVEL/LEN: %d / %d / %zu\n", cmsg->cmsg_type, cmsg->cmsg_level, cmsg->cmsg_len);
+    }
+}
+
 static int psock_recvmsg(struct psock * psock)
 {
     struct sockaddr_storage peer;
@@ -98,15 +106,7 @@ static int psock_recvmsg(struct psock * psock)
     if (nread >= 0)
     {
         psock->packet.used = nread;
-
-        struct cmsghdr *cmsg = CMSG_FIRSTHDR(&hdr);
-        while (cmsg != NULL)
-        {
-            printf("CMSG TYPE/LEVEL/LEN: %d / %d / %zu\n", cmsg->cmsg_type, cmsg->cmsg_level, cmsg->cmsg_len);
-
-            cmsg = CMSG_NXTHDR(&hdr, cmsg);
-        }
-
+        psock_process_cmsg(&hdr);
         return 0;
     } else {
         psock->packet.used = 0;
