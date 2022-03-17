@@ -1,3 +1,4 @@
+#include "pdesc.h"
 #include "psock.h"
 
 #include <stdio.h>
@@ -8,7 +9,7 @@ int main(void)
 {
     struct psock psock = {};
 
-    if (psock_init(&psock, 16) != 0)
+    if (psock_init(&psock, 16, 2048) != 0)
     {
         return 1;
     }
