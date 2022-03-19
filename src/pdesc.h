@@ -1,25 +1,20 @@
 #ifndef PDESC_H
 #define PDESC_H
 
+#include <netinet/in.h>
 #include <stdint.h>
-
 
 struct psock;
 
-struct pdesc
-{
+enum pdesc_state { PDESC_STATE_AUTH };
+
+struct pdesc {
+    enum pdesc_state state;
+    struct sockaddr_storage peer;
     uint16_t identifier;
     uint16_t sequence;
 };
 
-enum pdesc_retval
-{
-    PDESC_REMOTE_NEW,
-    PDESC_REMOTE_INVALID,
-    PDESC_REMOTE_FOUND
-};
-
-
-enum pdesc_retval pdesc_find_remote(struct psock *);
+struct pdesc * pdesc_find_remote(struct psock *);
 
 #endif

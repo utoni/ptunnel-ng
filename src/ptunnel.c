@@ -4,13 +4,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-
 int main(void)
 {
     struct psock psock = {};
 
-    if (psock_init(&psock, 16, 2048) != 0)
-    {
+    if (psock_init(&psock, 16, 1500) != 0) {
         return 1;
     }
 
