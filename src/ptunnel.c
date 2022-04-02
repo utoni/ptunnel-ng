@@ -11,7 +11,6 @@ static struct {
     int is_client;
     struct {
         char * str;
-        struct sockaddr_storage sockaddr;
     } address;
 } ptunnel_options = {.is_client = 0};
 
@@ -61,7 +60,7 @@ int main(int argc, char ** argv)
         return 1;
     }
 
-    if (psock_init(&psock, 16, 1500) != 0) {
+    if (psock_init(&psock, ptunnel_options.is_client, 16, 1500) != 0) {
         return 1;
     }
 

@@ -4,30 +4,44 @@
 
 #include <netinet/ip_icmp.h>
 
-static void pdesc_init(struct psock * psock, struct pdesc * pdesc, uint16_t identifier)
+static void pdesc_init(struct psock * sock, struct pdesc * desc, uint16_t identifier)
 {
-    pdesc->state = PDESC_STATE_AUTH;
-    pdesc->peer = psock->current.peer;
-    pdesc->identifier = identifier;
-    pdesc->sequence = 0;
+    desc->state = PDESC_STATE_AUTH;
+    desc->peer = sock->current.peer;
+    desc->identifier = identifier;
+    desc->sequence = 0;
 }
 
-struct pdesc * pdesc_find_remote(struct psock * psock)
+enum pdesc_remote_errno pdesc_find_remote(struct psock * sock, struct pdesc ** const desc)
 {
     size_t i;
 
-    if (psock->remotes.used == psock->remotes.max || ppkt_process_icmp(psock) != 0 ||
-        psock->current.packet.icmphdr->type != ICMP_ECHOREPLY || ppkt_process_ppkt(psock) != 0) {
-        return NULL;
+    *desc = NULL;
+
+    if (ppkt_process_icmp(sock) != 0 || ppkt_process_ppkt(sock) != 0) {
+        return REMOTE_PACKET_INVALID;
     }
 
-    for (i = 0; i < psock->remotes.used; ++i) {
-        if (psock->current.packet.icmphdr->un.echo.id == psock->remotes.descriptors[i].identifier) {
-            return &psock->remotes.descriptors[i];
+    if (sock->current.packet.icmphdr->type == ICMP_ECHO && sock->local.is_client != 0) {
+        return REMOTE_ICMP_ECHO_CLIENT;
+    }
+
+    if (sock->current.packet.icmphdr->type == ICMP_ECHOREPLY && sock->local.is_client == 0) {
+        return REMOTE_ICMP_REPLY_SERVER;
+    }
+
+    for (i = 0; i < sock->remotes.used; ++i) {
+        if (sock->current.packet.icmphdr->un.echo.id == sock->remotes.descriptors[i].identifier) {
+            *desc = &sock->remotes.descriptors[i];
+            return REMOTE_FOUND;
         }
     }
+    if (i == sock->remotes.max) {
+        return REMOTE_MAX_DESCRIPTORS;
+    }
 
-    pdesc_init(psock, &psock->remotes.descriptors[i], psock->current.packet.icmphdr->un.echo.id);
+    pdesc_init(sock, &sock->remotes.descriptors[i], sock->current.packet.icmphdr->un.echo.id);
 
-    return &psock->remotes.descriptors[i];
+    *desc = &sock->remotes.descriptors[i];
+    return REMOTE_FOUND;
 }

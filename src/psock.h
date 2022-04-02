@@ -14,6 +14,10 @@ struct psock {
     int icmp_fd;
 
     struct {
+        int is_client;
+    } local;
+
+    struct {
         struct sockaddr_storage peer;
 
         struct {
@@ -21,7 +25,7 @@ struct psock {
             size_t max;
             uint8_t * buffer;
             struct icmphdr * icmphdr;
-            struct ppkt * ppkt;
+            struct ppkt * pkt;
         } packet;
     } current;
 
@@ -32,7 +36,9 @@ struct psock {
     } remotes;
 };
 
-int psock_init(struct psock *, size_t, size_t);
+int psock_init(struct psock *, int, size_t, size_t);
+
+int psock_add_server(char const *);
 
 void psock_free(struct psock *);
 
