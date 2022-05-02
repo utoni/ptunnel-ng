@@ -36,9 +36,11 @@ struct psock {
     } remotes;
 };
 
-int psock_init(struct psock *, int, size_t, size_t);
+int psock_init(struct psock *, size_t, size_t);
 
-int psock_add_server(char const *);
+int psock_setup_fds(struct psock *, int);
+
+int psock_add_server(struct psock *, char const *);
 
 void psock_free(struct psock *);
 

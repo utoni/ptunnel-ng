@@ -9,35 +9,40 @@
 
 static struct {
     int is_client;
-    struct {
-        char * str;
-    } address;
-} ptunnel_options = {.is_client = 0};
+    int log_to_console;
+} ptunnel_options = {.is_client = 0, .log_to_console = 0};
 
-int parse_options(int argc, char ** argv)
+int parse_options(struct psock * sock, int argc, char ** argv)
 {
-    int opt;
+    int ret = 0, opt;
 
-    while ((opt = getopt(argc, argv, "ca:")) != -1) {
+    while ((opt = getopt(argc, argv, "lca:")) != -1) {
         switch (opt) {
+            case 'l':
+                ptunnel_options.log_to_console = 1;
+                enable_console_logger();
+                break;
             case 'c':
                 ptunnel_options.is_client = 1;
                 break;
             case 'a':
-                ptunnel_options.address.str = strdup(optarg);
+                if (psock_add_server(sock, optarg) != 0) {
+                    logger_early(1, "Could not add server: %s", optarg);
+                    ret++;
+                }
                 break;
         }
     }
 
-    return 0;
+    return ret;
 }
 
-int validate_options(void)
+int validate_options(struct psock const * sock)
 {
     logger_early(0, "Running in %s mode.", (ptunnel_options.is_client == 0 ? "proxy" : "forward"));
 
-    if (ptunnel_options.is_client != 0 && ptunnel_options.address.str == NULL) {
-        logger_early(1, "An adress (`-a') is mandatory in forward mode.");
+    if (ptunnel_options.is_client != 0 && sock->remotes.used == 0) {
+        logger_early(1, "An address (`-a') is mandatory in forward mode.");
         return -1;
     }
 
@@ -46,29 +51,46 @@ int validate_options(void)
 
 int main(int argc, char ** argv)
 {
-    struct psock psock = {};
+    int ret = 0;
+    struct psock sock = {};
 
     init_logging("ptunnel-ng");
 
-    enable_console_logger();
-
-    if (parse_options(argc, argv) != 0) {
-        return 1;
+    if (psock_init(&sock, 16, 1500) != 0) {
+        logger(1, "%s", "Socket initialization failed");
+        ret++;
+        goto failure;
     }
 
-    if (validate_options() != 0) {
-        return 1;
+    ret += parse_options(&sock, argc, argv);
+    if (ret != 0) {
+        logger_early(1, "Command line option parsing failed: %d argument(s)", ret);
+        ret++;
+        goto failure;
     }
-
-    if (psock_init(&psock, ptunnel_options.is_client, 16, 1500) != 0) {
-        return 1;
-    }
-
-    psock_loop(&psock);
-
-    psock_free(&psock);
 
     shutdown_logging();
+    init_logging((ptunnel_options.is_client == 0 ? "ptunnel-ng-proxy" : "ptunnel-ng-forwarder"));
+    if (ptunnel_options.log_to_console != 0) {
+        enable_console_logger();
+    }
 
-    return 0;
+    if (validate_options(&sock) != 0) {
+        logger(1, "%s", "Command line validation failed");
+        ret++;
+        goto failure;
+    }
+
+    if (psock_setup_fds(&sock, ptunnel_options.is_client) != 0) {
+        logger(1, "%s", "Socket setup failed");
+        ret++;
+        goto failure;
+    }
+    psock_loop(&sock);
+
+failure:
+    psock_free(&sock);
+    shutdown_logging();
+
+    return ret;
 }

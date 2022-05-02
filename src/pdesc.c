@@ -12,7 +12,7 @@ static void pdesc_init(struct psock * sock, struct pdesc * desc, uint16_t identi
     desc->sequence = 0;
 }
 
-enum pdesc_remote_errno pdesc_find_remote(struct psock * sock, struct pdesc ** const desc)
+enum pdesc_remote_errno pdesc_find_current_remote(struct psock * sock, struct pdesc ** const desc)
 {
     size_t i;
 
@@ -33,7 +33,7 @@ enum pdesc_remote_errno pdesc_find_remote(struct psock * sock, struct pdesc ** c
     for (i = 0; i < sock->remotes.used; ++i) {
         if (sock->current.packet.icmphdr->un.echo.id == sock->remotes.descriptors[i].identifier) {
             *desc = &sock->remotes.descriptors[i];
-            return REMOTE_FOUND;
+            return REMOTE_EXISTS;
         }
     }
     if (i == sock->remotes.max) {
@@ -43,5 +43,5 @@ enum pdesc_remote_errno pdesc_find_remote(struct psock * sock, struct pdesc ** c
     pdesc_init(sock, &sock->remotes.descriptors[i], sock->current.packet.icmphdr->un.echo.id);
 
     *desc = &sock->remotes.descriptors[i];
-    return REMOTE_FOUND;
+    return REMOTE_NOT_FOUND;
 }
