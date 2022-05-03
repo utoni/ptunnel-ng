@@ -4,10 +4,10 @@
 
 #include <netinet/ip_icmp.h>
 
-static void pdesc_init(struct psock * sock, struct pdesc * desc, uint16_t identifier)
+void pdesc_init(struct pdesc * desc, struct sockaddr_storage * sockaddr, uint16_t identifier)
 {
     desc->state = PDESC_STATE_AUTH;
-    desc->peer = sock->current.peer;
+    desc->peer = *sockaddr;
     desc->identifier = identifier;
     desc->sequence = 0;
 }
@@ -31,7 +31,8 @@ enum pdesc_remote_errno pdesc_find_current_remote(struct psock * sock, struct pd
     }
 
     for (i = 0; i < sock->remotes.used; ++i) {
-        if (sock->current.packet.icmphdr->un.echo.id == sock->remotes.descriptors[i].identifier) {
+        if (sock->remotes.descriptors[i].state != PDESC_STATE_INVALID &&
+            sock->current.packet.icmphdr->un.echo.id == sock->remotes.descriptors[i].identifier) {
             *desc = &sock->remotes.descriptors[i];
             return REMOTE_EXISTS;
         }
@@ -40,8 +41,9 @@ enum pdesc_remote_errno pdesc_find_current_remote(struct psock * sock, struct pd
         return REMOTE_MAX_DESCRIPTORS;
     }
 
-    pdesc_init(sock, &sock->remotes.descriptors[i], sock->current.packet.icmphdr->un.echo.id);
+    pdesc_init(&sock->remotes.descriptors[i], &sock->current.peer, sock->current.packet.icmphdr->un.echo.id);
 
     *desc = &sock->remotes.descriptors[i];
+    sock->remotes.used++;
     return REMOTE_NOT_FOUND;
 }

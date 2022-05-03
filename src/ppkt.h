@@ -18,7 +18,6 @@ enum ptype {
 
 struct psock;
 struct pdesc;
-struct iovec;
 
 struct ppkt_auth_request {
     uint32_t magic;
@@ -54,6 +53,6 @@ int ppkt_process_icmp(struct psock *);
 
 int ppkt_process_ppkt(struct psock *);
 
-void ppkt_prepare_auth_request(struct ppkt_buffer *, uint8_t *, size_t);
+void ppkt_prepare_auth_request(struct pdesc *, struct ppkt_buffer *, uint8_t *, size_t);
 
 #endif

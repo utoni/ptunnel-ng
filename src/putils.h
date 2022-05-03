@@ -2,6 +2,8 @@
 #define PUTILS_H 1
 
 #include <stdarg.h>
+#include <stdint.h>
+#include <sys/socket.h>
 
 struct sockaddr_storage;
 
@@ -25,4 +27,7 @@ __attribute__((format(printf, 2, 3))) void logger_early(int, char const *, ...);
 
 int parse_address(struct sockaddr_storage *, char const *);
 
+uint16_t icmp_checksum_iovec(struct iovec const *, size_t);
+
+uint16_t icmp_generate_identifier(void);
 #endif

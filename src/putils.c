@@ -11,6 +11,7 @@
 #include <syslog.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <time.h>
 #include <unistd.h>
 
 static char const * app_name = NULL;
@@ -150,4 +151,46 @@ int parse_address(struct sockaddr_storage * out, char const * address)
     }
 
     return 0;
+}
+
+static inline uint16_t get_n16bit(uint8_t const * cbuf)
+{
+    uint16_t r = ((uint16_t)cbuf[0]) | (((uint16_t)cbuf[1]) << 8);
+    return r;
+}
+
+uint16_t icmp_checksum_iovec(struct iovec const * iovec, size_t iovec_size)
+{
+    uint32_t checksum = 0;
+
+    for (size_t iov_i = 0; iov_i < iovec_size; ++iov_i) {
+        uint8_t const * buf = iovec[iov_i].iov_base;
+        size_t len = iovec[iov_i].iov_len;
+
+        for (; len > 1; len -= 2) {
+            checksum += get_n16bit(buf);
+            buf += 2;
+        }
+
+        if (len == 1) {
+            checksum += *buf;
+        }
+    }
+
+    checksum = (checksum >> 16) + (checksum & 0xFFFF);
+    checksum += (checksum >> 16);
+
+    return ~checksum;
+}
+
+uint16_t icmp_generate_identifier(void)
+{
+    uint64_t current_time = time(NULL);
+    uint16_t identifier = 0;
+
+    for (size_t i = 0; i < sizeof(current_time) / 2; ++i) {
+        identifier += ((uint16_t *)&current_time)[i];
+    }
+
+    return identifier;
 }

@@ -70,7 +70,7 @@ error:
     return -1;
 }
 
-static int psock_name_to_address(char const * address, struct sockaddr_storage * const sockaddr, size_t * sockaddr_size)
+static int psock_name_to_address(char const * address, struct sockaddr_storage * sockaddr, size_t * sockaddr_size)
 {
     struct addrinfo hints = {};
     struct addrinfo *result, *rp;
@@ -120,9 +120,15 @@ int psock_add_server(struct psock * sock, char const * address)
         return -1;
     }
 
-    for (size_t addr_i = 0; sock->remotes.used < sock->remotes.max && addr_i < max_sockaddrs;
-         ++sock->remotes.used, ++addr_i) {
-        size_t desc_i = sock->remotes.used;
+    size_t desc_i = 0;
+    for (size_t addr_i = 0; desc_i < sock->remotes.max && addr_i < max_sockaddrs;) {
+        if (sock->remotes.descriptors[desc_i].state != PDESC_STATE_INVALID) {
+            desc_i++;
+            continue;
+        } else {
+            pdesc_init(&sock->remotes.descriptors[desc_i], &sockaddrs[addr_i], icmp_generate_identifier());
+            sock->remotes.descriptors[desc_i].state = PDESC_STATE_AUTH;
+        }
 
         switch (sockaddrs[addr_i].ss_family) {
             case AF_INET: {
@@ -146,7 +152,10 @@ int psock_add_server(struct psock * sock, char const * address)
                 break;
             }
         }
+
         logger_early(0, "Added remote: %s", sock->remotes.descriptors[desc_i].peer_str);
+        addr_i++;
+        sock->remotes.used++;
     }
 
     return 0;
@@ -154,6 +163,9 @@ int psock_add_server(struct psock * sock, char const * address)
 
 void psock_free(struct psock * sock)
 {
+    free(sock->current.packet.buffer);
+    sock->current.packet.buffer = NULL;
+
     free(sock->remotes.descriptors);
     sock->remotes.descriptors = NULL;
     sock->remotes.used = 0;
@@ -216,35 +228,37 @@ static int psock_sendmsg(struct psock * sock, struct iovec * const iov, size_t i
     return nwritten;
 }
 
-static void psock_handle_events(struct psock * sock)
+static struct pdesc * psock_handle_events(struct psock * sock)
 {
-    if (psock_recvmsg(sock) == 0) {
-        struct pdesc * remote;
+    struct pdesc * remote = NULL;
 
+    if (psock_recvmsg(sock) == 0) {
         switch (pdesc_find_current_remote(sock, &remote)) {
             case REMOTE_EXISTS:
-                printf("Existing Remote with descriptor ID: %u\n", remote->identifier);
+                logger(0, "Existing Remote with descriptor ID: %u", remote->identifier);
                 break;
             case REMOTE_NOT_FOUND:
-                printf("New Remote with descriptor ID: %u\n", remote->identifier);
+                logger(1, "New Remote with descriptor ID: %u", remote->identifier);
                 break;
             case REMOTE_PACKET_INVALID:
-                fprintf(stderr, "Invalid packet received.\n");
+                logger(1, "Invalid packet received.");
                 break;
             case REMOTE_ICMP_ECHO_CLIENT:
-                fprintf(stderr, "Received ICMP echo, but I am a client.\n");
+                logger(0, "Received ICMP echo, but I am a client.");
                 break;
             case REMOTE_ICMP_REPLY_SERVER:
-                fprintf(stderr, "Received ICMP reply, but I am a server.\n");
+                logger(0, "Received ICMP reply, but I am a server.");
                 break;
             case REMOTE_MAX_DESCRIPTORS:
-                fprintf(stderr, "Max descriptors reached, sorry.\n");
+                logger(1, "Max descriptors reached, sorry.");
                 break;
         }
     }
+
+    return remote;
 }
 
-void psock_loop(struct psock * sock)
+static void psock_loop_server(struct psock * sock)
 {
     const int max_events = 32;
     struct epoll_event events[max_events];
@@ -256,16 +270,63 @@ void psock_loop(struct psock * sock)
             case -1:
                 break;
             case 0:
-                if (sock->local.is_client != 0) {
-                    uint8_t b[3] = {0x41, 0x42, 0x43};
-                    struct ppkt_buffer pb;
-                    ppkt_prepare_auth_request(&pb, b, 3);
-                    psock_sendmsg(sock, pb.iovec, pb.iovec_used);
-                }
                 continue;
             default:
                 psock_handle_events(sock);
                 break;
         }
+    }
+}
+
+static void psock_loop_client_event_timeout(struct psock * sock)
+{
+    for (size_t i = 0; i < sock->remotes.max; ++i) {
+        struct pdesc * const desc = &sock->remotes.descriptors[i];
+
+        switch (desc->state) {
+            case PDESC_STATE_INVALID:
+                break;
+            case PDESC_STATE_AUTH: {
+                logger(0, "Sending authentication request.");
+
+                uint8_t b[3] = {0x41, 0x42, 0x43};
+                struct ppkt_buffer pb;
+                ppkt_prepare_auth_request(desc, &pb, b, 3);
+                psock_sendmsg(sock, pb.iovec, pb.iovec_used);
+                break;
+            }
+            case PDESC_STATE_DATA:
+                break;
+        }
+    }
+}
+
+static void psock_loop_client(struct psock * sock)
+{
+    const int max_events = 16;
+    struct epoll_event events[max_events];
+
+    while (1) {
+        int nready = epoll_wait(sock->epoll_fd, events, max_events, 1000);
+
+        switch (nready) {
+            case -1:
+                break;
+            case 0:
+                psock_loop_client_event_timeout(sock);
+                break;
+            default:
+                psock_handle_events(sock);
+                break;
+        }
+    }
+}
+
+void psock_loop(struct psock * sock)
+{
+    if (sock->local.is_client == 0) {
+        psock_loop_server(sock);
+    } else {
+        psock_loop_client(sock);
     }
 }

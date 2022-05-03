@@ -1,6 +1,7 @@
 #include "pdesc.h"
 #include "ppkt.h"
 #include "psock.h"
+#include "putils.h"
 
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
@@ -68,7 +69,7 @@ int ppkt_process_ppkt(struct psock * sock)
     return 0;
 }
 
-static size_t ppkt_prepare_ppkt(struct ppkt * pkt, enum ptype type, size_t additional_size)
+static size_t ppkt_sizeof_pkt(struct ppkt * pkt, enum ptype type, size_t additional_size)
 {
     size_t subpkt_size;
 
@@ -91,15 +92,40 @@ static size_t ppkt_prepare_ppkt(struct ppkt * pkt, enum ptype type, size_t addit
     return sizeof(*pkt) + subpkt_size + additional_size;
 }
 
-void ppkt_prepare_auth_request(struct ppkt_buffer * const pkt_buf, uint8_t * const hash, size_t hash_siz)
+static size_t ppkt_init_pkt(struct pdesc const * desc,
+                            struct ppkt_buffer * pkt_buf,
+                            enum ptype type,
+                            size_t additional_size)
 {
-    size_t total_size = ppkt_prepare_ppkt(&pkt_buf->pkt, PTYPE_AUTH_REQUEST, hash_siz);
+    pkt_buf->icmphdr.un.echo.id = desc->identifier;
+    switch (type) {
+        case PTYPE_INVALID:
+            pkt_buf->icmphdr.type = 3; // Destination Unreachable
+            break;
+        case PTYPE_AUTH_REQUEST:
+            pkt_buf->icmphdr.type = 8; // Echo Request
+            break;
+        case PTYPE_AUTH_RESPONSE:
+            pkt_buf->icmphdr.type = 0; // Echo Reply
+            break;
+    }
+    pkt_buf->icmphdr.code = 0;
+
+    return ppkt_sizeof_pkt(&pkt_buf->pkt, type, additional_size);
+}
+
+static void ppkt_finalize_pkt(struct ppkt_buffer * const pkt_buf)
+{
+    pkt_buf->icmphdr.checksum = 0;
+    pkt_buf->icmphdr.checksum = icmp_checksum_iovec(pkt_buf->iovec, pkt_buf->iovec_used);
+}
+
+void ppkt_prepare_auth_request(struct pdesc * desc, struct ppkt_buffer * pkt_buf, uint8_t * hash, size_t hash_siz)
+{
+    size_t total_size = ppkt_init_pkt(desc, pkt_buf, PTYPE_AUTH_REQUEST, hash_siz);
 
     pkt_buf->auth_request.magic = htonl(PTUNNEL_MAGIC);
     pkt_buf->auth_request.hash_siz = hash_siz;
-
-    pkt_buf->icmphdr.type = 8;
-    pkt_buf->icmphdr.code = 0;
 
     pkt_buf->iovec[0].iov_base = &pkt_buf->icmphdr;
     pkt_buf->iovec[0].iov_len = sizeof(pkt_buf->icmphdr);
@@ -114,4 +140,6 @@ void ppkt_prepare_auth_request(struct ppkt_buffer * const pkt_buf, uint8_t * con
     pkt_buf->iovec[3].iov_len = hash_siz;
 
     pkt_buf->iovec_used = 4;
+
+    ppkt_finalize_pkt(pkt_buf);
 }
