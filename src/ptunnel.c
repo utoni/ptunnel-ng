@@ -56,7 +56,7 @@ int main(int argc, char ** argv)
 
     init_logging("ptunnel-ng");
 
-    if (psock_init(&sock, 16, 1500) != 0) {
+    if (psock_init(&sock, 16) != 0) {
         logger(1, "%s", "Socket initialization failed");
         ret++;
         goto failure;

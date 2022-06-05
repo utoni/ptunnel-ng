@@ -1,13 +1,12 @@
 #ifndef PSOCK_H
 #define PSOCK_H 1
 
-#include <netinet/in.h>
+#include "ppkt.h"
+
 #include <stdint.h>
 #include <stdlib.h>
 
-struct icmphdr;
 struct pdesc;
-struct ppkt;
 
 struct psock {
     int epoll_fd;
@@ -19,14 +18,8 @@ struct psock {
 
     struct {
         struct sockaddr_storage peer;
-
-        struct {
-            size_t used;
-            size_t max;
-            uint8_t * buffer;
-            struct icmphdr * icmphdr;
-            struct ppkt * pkt;
-        } packet;
+        size_t bytes_read;
+        struct ppkt_buffer pkt_buf;
     } current;
 
     struct {
@@ -36,7 +29,7 @@ struct psock {
     } remotes;
 };
 
-int psock_init(struct psock *, size_t, size_t);
+int psock_init(struct psock *, size_t);
 
 int psock_setup_fds(struct psock *, int);
 

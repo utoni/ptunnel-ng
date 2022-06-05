@@ -22,17 +22,17 @@ enum pdesc_remote_errno pdesc_find_current_remote(struct psock * sock, struct pd
         return REMOTE_PACKET_INVALID;
     }
 
-    if (sock->current.packet.icmphdr->type == ICMP_ECHO && sock->local.is_client != 0) {
+    if (sock->current.pkt_buf.icmphdr.type == ICMP_ECHO && sock->local.is_client != 0) {
         return REMOTE_ICMP_ECHO_CLIENT;
     }
 
-    if (sock->current.packet.icmphdr->type == ICMP_ECHOREPLY && sock->local.is_client == 0) {
+    if (sock->current.pkt_buf.icmphdr.type == ICMP_ECHOREPLY && sock->local.is_client == 0) {
         return REMOTE_ICMP_REPLY_SERVER;
     }
 
     for (i = 0; i < sock->remotes.used; ++i) {
         if (sock->remotes.descriptors[i].state != PDESC_STATE_INVALID &&
-            sock->current.packet.icmphdr->un.echo.id == sock->remotes.descriptors[i].identifier) {
+            sock->current.pkt_buf.icmphdr.un.echo.id == sock->remotes.descriptors[i].identifier) {
             *desc = &sock->remotes.descriptors[i];
             return REMOTE_EXISTS;
         }
@@ -41,7 +41,7 @@ enum pdesc_remote_errno pdesc_find_current_remote(struct psock * sock, struct pd
         return REMOTE_MAX_DESCRIPTORS;
     }
 
-    pdesc_init(&sock->remotes.descriptors[i], &sock->current.peer, sock->current.packet.icmphdr->un.echo.id);
+    pdesc_init(&sock->remotes.descriptors[i], &sock->current.peer, sock->current.pkt_buf.icmphdr.un.echo.id);
 
     *desc = &sock->remotes.descriptors[i];
     sock->remotes.used++;
