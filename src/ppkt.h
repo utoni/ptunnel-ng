@@ -7,9 +7,7 @@
 
 #define PTUNNEL_MAGIC 0xdeadc0de
 
-#define PTUNNAL_MAX_BODY_SIZE (1500 - sizeof(struct iphdr) \
-                                    - sizeof(struct icmphdr) \
-                                    - sizeof(struct ppkt_header))
+#define PTUNNAL_MAX_BODY_SIZE (1500 - sizeof(struct iphdr) - sizeof(struct icmphdr) - sizeof(struct ppkt_header))
 
 enum ptype {
     PTYPE_INVALID = 0,
@@ -31,6 +29,7 @@ struct ppkt_auth_response {
 } __attribute__((__packed__));
 
 struct ppkt_header {
+    // sizeof(header) + sizeof(body) + sizeof(data)
     uint16_t total_size;
     uint8_t type;
 } __attribute__((__packed__));
@@ -50,7 +49,7 @@ struct ppkt_buffer {
     union ppkt_body pbody;
 };
 
-enum ptype ppkt_type_to_enum(struct ppkt_header *);
+enum ptype ppkt_type_to_enum(struct ppkt_header const *);
 
 int ppkt_process_icmp(struct psock *);
 

@@ -14,10 +14,11 @@ struct psock {
 
     struct {
         int is_client;
+        struct paddr addr;
     } local;
 
     struct {
-        struct sockaddr_storage peer;
+        struct sockaddr_storage peer_sockaddr;
         size_t bytes_read;
         struct ppkt_buffer pkt_buf;
     } current;

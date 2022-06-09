@@ -3,9 +3,9 @@
 #include "ppkt.h"
 #include "putils.h"
 
-#include <arpa/inet.h>
 #include <errno.h>
 #include <netdb.h>
+#include <net/if.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -43,11 +43,28 @@ error:
 int psock_setup_fds(struct psock * sock, int is_client)
 {
     struct epoll_event ev;
+    socklen_t addrlen = sizeof(sock->local.addr);
+    char const ifname[IFNAMSIZ] = "wifi0";
+    const socklen_t ifname_len = strnlen(ifname, IFNAMSIZ);
 
     errno = 0;
 
     sock->icmp_fd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
     if (sock->icmp_fd < 0) {
+        goto error;
+    }
+
+    if (ifname_len == IFNAMSIZ) {
+        goto error;
+    }
+#if 0
+    if (setsockopt(sock->icmp_fd, SOL_SOCKET, SO_BINDTODEVICE, ifname, ifname_len) != 0) {
+        goto error;
+    }
+#endif
+
+    if (getsockname(sock->icmp_fd, (struct sockaddr *)&sock->local.addr, &addrlen) != 0 ||
+        addrlen > sizeof(sock->local.addr)) {
         goto error;
     }
 
@@ -128,34 +145,14 @@ int psock_add_server(struct psock * sock, char const * address)
             desc_i++;
             continue;
         } else {
-            pdesc_init(&sock->remotes.descriptors[desc_i], &sockaddrs[addr_i], icmp_generate_identifier());
+            pdesc_init(&sock->remotes.descriptors[desc_i], icmp_generate_identifier());
+            if (pdesc_set_addr(&sock->remotes.descriptors[desc_i].peer, &sockaddrs[addr_i]) != 0) {
+                return -1;
+            }
             sock->remotes.descriptors[desc_i].state = PDESC_STATE_AUTH;
         }
 
-        switch (sockaddrs[addr_i].ss_family) {
-            case AF_INET: {
-                struct in_addr addr = ((struct sockaddr_in *)&sockaddrs[addr_i])->sin_addr;
-                if (inet_ntop(AF_INET, &addr, sock->remotes.descriptors[desc_i].peer_str, sizeof(struct sockaddr_in)) ==
-                    NULL) {
-                    logger_early(1, "inet_ntop() conversion failed: %s", strerror(errno));
-                    return -1;
-                }
-                break;
-            }
-            case AF_INET6: {
-                struct in6_addr addr = ((struct sockaddr_in6 *)&sockaddrs[addr_i])->sin6_addr;
-                if (inet_ntop(AF_INET6,
-                              &addr,
-                              sock->remotes.descriptors[desc_i].peer_str,
-                              sizeof(struct sockaddr_in6)) == NULL) {
-                    logger_early(1, "inet_ntop() conversion failed: %s", strerror(errno));
-                    return -1;
-                }
-                break;
-            }
-        }
-
-        logger_early(0, "Added remote: %s", sock->remotes.descriptors[desc_i].peer_str);
+        logger_early(0, "Added remote: %s", sock->remotes.descriptors[desc_i].peer.str);
         addr_i++;
         sock->remotes.used++;
     }
@@ -180,7 +177,7 @@ void psock_free(struct psock * sock)
 static void psock_process_cmsg(struct msghdr * hdr)
 {
     for (struct cmsghdr * cmsg = CMSG_FIRSTHDR(hdr); cmsg != NULL; cmsg = CMSG_NXTHDR(hdr, cmsg)) {
-        printf("CMSG TYPE/LEVEL/LEN: %d / %d / %zu\n", cmsg->cmsg_type, cmsg->cmsg_level, cmsg->cmsg_len);
+        logger(1, "CMSG TYPE/LEVEL/LEN: %d / %d / %zu\n", cmsg->cmsg_type, cmsg->cmsg_level, cmsg->cmsg_len);
     }
 }
 
@@ -193,8 +190,8 @@ static int psock_recvmsg(struct psock * sock)
     sock->current.pkt_buf.iovec[0].iov_base = &iphdr;
     sock->current.pkt_buf.iovec[0].iov_len = sizeof(iphdr);
 
-    msghdr.msg_name = &sock->current.peer;
-    msghdr.msg_namelen = sizeof(sock->current.peer);
+    msghdr.msg_name = &sock->current.peer_sockaddr;
+    msghdr.msg_namelen = sizeof(sock->current.peer_sockaddr);
     msghdr.msg_iov = sock->current.pkt_buf.iovec;
     msghdr.msg_iovlen = sock->current.pkt_buf.iovec_used;
 
@@ -212,13 +209,13 @@ static int psock_recvmsg(struct psock * sock)
     }
 }
 
-static int psock_sendmsg(struct psock * sock, struct iovec * const iov, size_t iovlen)
+static int psock_sendmsg(struct psock const * sock, struct sockaddr_storage * dest, struct iovec * iov, size_t iovlen)
 {
     struct msghdr hdr = {};
     ssize_t nwritten;
 
-    hdr.msg_name = &sock->current.peer;
-    hdr.msg_namelen = sizeof(sock->current.peer);
+    hdr.msg_name = dest;
+    hdr.msg_namelen = sizeof(*dest);
     hdr.msg_iov = iov;
     hdr.msg_iovlen = iovlen;
 
@@ -242,6 +239,9 @@ static struct pdesc * psock_get_remote(struct psock * sock)
             case REMOTE_PACKET_INVALID:
                 logger(1, "Invalid packet received.");
                 break;
+            case REMOTE_ADDR_INVALID:
+                logger(1, "Remote address invalid.");
+                break;
             case REMOTE_ICMP_ECHO_CLIENT:
                 logger(0, "Received ICMP echo request, but I am a client.");
                 break;
@@ -259,22 +259,21 @@ static struct pdesc * psock_get_remote(struct psock * sock)
 
 static void psock_loop_server_process_packet(struct psock * sock, struct pdesc * desc)
 {
-  (void)sock;
+    (void)sock;
 
-  switch (desc->state) {
-    case PDESC_STATE_INVALID:
-      break;
-    case PDESC_STATE_AUTH:
-      if (ppkt_type_to_enum(&sock->current.pkt_buf.pheader) != PTYPE_AUTH_REQUEST)
-      {
-        logger(1, "Expected authentication request from client.");
-        return;
-      }
-      logger(0, "Received authentication request from client.");
-      break;
-    case PDESC_STATE_DATA:
-      break;
-  }
+    switch (desc->state) {
+        case PDESC_STATE_INVALID:
+            break;
+        case PDESC_STATE_AUTH:
+            if (ppkt_type_to_enum(&sock->current.pkt_buf.pheader) != PTYPE_AUTH_REQUEST) {
+                logger(1, "Expected authentication request from client.");
+                return;
+            }
+            logger(0, "Received authentication request from client.");
+            break;
+        case PDESC_STATE_DATA:
+            break;
+    }
 }
 
 static void psock_loop_server(struct psock * sock)
@@ -293,8 +292,7 @@ static void psock_loop_server(struct psock * sock)
             default: {
                 struct pdesc * const desc = psock_get_remote(sock);
 
-                if (desc == NULL)
-                {
+                if (desc == NULL) {
                     break;
                 }
                 psock_loop_server_process_packet(sock, desc);
@@ -318,7 +316,7 @@ static void psock_loop_client_event_timeout(struct psock * sock)
                 uint8_t b[3] = {0x41, 0x42, 0x43};
                 struct ppkt_buffer pb;
                 ppkt_prepare_auth_request(desc, &pb, b, 3);
-                psock_sendmsg(sock, pb.iovec, pb.iovec_used);
+                psock_sendmsg(sock, &desc->peer.sockaddr, pb.iovec, pb.iovec_used);
                 break;
             }
             case PDESC_STATE_DATA:

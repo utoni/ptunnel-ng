@@ -162,10 +162,21 @@ static inline uint16_t get_n16bit(uint8_t const * cbuf)
 uint16_t icmp_checksum_iovec(struct iovec const * iovec, size_t iovec_size)
 {
     uint32_t checksum = 0;
+    uint16_t result;
+    uint8_t is_overlapping = 0;
+    uint8_t overlap[2] = {0x00, 0x00};
 
     for (size_t iov_i = 0; iov_i < iovec_size; ++iov_i) {
         uint8_t const * buf = iovec[iov_i].iov_base;
         size_t len = iovec[iov_i].iov_len;
+
+        if (is_overlapping != 0 && len > 0) {
+            overlap[1] = buf[0];
+            checksum += get_n16bit(overlap);
+            buf++;
+            len--;
+            is_overlapping = 0;
+        }
 
         for (; len > 1; len -= 2) {
             checksum += get_n16bit(buf);
@@ -173,14 +184,22 @@ uint16_t icmp_checksum_iovec(struct iovec const * iovec, size_t iovec_size)
         }
 
         if (len == 1) {
-            checksum += *buf;
+            overlap[0] = *buf;
+            is_overlapping = 1;
         }
     }
 
-    checksum = (checksum >> 16) + (checksum & 0xFFFF);
-    checksum += (checksum >> 16);
+    if (is_overlapping != 0) {
+        checksum += overlap[0];
+    }
 
-    return ~checksum;
+    while (checksum >> 16 > 0) {
+        checksum = (checksum >> 16) + (checksum & 0xFFFF);
+    }
+
+    result = ~checksum;
+
+    return result;
 }
 
 uint16_t icmp_generate_identifier(void)
