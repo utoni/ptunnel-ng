@@ -62,14 +62,14 @@ int pdesc_set_addr(struct paddr * addr, struct sockaddr_storage const * sockaddr
     addr->sockaddr = *sockaddr;
 
     switch (sockaddr->ss_family) {
-        case AF_INET:
+        case AF_INET: ;
             struct in_addr in_addr = ((struct sockaddr_in *)sockaddr)->sin_addr;
             if (inet_ntop(AF_INET, &in_addr, addr->str, sizeof(struct sockaddr_in)) == NULL) {
                 return -1;
             }
             break;
 
-        case AF_INET6:
+        case AF_INET6: ;
             struct in6_addr in6_addr = ((struct sockaddr_in6 *)sockaddr)->sin6_addr;
             if (inet_ntop(AF_INET, &in6_addr, addr->str, sizeof(struct sockaddr_in6)) == NULL) {
                 return -1;
