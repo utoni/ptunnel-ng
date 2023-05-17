@@ -157,7 +157,11 @@ static const struct option_usage usage[] = {
 #endif
 	},
 	/** --daemon */
+#ifdef __FreeBSD__
+	{"pidfile",      0, OPT_STR,    {.str = "/var/run/ptunnel.pid"},
+#else
 	{"pidfile",      0, OPT_STR,    {.str = "/run/ptunnel.pid"},
+#endif
 #ifdef WIN32
 		"(Not available on this platform.)\n"
 #endif
