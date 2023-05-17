@@ -5,6 +5,7 @@
 [![GitHub issues](https://img.shields.io/github/issues/lnslbrty/ptunnel-ng.svg)](https://github.com/lnslbrty/ptunnel-ng/issues)
 [![GitHub license](https://img.shields.io/github/license/lnslbrty/ptunnel-ng.svg)](https://github.com/lnslbrty/ptunnel-ng/blob/master/COPYING)
 [![Gitter chat](https://badges.gitter.im/ptunnel-ng/Lobby.png)](https://gitter.im/ptunnel-ng/Lobby)
+[![Packaging status](https://repology.org/badge/tiny-repos/ptunnel-ng.svg)](https://repology.org/project/ptunnel-ng/versions)
 
 # PingTunnel-[N]ew[G]eneration Read Me
 
