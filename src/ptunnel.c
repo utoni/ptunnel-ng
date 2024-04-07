@@ -215,7 +215,7 @@ int main(int argc, char *argv[]) {
 		pt_log(kLog_info, "Running ptunnel-ng on Windows in ICMP mode without WinPcap/Npcap enabled is not supported and may not work!\n");
         pt_log(kLog_info, "If you encounter problems, install WinPCAP/Npcap from:\n");
 		pt_log(kLog_info, "https://www.winpcap.org/install/default.htm or Npcap for WIN10: https://nmap.org/npcap/windows-10.html\n");
-		pt_log(kLog_info, "After WinPCAP is installed, you can list pcap devices with: --list-pcap-devices\n");
+		pt_log(kLog_info, "After WinPCAP is installed, you can list pcap devices with: --list-libpcap-devices\n");
 	}
 #endif
 #endif
